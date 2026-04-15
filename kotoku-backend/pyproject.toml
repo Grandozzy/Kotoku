@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "kotoku-backend"
+version = "0.1.0"
+description = "Kotoku backend service scaffold."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+  "celery>=5.4,<6.0",
+  "dj-database-url>=2.2,<3.0",
+  "django>=5.1,<6.0",
+  "djangorestframework>=3.15,<4.0",
+  "gunicorn>=23.0,<24.0",
+  "psycopg[binary]>=3.2,<4.0",
+  "python-dotenv>=1.0,<2.0",
+  "redis>=5.2,<6.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.3,<9.0",
+  "pytest-django>=4.9,<5.0",
+  "ruff>=0.11,<0.12",
+]
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+include = ["apps*", "common*", "config*", "infrastructure*"]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings.test"
+python_files = ["tests.py", "test_*.py", "*_tests.py"]
+testpaths = ["tests", "apps"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B"]
