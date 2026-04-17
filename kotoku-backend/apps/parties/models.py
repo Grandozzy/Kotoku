@@ -5,11 +5,10 @@ from apps.identity.models import IdentityRecord
 
 
 class Party(models.Model):
-    ROLE_CHOICES = [
-        ("buyer", "Buyer"),
-        ("seller", "Seller"),
-        ("witness", "Witness"),
-    ]
+    class Role(models.TextChoices):
+        BUYER = "buyer", "Buyer"
+        SELLER = "seller", "Seller"
+        WITNESS = "witness", "Witness"
 
     agreement = models.ForeignKey(
         Agreement,
@@ -21,7 +20,7 @@ class Party(models.Model):
         on_delete=models.CASCADE,
         related_name="parties",
     )
-    role = models.CharField(max_length=20, choices=ROLE_CHOICES)
+    role = models.CharField(max_length=20, choices=Role.choices)
     display_name = models.CharField(max_length=255)
     created_at = models.DateTimeField(auto_now_add=True)
 

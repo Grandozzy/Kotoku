@@ -5,12 +5,11 @@ from apps.parties.models import Party
 
 
 class EvidenceItem(models.Model):
-    FILE_TYPE_CHOICES = [
-        ("photo", "Photo"),
-        ("voice_note", "Voice Note"),
-        ("signature", "Signature"),
-        ("document", "Document"),
-    ]
+    class FileType(models.TextChoices):
+        PHOTO = "photo", "Photo"
+        VOICE_NOTE = "voice_note", "Voice Note"
+        SIGNATURE = "signature", "Signature"
+        DOCUMENT = "document", "Document"
 
     agreement = models.ForeignKey(
         Agreement,
@@ -22,7 +21,7 @@ class EvidenceItem(models.Model):
         on_delete=models.CASCADE,
         related_name="uploaded_evidence",
     )
-    file_type = models.CharField(max_length=20, choices=FILE_TYPE_CHOICES)
+    file_type = models.CharField(max_length=20, choices=FileType.choices)
     file_hash = models.CharField(max_length=128)
     storage_url = models.URLField(blank=True)
     original_name = models.CharField(max_length=255, blank=True)

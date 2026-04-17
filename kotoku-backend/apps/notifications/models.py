@@ -4,28 +4,27 @@ from apps.accounts.models import Account
 
 
 class Notification(models.Model):
-    CHANNEL_CHOICES = [
-        ("sms", "SMS"),
-        ("whatsapp", "WhatsApp"),
-        ("in_app", "In-App"),
-    ]
-    STATUS_CHOICES = [
-        ("pending", "Pending"),
-        ("sent", "Sent"),
-        ("failed", "Failed"),
-    ]
+    class Channel(models.TextChoices):
+        SMS = "sms", "SMS"
+        WHATSAPP = "whatsapp", "WhatsApp"
+        IN_APP = "in_app", "In-App"
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        SENT = "sent", "Sent"
+        FAILED = "failed", "Failed"
 
     account = models.ForeignKey(
         Account,
         on_delete=models.CASCADE,
         related_name="notifications",
     )
-    channel = models.CharField(max_length=10, choices=CHANNEL_CHOICES)
+    channel = models.CharField(max_length=10, choices=Channel.choices)
     body = models.TextField()
     status = models.CharField(
         max_length=10,
-        choices=STATUS_CHOICES,
-        default="pending",
+        choices=Status.choices,
+        default=Status.PENDING,
         db_index=True,
     )
     sent_at = models.DateTimeField(null=True, blank=True)

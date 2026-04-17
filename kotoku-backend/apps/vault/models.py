@@ -17,7 +17,7 @@ class VaultEntry(models.Model):
     )
     sealed_at = models.DateTimeField(null=True, blank=True)
     pdf_url = models.URLField(blank=True)
-    archived = models.BooleanField(default=False)
+    archived = models.BooleanField(default=False, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self) -> str:

@@ -5,10 +5,9 @@ from apps.parties.models import Party
 
 
 class ConsentRecord(models.Model):
-    CHANNEL_CHOICES = [
-        ("sms", "SMS"),
-        ("whatsapp", "WhatsApp"),
-    ]
+    class Channel(models.TextChoices):
+        SMS = "sms", "SMS"
+        WHATSAPP = "whatsapp", "WhatsApp"
 
     agreement = models.ForeignKey(
         Agreement,
@@ -20,8 +19,8 @@ class ConsentRecord(models.Model):
         on_delete=models.CASCADE,
         related_name="consent_records",
     )
-    otp_code = models.CharField(max_length=6)
-    channel = models.CharField(max_length=10, choices=CHANNEL_CHOICES)
+    otp_code_hash = models.CharField(max_length=128)
+    channel = models.CharField(max_length=10, choices=Channel.choices)
     granted = models.BooleanField(default=False)
     granted_at = models.DateTimeField(null=True, blank=True)
     expires_at = models.DateTimeField()

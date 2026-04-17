@@ -11,3 +11,6 @@ class AuditLog(models.Model):
 
     class Meta:
         ordering = ("-created_at",)
+        indexes = [
+            models.Index(fields=["entity_type", "entity_id"], name="audit_entity_idx"),
+        ]

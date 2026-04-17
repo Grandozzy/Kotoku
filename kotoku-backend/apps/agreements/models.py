@@ -1,16 +1,22 @@
 from django.db import models
 
 from apps.accounts.models import Account
-from apps.agreements.domain.enums import AgreementStatus
 
 
 class Agreement(models.Model):
+    class Status(models.TextChoices):
+        DRAFT = "draft", "Draft"
+        PENDING_CONSENT = "pending_consent", "Pending Consent"
+        ACTIVE = "active", "Active"
+        SEALED = "sealed", "Sealed"
+        CLOSED = "closed", "Closed"
+
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True)
     status = models.CharField(
         max_length=20,
-        choices=[(s.value, s.name) for s in AgreementStatus],
-        default=AgreementStatus.DRAFT,
+        choices=Status.choices,
+        default=Status.DRAFT,
         db_index=True,
     )
     scenario_template = models.CharField(max_length=128, blank=True)

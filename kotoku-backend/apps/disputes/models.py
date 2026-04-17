@@ -5,12 +5,11 @@ from apps.parties.models import Party
 
 
 class Dispute(models.Model):
-    STATUS_CHOICES = [
-        ("open", "Open"),
-        ("investigating", "Investigating"),
-        ("resolved", "Resolved"),
-        ("dismissed", "Dismissed"),
-    ]
+    class Status(models.TextChoices):
+        OPEN = "open", "Open"
+        INVESTIGATING = "investigating", "Investigating"
+        RESOLVED = "resolved", "Resolved"
+        DISMISSED = "dismissed", "Dismissed"
 
     agreement = models.ForeignKey(
         Agreement,
@@ -25,8 +24,8 @@ class Dispute(models.Model):
     reason = models.TextField()
     status = models.CharField(
         max_length=15,
-        choices=STATUS_CHOICES,
-        default="open",
+        choices=Status.choices,
+        default=Status.OPEN,
         db_index=True,
     )
     resolution = models.TextField(blank=True)
