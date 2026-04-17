@@ -5,4 +5,4 @@ from .models import ConsentRecord
 
 @admin.register(ConsentRecord)
 class ConsentRecordAdmin(admin.ModelAdmin):
-    list_display = ("id", "granted")
+    list_display = ("id", "agreement", "party", "channel", "granted", "expires_at")
