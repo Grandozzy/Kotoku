@@ -47,3 +47,10 @@ init docs/
 *.swp
 *.swo
 TASKS.md
+DOCKER_AND_DB.md
+
+# playwright-cli
+.playwright-cli/
+pgadmin_*.png
+pgadmin_connected.png
+tree_expanded.yaml
