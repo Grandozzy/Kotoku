@@ -5,4 +5,4 @@ from .models import VaultEntry
 
 @admin.register(VaultEntry)
 class VaultEntryAdmin(admin.ModelAdmin):
-    list_display = ("id", "key")
+    list_display = ("id", "agreement", "evidence_item", "sealed_at", "archived")
