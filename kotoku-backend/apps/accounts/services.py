@@ -1,5 +1,5 @@
-from apps.audit.services import AuditService
 from apps.accounts.models import Account
+from apps.audit.services import AuditService
 
 
 class AccountService:
