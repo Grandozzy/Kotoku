@@ -120,7 +120,7 @@ class TestRequestConsent:
         ConsentService.request_consent(agreement_id=agreement.pk)
         assert Notification.objects.count() == 2
         for n in Notification.objects.all():
-            assert n.status == Notification.Status.PENDING
+            assert n.status == Notification.Status.SENT
             assert "verification code" in n.body.lower()
 
     def test_emits_audit_events(self, db):

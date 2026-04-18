@@ -11,6 +11,7 @@ from apps.agreements.models import Agreement
 from apps.audit.services import AuditService
 from apps.consent.models import ConsentRecord
 from apps.notifications.models import Notification
+from apps.notifications.services import NotificationService
 from apps.parties.models import Party
 from common.exceptions import DomainError
 
@@ -56,11 +57,10 @@ class ConsentService:
                 channel=ConsentRecord.Channel.SMS,
                 expires_at=generate_otp_expiry(),
             )
-            Notification.objects.create(
-                account=party.identity.account,
+            NotificationService.send_notification(
+                account_id=party.identity.account.pk,
                 channel=Notification.Channel.SMS,
                 body=f"Your verification code is {otp_code}. It expires in 10 minutes.",
-                status=Notification.Status.PENDING,
             )
             AuditService.record_event(
                 event_type="consent.requested",
