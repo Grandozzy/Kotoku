@@ -39,7 +39,11 @@ class ConsentService:
             raise DomainError(
                 "Cannot request consent: agreement must be in pending_consent status"
             )
-        parties = list(Party.objects.filter(agreement=agreement).select_related("identity__account"))
+        parties = list(
+            Party.objects.filter(agreement=agreement).select_related(
+                "identity__account"
+            )
+        )
         if not parties:
             raise DomainError("Cannot request consent: agreement has no parties")
         records = []
@@ -75,7 +79,7 @@ class ConsentService:
                 pk=consent_record_id
             )
         except ConsentRecord.DoesNotExist:
-            raise DomainError("Consent record not found")
+            raise DomainError("Consent record not found") from None
         if record.granted:
             raise DomainError("Consent already granted")
         if record.expires_at < timezone.now():

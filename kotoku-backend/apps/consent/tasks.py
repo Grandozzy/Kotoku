@@ -1,7 +1,6 @@
 from apps.agreements.domain.state_machine import next_state
 from apps.agreements.models import Agreement
 from apps.audit.services import AuditService
-from apps.consent.models import ConsentRecord
 from apps.consent.selectors import ConsentSelector
 
 
