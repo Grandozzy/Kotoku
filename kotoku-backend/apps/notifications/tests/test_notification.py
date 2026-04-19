@@ -2,16 +2,21 @@ from unittest.mock import patch
 
 import pytest
 
-from apps.accounts.models import Account
+from apps.accounts.models import Account, User
 from apps.audit.models import AuditLog
 from apps.notifications.models import Notification
 from apps.notifications.services import NotificationService
 from apps.notifications.tasks import dispatch_notification
 from infrastructure.sms.gateway import SmsGateway
 
+_seq = 0
+
 
 def _account(email="notify@test.com", phone="+233555000111"):
-    return Account.objects.create(email=email, phone=phone)
+    global _seq
+    _seq += 1
+    user = User.objects.create_user(phone=phone or f"+233{_seq:09d}")
+    return Account.objects.create(user=user, email=email, phone=phone)
 
 
 class TestNotificationService:
