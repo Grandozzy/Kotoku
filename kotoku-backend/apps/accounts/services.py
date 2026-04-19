@@ -1,4 +1,4 @@
-from apps.accounts.models import Account
+from apps.accounts.models import Account, User
 from apps.audit.services import AuditService
 
 
@@ -13,7 +13,13 @@ class AccountService:
         phone: str = "",
         actor: str = "system",
     ) -> Account:
-        account = Account.objects.create(email=email, full_name=full_name, phone=phone)
+        user = User.objects.create_user(phone=phone or email)
+        account = Account.objects.create(
+            user=user,
+            email=email,
+            full_name=full_name,
+            phone=phone,
+        )
         AuditService.record_event(
             event_type="account.created",
             entity_type="account",
