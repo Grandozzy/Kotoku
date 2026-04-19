@@ -17,6 +17,9 @@ dependencies = [
   "psycopg[binary]>=3.2,<4.0",
   "python-dotenv>=1.0,<2.0",
   "redis>=5.2,<6.0",
+  "boto3>=1.35,<2.0",
+  "sentry-sdk>=2.0,<3.0",
+  "django-storages>=1.14,<2.0",
 ]
 
 [project.optional-dependencies]
