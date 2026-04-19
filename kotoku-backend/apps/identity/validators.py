@@ -1,2 +1,8 @@
+from django.core.exceptions import ValidationError
+
+
 def validate_identity_reference(value: str) -> str:
-    return value.strip()
+    stripped = value.strip()
+    if not stripped:
+        raise ValidationError("Identity reference cannot be empty or whitespace-only.")
+    return stripped

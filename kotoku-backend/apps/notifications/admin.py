@@ -5,4 +5,7 @@ from .models import Notification
 
 @admin.register(Notification)
 class NotificationAdmin(admin.ModelAdmin):
-    list_display = ("id", "channel")
+    list_display = ("id", "account", "channel", "status", "created_at")
+    list_select_related = ("account",)
+    search_fields = ("body", "account__email")
+    list_filter = ("channel", "status")
