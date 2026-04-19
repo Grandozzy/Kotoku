@@ -2,7 +2,7 @@ from unittest.mock import patch
 
 import pytest
 
-from apps.accounts.models import Account
+from apps.accounts.models import Account, User
 from apps.agreements.services import AgreementService
 from apps.audit.models import AuditLog
 from apps.evidence.models import EvidenceItem
@@ -12,9 +12,14 @@ from apps.identity.models import IdentityRecord
 from apps.parties.models import Party
 from common.exceptions import DomainError
 
+_seq = 0
+
 
 def _account(email="evidence@test.com"):
-    return Account.objects.create(email=email)
+    global _seq
+    _seq += 1
+    user = User.objects.create_user(phone=f"+233{_seq:09d}")
+    return Account.objects.create(user=user, email=email, phone=user.phone)
 
 
 def _identity(account, ref="ev-ref-1"):
