@@ -2,7 +2,7 @@ import pytest
 from django.db import connection
 from django.test.utils import CaptureQueriesContext
 
-from apps.accounts.models import Account
+from apps.accounts.models import Account, User
 from apps.agreements.domain.enums import AgreementStatus
 from apps.agreements.models import Agreement
 from apps.agreements.selectors import AgreementSelector
@@ -20,7 +20,11 @@ def _unique_email():
 
 
 def _account():
-    return Account.objects.create(email=_unique_email())
+    global _counter
+    _counter += 1
+    email = f"sel{_counter}@test.com"
+    user = User.objects.create_user(phone=f"+233{_counter:09d}")
+    return Account.objects.create(user=user, email=email, phone=user.phone)
 
 
 def _agreement(title="T", created_by=None, status=AgreementStatus.DRAFT):

@@ -3,7 +3,7 @@ from datetime import timedelta
 import pytest
 from django.utils import timezone
 
-from apps.accounts.models import Account
+from apps.accounts.models import Account, User
 from apps.agreements.domain.enums import AgreementStatus
 from apps.agreements.services import AgreementService
 from apps.audit.models import AuditLog
@@ -12,9 +12,14 @@ from apps.identity.models import IdentityRecord
 from apps.parties.models import Party
 from common.exceptions import DomainError
 
+_seq = 0
+
 
 def _account(email="user@test.com"):
-    return Account.objects.create(email=email)
+    global _seq
+    _seq += 1
+    user = User.objects.create_user(phone=f"+233{_seq:09d}")
+    return Account.objects.create(user=user, email=email, phone=user.phone)
 
 
 def _identity(account, ref="ref-1"):

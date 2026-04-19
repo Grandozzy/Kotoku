@@ -2,18 +2,27 @@ from datetime import timedelta
 
 from django.utils import timezone
 
-from apps.accounts.models import Account
+from apps.accounts.models import Account, User
 from apps.agreements.domain.enums import AgreementStatus
 from apps.agreements.domain.policies import can_reopen, can_request_consent, can_seal
 from apps.agreements.models import Agreement
 from apps.identity.models import IdentityRecord
 from apps.parties.models import Party
 
+_seq = 0
+
+
+def _make_account(email):
+    global _seq
+    _seq += 1
+    user = User.objects.create_user(phone=f"+233{_seq:09d}")
+    return Account.objects.create(user=user, email=email, phone=user.phone)
+
 
 def _make_agreement(status=AgreementStatus.DRAFT, **kwargs):
     defaults = {
         "title": "Test Agreement",
-        "created_by": Account.objects.create(email="owner@test.com"),
+        "created_by": _make_account("owner@test.com"),
     }
     defaults.update(kwargs)
     return Agreement.objects.create(status=status, **defaults)
@@ -50,7 +59,7 @@ class TestCanRequestConsent:
         assert can_request_consent(agreement) is False
 
     def test_returns_false_when_not_draft(self, db):
-        account = Account.objects.create(email="owner2@test.com")
+        account = _make_account("owner2@test.com")
         agreement = _make_agreement(
             status=AgreementStatus.PENDING_CONSENT, created_by=account
         )
