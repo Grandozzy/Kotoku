@@ -14,6 +14,14 @@ from common.exceptions import DomainError
 
 _seq = 0
 
+# Minimal valid file headers for each EvidenceItem.FileType
+_FAKE_FILE: dict[str, bytes] = {
+    "photo": b"\xff\xd8\xff" + b"\x00" * 10,       # JPEG
+    "document": b"%PDF-1.7\n" + b"\x00" * 10,      # PDF
+    "signature": b"\x89PNG\r\n\x1a\n" + b"\x00" * 10,  # PNG
+    "voice_note": b"RIFF\x00\x00\x00\x00WAVE",     # WAV
+}
+
 
 def _account(email="evidence@test.com"):
     global _seq
@@ -48,7 +56,7 @@ class TestUploadEvidence:
             agreement_id=agreement.pk,
             party_id=party.pk,
             file_type=EvidenceItem.FileType.PHOTO,
-            file_data=b"photo bytes",
+            file_data=_FAKE_FILE["photo"],
             original_name="receipt.jpg",
         )
 
@@ -69,7 +77,7 @@ class TestUploadEvidence:
             agreement_id=agreement.pk,
             party_id=party.pk,
             file_type=EvidenceItem.FileType.DOCUMENT,
-            file_data=b"doc",
+            file_data=_FAKE_FILE["document"],
             original_name="contract.pdf",
         )
 
@@ -90,7 +98,7 @@ class TestUploadEvidence:
                 agreement_id=other_agreement.pk,
                 party_id=party.pk,
                 file_type=EvidenceItem.FileType.PHOTO,
-                file_data=b"data",
+                file_data=_FAKE_FILE["photo"],
             )
 
 
@@ -104,13 +112,13 @@ class TestEvidenceSelectors:
             agreement_id=agreement.pk,
             party_id=party.pk,
             file_type=EvidenceItem.FileType.PHOTO,
-            file_data=b"a",
+            file_data=_FAKE_FILE["photo"],
         )
         EvidenceService.upload_evidence(
             agreement_id=agreement.pk,
             party_id=party.pk,
             file_type=EvidenceItem.FileType.DOCUMENT,
-            file_data=b"b",
+            file_data=_FAKE_FILE["document"],
         )
 
         items = EvidenceSelector.list_evidence_for_agreement(agreement.pk)
@@ -134,13 +142,13 @@ class TestEvidenceSelectors:
             agreement_id=agreement.pk,
             party_id=party.pk,
             file_type=EvidenceItem.FileType.PHOTO,
-            file_data=b"a",
+            file_data=_FAKE_FILE["photo"],
         )
         EvidenceService.upload_evidence(
             agreement_id=other_agreement.pk,
             party_id=other_party.pk,
             file_type=EvidenceItem.FileType.PHOTO,
-            file_data=b"b",
+            file_data=_FAKE_FILE["photo"],
         )
 
         items = EvidenceSelector.list_evidence_for_agreement(agreement.pk)
@@ -155,7 +163,7 @@ class TestEvidenceSelectors:
             agreement_id=agreement.pk,
             party_id=party.pk,
             file_type=EvidenceItem.FileType.SIGNATURE,
-            file_data=b"sig",
+            file_data=_FAKE_FILE["signature"],
             original_name="sig.png",
         )
 

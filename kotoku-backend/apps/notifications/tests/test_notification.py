@@ -129,10 +129,15 @@ class TestDispatchTask:
         dispatch_notification(notification_id=99999)
 
 
+@pytest.mark.real_sms_gateway
 class TestSmsGateway:
-    def test_stub_mode_returns_true_when_no_api_key(self, db):
-        gateway = SmsGateway()
-        assert gateway.send("+233555000111", "Test") is True
+    def test_raises_when_no_api_key(self, db):
+        from django.test import override_settings
+
+        with override_settings(SMS_API_KEY=""):
+            gateway = SmsGateway()
+            with pytest.raises(RuntimeError, match="SMS_API_KEY"):
+                gateway.send("+233555000111", "Test")
 
     @patch("infrastructure.sms.gateway.urllib.request.urlopen")
     def test_real_mode_returns_true_on_200(self, mock_urlopen, db):

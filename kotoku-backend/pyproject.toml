@@ -39,6 +39,9 @@ include = ["apps*", "common*", "config*", "infrastructure*"]
 DJANGO_SETTINGS_MODULE = "config.settings.test"
 python_files = ["tests.py", "test_*.py", "*_tests.py"]
 testpaths = ["tests", "apps"]
+markers = [
+    "real_sms_gateway: bypass the autouse SMS mock and exercise the real SmsGateway code path",
+]
 
 [tool.ruff]
 line-length = 100
