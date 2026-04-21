@@ -8,9 +8,13 @@ from rest_framework.views import APIView
 logger = logging.getLogger(__name__)
 
 
+_TIMEOUT_SECONDS = 3
+
+
 def _check_db():
     try:
-        connection.ensure_connection()
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT 1")
         return True
     except Exception:
         logger.exception("Health check: database connection failed")
@@ -19,7 +23,9 @@ def _check_db():
 
 def _check_redis(broker_url):
     try:
-        client = redis_lib.Redis.from_url(broker_url)
+        client = redis_lib.Redis.from_url(
+            broker_url, socket_connect_timeout=_TIMEOUT_SECONDS
+        )
         client.ping()
         return True
     except Exception:
