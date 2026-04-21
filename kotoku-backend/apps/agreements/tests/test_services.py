@@ -1,6 +1,7 @@
 from datetime import timedelta
 
 import pytest
+from django.db import IntegrityError
 from django.utils import timezone
 
 from apps.accounts.models import Account, User
@@ -98,6 +99,24 @@ class TestAddParty:
                 identity_id=identity.pk,
                 role=Party.Role.BUYER,
                 display_name="Carol",
+            )
+
+    def test_raises_on_duplicate_party_role(self, db):
+        account = _account("dup@t.com")
+        agreement = AgreementService.create_draft(title="T", created_by=account)
+        identity = _identity(account)
+        AgreementService.add_party(
+            agreement_id=agreement.pk,
+            identity_id=identity.pk,
+            role=Party.Role.BUYER,
+            display_name="First",
+        )
+        with pytest.raises(IntegrityError):
+            AgreementService.add_party(
+                agreement_id=agreement.pk,
+                identity_id=identity.pk,
+                role=Party.Role.BUYER,
+                display_name="Duplicate",
             )
 
 
