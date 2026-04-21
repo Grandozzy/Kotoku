@@ -1,8 +1,11 @@
 import hashlib
 import hmac
+import logging
 import secrets
 from datetime import timedelta
 
+from django.core.cache import cache
+from django.db import transaction
 from django.utils import timezone
 
 from apps.agreements.domain.enums import AgreementStatus
@@ -14,6 +17,11 @@ from apps.notifications.models import Notification
 from apps.notifications.services import NotificationService
 from apps.parties.models import Party
 from common.exceptions import DomainError
+
+logger = logging.getLogger(__name__)
+
+_OTP_MAX_ATTEMPTS = 3
+_OTP_LOCKOUT_SECONDS = 900  # 15 minutes
 
 
 def generate_otp(length: int = 6) -> str:
@@ -73,19 +81,37 @@ class ConsentService:
         return records
 
     @staticmethod
+    @transaction.atomic
     def verify_otp(*, consent_record_id: int, otp_code: str) -> ConsentRecord:
+        cache_key = f"otp_attempts:{consent_record_id}"
+        attempts = cache.get(cache_key, 0)
+        if attempts >= _OTP_MAX_ATTEMPTS:
+            raise DomainError("Too many verification attempts. Try again later.")
+
         try:
-            record = ConsentRecord.objects.select_related("agreement").get(
+            record = ConsentRecord.objects.select_related("agreement").select_for_update().get(
                 pk=consent_record_id
             )
         except ConsentRecord.DoesNotExist:
-            raise DomainError("Consent record not found") from None
-        if record.granted:
-            raise DomainError("Consent already granted")
-        if record.expires_at < timezone.now():
-            raise DomainError("OTP has expired")
-        if not verify_otp_hash(otp_code, record.otp_code_hash):
-            raise DomainError("Invalid OTP code")
+            raise DomainError("Invalid or expired verification code") from None
+
+        # Validate all conditions before revealing which one failed, to avoid
+        # leaking whether the record exists, is already granted, or has expired.
+        valid = (
+            not record.granted
+            and record.expires_at >= timezone.now()
+            and verify_otp_hash(otp_code, record.otp_code_hash)
+        )
+        if not valid:
+            cache.set(cache_key, attempts + 1, timeout=_OTP_LOCKOUT_SECONDS)
+            logger.warning(
+                "Failed OTP verification for consent_record=%s (attempt %s)",
+                consent_record_id,
+                attempts + 1,
+            )
+            raise DomainError("Invalid or expired verification code")
+
+        cache.delete(cache_key)
         record.granted = True
         record.granted_at = timezone.now()
         record.save(update_fields=["granted", "granted_at"])
@@ -95,7 +121,7 @@ class ConsentService:
             entity_id=str(record.pk),
             metadata={"channel": record.channel},
         )
-        agreement = record.agreement
+        agreement = Agreement.objects.select_for_update().get(pk=record.agreement_id)
         all_granted = not ConsentRecord.objects.filter(
             agreement=agreement, granted=False
         ).exists()
