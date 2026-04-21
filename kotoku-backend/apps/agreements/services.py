@@ -1,3 +1,4 @@
+from django.db import transaction
 from django.utils import timezone
 
 from apps.agreements.domain.enums import AgreementStatus
@@ -61,8 +62,9 @@ class AgreementService:
         return party
 
     @staticmethod
+    @transaction.atomic
     def request_consent(*, agreement_id: int) -> Agreement:
-        agreement = Agreement.objects.get(pk=agreement_id)
+        agreement = Agreement.objects.select_for_update().get(pk=agreement_id)
         if not can_request_consent(agreement):
             raise DomainError(
                 "Cannot request consent: agreement must be draft with at least 2 parties"
@@ -78,8 +80,9 @@ class AgreementService:
         return agreement
 
     @staticmethod
+    @transaction.atomic
     def seal_agreement(*, agreement_id: int) -> Agreement:
-        agreement = Agreement.objects.get(pk=agreement_id)
+        agreement = Agreement.objects.select_for_update().get(pk=agreement_id)
         if not can_seal(agreement):
             raise DomainError(
                 "Cannot seal: agreement must be active with evidence attached"
@@ -96,8 +99,9 @@ class AgreementService:
         return agreement
 
     @staticmethod
+    @transaction.atomic
     def close_agreement(*, agreement_id: int) -> Agreement:
-        agreement = Agreement.objects.get(pk=agreement_id)
+        agreement = Agreement.objects.select_for_update().get(pk=agreement_id)
         new_status = next_state(agreement.status, "close")
         agreement.status = new_status
         agreement.closed_at = timezone.now()
@@ -110,8 +114,9 @@ class AgreementService:
         return agreement
 
     @staticmethod
+    @transaction.atomic
     def reopen_agreement(*, agreement_id: int) -> Agreement:
-        agreement = Agreement.objects.get(pk=agreement_id)
+        agreement = Agreement.objects.select_for_update().get(pk=agreement_id)
         if not can_reopen(agreement):
             raise DomainError(
                 "Cannot reopen: agreement must be sealed within the last 24 hours"
