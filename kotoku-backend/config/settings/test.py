@@ -7,3 +7,10 @@ DATABASES["default"] = {  # type: ignore[index]
     "NAME": ":memory:",
 }
 CELERY_TASK_ALWAYS_EAGER = True
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {"null": {"class": "logging.NullHandler"}},
+    "loggers": {"kotoku": {"handlers": ["null"], "level": "CRITICAL", "propagate": False}},
+}

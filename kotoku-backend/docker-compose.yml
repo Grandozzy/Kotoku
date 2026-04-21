@@ -61,16 +61,18 @@ services:
     ports:
       - "6379:6379"
 
-  pgadmin:
-    image: dpage/pgadmin4:latest
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
     environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@kotoku.com}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:?PGADMIN_PASSWORD must be set in .env}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-kotokuadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-kotokuadmin123}
     ports:
-      - "5050:80"
-    depends_on:
-      db:
-        condition: service_healthy
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
 
 volumes:
   postgres_data:
+  minio_data:
