@@ -15,8 +15,10 @@ class SmsGateway:
 
     def send(self, to: str, body: str) -> bool:
         if not self.api_key:
-            logger.info("SMS gateway stub: would send to %s", to)
-            return True
+            raise RuntimeError(
+                "SMS_API_KEY is not configured. Use StubNotificationProvider in tests "
+                "or set SMS_API_KEY in your environment."
+            )
         payload = json.dumps({
             "username": self.sender_id,
             "to": to,
