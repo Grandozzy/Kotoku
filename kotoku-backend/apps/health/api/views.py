@@ -1,24 +1,30 @@
+import logging
+
 import redis as redis_lib
 from django.db import connection
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+logger = logging.getLogger(__name__)
+
 
 def _check_db():
     try:
         connection.ensure_connection()
-        return True, "ok"
-    except Exception as exc:
-        return False, str(exc)
+        return True
+    except Exception:
+        logger.exception("Health check: database connection failed")
+        return False
 
 
 def _check_redis(broker_url):
     try:
         client = redis_lib.Redis.from_url(broker_url)
         client.ping()
-        return True, "ok"
-    except Exception as exc:
-        return False, str(exc)
+        return True
+    except Exception:
+        logger.exception("Health check: Redis connection failed")
+        return False
 
 
 class HealthCheckView(APIView):
@@ -28,12 +34,12 @@ class HealthCheckView(APIView):
     def get(self, request):
         from django.conf import settings
 
-        db_ok, db_msg = _check_db()
-        redis_ok, redis_msg = _check_redis(settings.CELERY_BROKER_URL)
+        db_ok = _check_db()
+        redis_ok = _check_redis(settings.CELERY_BROKER_URL)
 
         checks = {
-            "database": {"status": "ok" if db_ok else "error", "detail": db_msg},
-            "redis": {"status": "ok" if redis_ok else "error", "detail": redis_msg},
+            "database": {"status": "ok" if db_ok else "error"},
+            "redis": {"status": "ok" if redis_ok else "error"},
         }
         healthy = db_ok and redis_ok
         status_code = 200 if healthy else 503
@@ -54,12 +60,12 @@ class ReadinessView(APIView):
     def get(self, request):
         from django.conf import settings
 
-        db_ok, db_msg = _check_db()
-        redis_ok, redis_msg = _check_redis(settings.CELERY_BROKER_URL)
+        db_ok = _check_db()
+        redis_ok = _check_redis(settings.CELERY_BROKER_URL)
 
         checks = {
-            "database": {"status": "ok" if db_ok else "error", "detail": db_msg},
-            "redis": {"status": "ok" if redis_ok else "error", "detail": redis_msg},
+            "database": {"status": "ok" if db_ok else "error"},
+            "redis": {"status": "ok" if redis_ok else "error"},
         }
         ready = db_ok and redis_ok
         status_code = 200 if ready else 503
