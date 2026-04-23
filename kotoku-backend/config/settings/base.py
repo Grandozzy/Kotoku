@@ -94,6 +94,7 @@ AUTH_USER_MODEL = "accounts.User"
 REST_FRAMEWORK = {
     "DEFAULT_PAGINATION_CLASS": "common.pagination.DefaultPagination",
     "PAGE_SIZE": 20,
+    "EXCEPTION_HANDLER": "common.exception_handler.kotoku_exception_handler",
 }
 
 CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", os.getenv("REDIS_URL", "redis://localhost:6379/0"))
