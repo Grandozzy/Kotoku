@@ -36,6 +36,36 @@ class AgreementService:
         return agreement
 
     @staticmethod
+    def update_draft(
+        *,
+        agreement_id: int,
+        title: str | None = None,
+        description: str | None = None,
+        scenario_template: str | None = None,
+    ) -> Agreement:
+        agreement = Agreement.objects.get(pk=agreement_id)
+        if agreement.status != AgreementStatus.DRAFT:
+            raise DomainError("Can only update a draft agreement")
+        update_fields = ["updated_at"]
+        if title is not None:
+            agreement.title = title
+            update_fields.append("title")
+        if description is not None:
+            agreement.description = description
+            update_fields.append("description")
+        if scenario_template is not None:
+            agreement.scenario_template = scenario_template
+            update_fields.append("scenario_template")
+        agreement.save(update_fields=update_fields)
+        AuditService.record_event(
+            event_type="agreement.updated",
+            entity_type="agreement",
+            entity_id=str(agreement.pk),
+            metadata={"updated_fields": update_fields},
+        )
+        return agreement
+
+    @staticmethod
     def add_party(
         *,
         agreement_id: int,
