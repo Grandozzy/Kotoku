@@ -17,6 +17,18 @@ def authenticated_client():
     return client, account
 
 
+@pytest.fixture()
+def second_authenticated_client():
+    user = User.objects.create_user(phone="+233500000002")
+    account = Account.objects.create(
+        user=user, email="other@kotoku.app", phone=user.phone
+    )
+    token, _ = Token.objects.get_or_create(user=user)
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Token {token.key}")
+    return client, account
+
+
 @pytest.mark.django_db
 class TestAgreementCreateApi:
     def test_create_agreement_returns_201(self, authenticated_client):
@@ -77,6 +89,19 @@ class TestAgreementDetailApi:
         response = client.get("/api/agreements/99999/", format="json")
         assert response.status_code == 404
 
+    def test_get_other_users_agreement_returns_404(
+        self, authenticated_client, second_authenticated_client
+    ):
+        owner_client, account = authenticated_client
+        other_client, _ = second_authenticated_client
+        from apps.agreements.services import AgreementService
+
+        agreement = AgreementService.create_draft(title="Private", created_by=account)
+        response = other_client.get(
+            f"/api/agreements/{agreement.pk}/", format="json"
+        )
+        assert response.status_code == 404
+
 
 @pytest.mark.django_db
 class TestAgreementUpdateApi:
@@ -110,3 +135,18 @@ class TestAgreementUpdateApi:
             format="json",
         )
         assert response.status_code == 400
+
+    def test_update_other_users_agreement_returns_404(
+        self, authenticated_client, second_authenticated_client
+    ):
+        owner_client, account = authenticated_client
+        other_client, _ = second_authenticated_client
+        from apps.agreements.services import AgreementService
+
+        agreement = AgreementService.create_draft(title="Private", created_by=account)
+        response = other_client.patch(
+            f"/api/agreements/{agreement.pk}/",
+            {"title": "Hacked"},
+            format="json",
+        )
+        assert response.status_code == 404
