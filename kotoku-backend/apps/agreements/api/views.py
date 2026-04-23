@@ -26,7 +26,12 @@ class AgreementCollectionView(APIView):
         paginator = DefaultPagination()
         page = paginator.paginate_queryset(qs, request)
         serializer = AgreementListSerializer(page, many=True)
-        return ok({"results": serializer.data})
+        return ok({
+            "results": serializer.data,
+            "count": paginator.page.paginator.count,
+            "next": paginator.get_next_link(),
+            "previous": paginator.get_previous_link(),
+        })
 
     def post(self, request):
         serializer = AgreementCreateSerializer(data=request.data)
@@ -48,10 +53,15 @@ class AgreementDetailView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, agreement_id: int):
-        agreement = AgreementSelector.get_agreement_detail(agreement_id)
+        agreement = AgreementSelector.get_agreement_detail(
+            agreement_id, account_id=request.user.account.pk
+        )
         return ok({"agreement": AgreementDetailSerializer(agreement).data})
 
     def patch(self, request, agreement_id: int):
+        agreement = AgreementSelector.get_agreement_detail(
+            agreement_id, account_id=request.user.account.pk
+        )
         serializer = AgreementUpdateSerializer(data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         agreement = AgreementService.update_draft(
