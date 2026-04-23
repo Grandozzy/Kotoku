@@ -61,6 +61,17 @@ services:
     ports:
       - "6379:6379"
 
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@kotoku.app}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
+    ports:
+      - "5050:80"
+    depends_on:
+      db:
+        condition: service_healthy
+
   minio:
     image: minio/minio:latest
     command: server /data --console-address ":9001"
