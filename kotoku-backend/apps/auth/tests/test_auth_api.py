@@ -2,8 +2,6 @@ from django.core.cache import cache
 from django.test import TestCase, override_settings
 from rest_framework.test import APIClient
 
-from apps.accounts.models import User
-
 
 @override_settings(CELERY_TASK_ALWAYS_EAGER=True)
 class TestSendOtpApi(TestCase):
