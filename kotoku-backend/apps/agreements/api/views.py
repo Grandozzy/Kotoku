@@ -1,3 +1,4 @@
+from django.http import Http404
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
@@ -8,6 +9,7 @@ from apps.agreements.api.serializers import (
     AgreementListSerializer,
     AgreementUpdateSerializer,
 )
+from apps.agreements.models import Agreement
 from apps.agreements.selectors import AgreementSelector
 from apps.agreements.services import AgreementService
 from common.pagination import DefaultPagination
@@ -52,14 +54,22 @@ class AgreementDetailView(APIView):
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
 
+    def _get_agreement(self, agreement_id: int, account_id: int):
+        try:
+            return AgreementSelector.get_agreement_detail(
+                agreement_id, account_id=account_id
+            )
+        except Agreement.DoesNotExist:
+            raise Http404 from None
+
     def get(self, request, agreement_id: int):
-        agreement = AgreementSelector.get_agreement_detail(
+        agreement = self._get_agreement(
             agreement_id, account_id=request.user.account.pk
         )
         return ok({"agreement": AgreementDetailSerializer(agreement).data})
 
     def patch(self, request, agreement_id: int):
-        agreement = AgreementSelector.get_agreement_detail(
+        agreement = self._get_agreement(
             agreement_id, account_id=request.user.account.pk
         )
         serializer = AgreementUpdateSerializer(data=request.data, partial=True)
