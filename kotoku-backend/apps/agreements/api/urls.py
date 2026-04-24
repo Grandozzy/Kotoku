@@ -16,4 +16,8 @@ urlpatterns = [
         "<int:agreement_id>/parties/",
         include("apps.parties.api.urls"),
     ),
+    path(
+        "<int:agreement_id>/evidence/",
+        include("apps.evidence.api.urls"),
+    ),
 ]

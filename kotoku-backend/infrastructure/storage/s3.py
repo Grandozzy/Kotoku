@@ -41,3 +41,26 @@ class S3StorageClient:
             Params={"Bucket": settings.AWS_STORAGE_BUCKET_NAME, "Key": key},
             ExpiresIn=expires_in,
         )
+
+    def generate_presigned_upload_url(
+        self, key: str, content_type: str, expires_in: int = 900
+    ) -> tuple[str, dict]:
+        """Return a presigned PUT URL the client can use to upload directly to S3.
+
+        The 15-minute (900 s) default gives enough time for a mobile client on
+        a slow connection without leaving the URL valid indefinitely.
+        """
+        client = _get_client()
+        url = client.generate_presigned_url(
+            "put_object",
+            Params={
+                "Bucket": settings.AWS_STORAGE_BUCKET_NAME,
+                "Key": key,
+                "ContentType": content_type,
+            },
+            ExpiresIn=expires_in,
+        )
+        return url, {"Content-Type": content_type}
+
+    def build_object_url(self, key: str) -> str:
+        return _build_object_url(key)

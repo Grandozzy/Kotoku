@@ -14,7 +14,7 @@ def can_request_consent(agreement) -> bool:
 def can_seal(agreement) -> bool:
     if agreement.status != AgreementStatus.ACTIVE:
         return False
-    return agreement.evidence_items.exists()
+    return agreement.evidence_items.filter(upload_status="confirmed").exists()
 
 
 def can_reopen(agreement) -> bool:
