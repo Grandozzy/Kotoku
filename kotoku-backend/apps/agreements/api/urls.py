@@ -1,4 +1,4 @@
-from django.urls import path
+from django.urls import include, path
 
 from .views import (
     AgreementCollectionView,
@@ -11,5 +11,9 @@ urlpatterns = [
         "<int:agreement_id>/",
         AgreementDetailView.as_view(),
         name="agreement-detail",
+    ),
+    path(
+        "<int:agreement_id>/parties/",
+        include("apps.parties.api.urls"),
     ),
 ]
