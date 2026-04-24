@@ -22,8 +22,10 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "rest_framework",
+    "rest_framework.authtoken",
     "storages",
     "apps.accounts",
+    "apps.auth",
     "apps.identity",
     "apps.agreements",
     "apps.parties",
@@ -34,6 +36,7 @@ INSTALLED_APPS = [
     "apps.notifications",
     "apps.audit",
     "apps.health",
+    "apps.templates",
 ]
 
 MIDDLEWARE = [
@@ -94,6 +97,7 @@ AUTH_USER_MODEL = "accounts.User"
 REST_FRAMEWORK = {
     "DEFAULT_PAGINATION_CLASS": "common.pagination.DefaultPagination",
     "PAGE_SIZE": 20,
+    "EXCEPTION_HANDLER": "common.exception_handler.kotoku_exception_handler",
 }
 
 CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", os.getenv("REDIS_URL", "redis://localhost:6379/0"))

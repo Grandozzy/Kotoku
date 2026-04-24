@@ -200,6 +200,47 @@ class TestCloseAgreement:
             AgreementService.close_agreement(agreement_id=agreement.pk)
 
 
+class TestUpdateDraft:
+    def test_update_draft_updates_fields(self, db):
+        account = _account("update@test.com")
+        agreement = AgreementService.create_draft(
+            title="Original", created_by=account, description="old desc"
+        )
+        updated = AgreementService.update_draft(
+            agreement_id=agreement.pk,
+            title="Updated",
+            description="new desc",
+        )
+        assert updated.title == "Updated"
+        assert updated.description == "new desc"
+
+    def test_update_draft_raises_if_not_draft(self, db):
+        account = _account("notdraft@test.com")
+        agreement = AgreementService.create_draft(title="Test", created_by=account)
+        identity = _identity(account)
+        Party.objects.create(
+            agreement=agreement, identity=identity, role="buyer", display_name="A"
+        )
+        id2 = IdentityRecord.objects.create(
+            account=account, reference="ref-b", verification_type="phone"
+        )
+        Party.objects.create(
+            agreement=agreement, identity=id2, role="seller", display_name="B"
+        )
+        AgreementService.request_consent(agreement_id=agreement.pk)
+        with pytest.raises(DomainError):
+            AgreementService.update_draft(agreement_id=agreement.pk, title="Nope")
+
+    def test_update_draft_emits_audit_event(self, db):
+        account = _account("audit_update@test.com")
+        agreement = AgreementService.create_draft(title="Test", created_by=account)
+        AgreementService.update_draft(agreement_id=agreement.pk, title="New Title")
+        assert AuditLog.objects.filter(
+            event_type="agreement.updated",
+            entity_id=str(agreement.pk),
+        ).exists()
+
+
 class TestReopenAgreement:
     def test_transitions_sealed_to_active_within_24h(self, db):
         account = _account("j@t.com")

@@ -12,12 +12,15 @@ class AgreementSelector:
         return qs
 
     @staticmethod
-    def get_agreement_detail(agreement_id: int) -> Agreement:
-        return Agreement.objects.prefetch_related(
+    def get_agreement_detail(agreement_id: int, *, account_id: int = None) -> Agreement:
+        qs = Agreement.objects.prefetch_related(
             "parties__identity",
             "evidence_items",
             "consent_records",
-        ).select_related("created_by").get(pk=agreement_id)
+        ).select_related("created_by")
+        if account_id is not None:
+            qs = qs.filter(created_by_id=account_id)
+        return qs.get(pk=agreement_id)
 
     @staticmethod
     def list_party_agreements(party_id: int):
