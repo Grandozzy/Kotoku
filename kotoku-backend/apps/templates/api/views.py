@@ -2,8 +2,8 @@ from django.http import Http404
 from rest_framework.views import APIView
 
 from apps.templates.api.serializers import ScenarioTemplateSerializer
+from apps.templates.models import ScenarioTemplate
 from apps.templates.selectors import TemplateSelector
-from common.exceptions import DomainError
 from common.pagination import DefaultPagination
 from common.responses import ok
 
@@ -26,6 +26,6 @@ class TemplateDetailView(APIView):
     def get(self, request, slug: str):
         try:
             template = TemplateSelector.get_by_slug(slug)
-        except DomainError:
+        except ScenarioTemplate.DoesNotExist:
             raise Http404 from None
         return ok({"template": ScenarioTemplateSerializer(template).data})

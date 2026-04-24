@@ -33,7 +33,5 @@ class TestTemplateSelector:
         assert template.slug == "used_vehicle_sale"
 
     def test_get_by_slug_not_found_raises(self):
-        from common.exceptions import DomainError
-
-        with pytest.raises(DomainError):
+        with pytest.raises(ScenarioTemplate.DoesNotExist):
             TemplateSelector.get_by_slug("nonexistent")

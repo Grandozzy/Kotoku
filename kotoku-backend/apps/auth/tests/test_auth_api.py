@@ -1,6 +1,10 @@
+from unittest.mock import patch
+
 from django.core.cache import cache
 from django.test import TestCase, override_settings
 from rest_framework.test import APIClient
+
+_PATCH_SMS = patch("apps.auth.services.SmsGateway.send", return_value=True)
 
 
 @override_settings(CELERY_TASK_ALWAYS_EAGER=True)
@@ -10,11 +14,12 @@ class TestSendOtpApi(TestCase):
         cache.clear()
 
     def test_send_otp_returns_200(self):
-        response = self.client.post(
-            "/api/auth/send-otp/",
-            {"phone": "+233501234567"},
-            format="json",
-        )
+        with _PATCH_SMS:
+            response = self.client.post(
+                "/api/auth/send-otp/",
+                {"phone": "+233501234567"},
+                format="json",
+            )
         assert response.status_code == 200
         assert response.json()["status"] == "ok"
 
@@ -22,13 +27,20 @@ class TestSendOtpApi(TestCase):
         response = self.client.post("/api/auth/send-otp/", {}, format="json")
         assert response.status_code == 400
 
-    def test_send_otp_rate_limited_returns_400(self):
-        self.client.post("/api/auth/send-otp/", {"phone": "+233501234567"}, format="json")
+    def test_send_otp_invalid_phone_format_returns_400(self):
         response = self.client.post(
-            "/api/auth/send-otp/",
-            {"phone": "+233501234567"},
-            format="json",
+            "/api/auth/send-otp/", {"phone": "0501234567"}, format="json"
         )
+        assert response.status_code == 400
+
+    def test_send_otp_rate_limited_returns_400(self):
+        with _PATCH_SMS:
+            self.client.post("/api/auth/send-otp/", {"phone": "+233501234567"}, format="json")
+            response = self.client.post(
+                "/api/auth/send-otp/",
+                {"phone": "+233501234567"},
+                format="json",
+            )
         assert response.status_code == 400
 
 
@@ -39,7 +51,8 @@ class TestVerifyOtpApi(TestCase):
         cache.clear()
 
     def test_verify_otp_returns_200_with_token(self):
-        self.client.post("/api/auth/send-otp/", {"phone": "+233501234567"}, format="json")
+        with _PATCH_SMS:
+            self.client.post("/api/auth/send-otp/", {"phone": "+233501234567"}, format="json")
         otp = cache.get("auth_otp:+233501234567")
         response = self.client.post(
             "/api/auth/verify-otp/",
@@ -51,7 +64,8 @@ class TestVerifyOtpApi(TestCase):
         assert "token" in data["data"]
 
     def test_verify_otp_wrong_code_returns_400(self):
-        self.client.post("/api/auth/send-otp/", {"phone": "+233501234567"}, format="json")
+        with _PATCH_SMS:
+            self.client.post("/api/auth/send-otp/", {"phone": "+233501234567"}, format="json")
         response = self.client.post(
             "/api/auth/verify-otp/",
             {"phone": "+233501234567", "otp_code": "00000000"},

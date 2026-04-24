@@ -6,6 +6,7 @@ from django.core.cache import cache
 from apps.accounts.models import Account, User
 from apps.audit.services import AuditService
 from common.exceptions import DomainError
+from infrastructure.sms.gateway import SmsGateway
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +25,10 @@ class AuthService:
         otp_code = "".join(secrets.choice("0123456789") for _ in range(_OTP_LENGTH))
         cache.set(cache_key, otp_code, timeout=_OTP_TTL_SECONDS)
         cache.set(rate_key, True, timeout=_RATE_LIMIT_TTL_SECONDS)
-        logger.info("OTP sent to %s", phone)
+        try:
+            SmsGateway().send(to=phone, body=f"Your Kotoku verification code is {otp_code}. Valid for 10 minutes.")
+        except Exception:
+            logger.exception("Failed to dispatch OTP SMS to %s", phone)
         AuditService.record_event(
             event_type="auth.otp_sent",
             entity_type="user",
