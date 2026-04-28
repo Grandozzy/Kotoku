@@ -30,13 +30,19 @@ class TestNextState:
     def test_sealed_reopen_goes_to_active(self):
         assert next_state(AgreementStatus.SEALED, "reopen") == AgreementStatus.ACTIVE
 
+    def test_pending_consent_seal_goes_to_sealed(self):
+        # New direct path: PENDING_CONSENT → seal → SEALED (skips ACTIVE).
+        assert (
+            next_state(AgreementStatus.PENDING_CONSENT, "seal")
+            == AgreementStatus.SEALED
+        )
+
     @pytest.mark.parametrize(
         "current,action",
         [
             (AgreementStatus.DRAFT, "seal"),
             (AgreementStatus.DRAFT, "all_consented"),
             (AgreementStatus.DRAFT, "close"),
-            (AgreementStatus.PENDING_CONSENT, "seal"),
             (AgreementStatus.PENDING_CONSENT, "add_party"),
             (AgreementStatus.ACTIVE, "request_consent"),
             (AgreementStatus.ACTIVE, "add_party"),
@@ -59,7 +65,9 @@ class TestValidActions:
         assert "request_consent" in actions
 
     def test_pending_consent_actions(self):
-        assert valid_actions(AgreementStatus.PENDING_CONSENT) == ["all_consented"]
+        actions = valid_actions(AgreementStatus.PENDING_CONSENT)
+        assert "all_consented" in actions
+        assert "seal" in actions
 
     def test_active_actions(self):
         assert valid_actions(AgreementStatus.ACTIVE) == ["seal"]

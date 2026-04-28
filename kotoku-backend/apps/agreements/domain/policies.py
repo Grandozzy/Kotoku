@@ -6,15 +6,27 @@ from apps.agreements.domain.enums import AgreementStatus
 
 
 def can_request_consent(agreement) -> bool:
-    if agreement.status != AgreementStatus.DRAFT:
+    if agreement.status not in (AgreementStatus.DRAFT, AgreementStatus.PENDING_CONSENT):
         return False
     return agreement.parties.count() >= 2
 
 
 def can_seal(agreement) -> bool:
-    if agreement.status != AgreementStatus.ACTIVE:
+    """Agreement can be sealed from PENDING_CONSENT (new flow) or ACTIVE (legacy flow).
+
+    PENDING_CONSENT path: all parties must have consented (ConsentRecord.granted).
+    ACTIVE path: consent was already verified at the all_consented transition.
+    Both paths require at least one confirmed evidence item.
+    """
+    if agreement.status not in (AgreementStatus.PENDING_CONSENT, AgreementStatus.ACTIVE):
         return False
-    return agreement.evidence_items.filter(upload_status="confirmed").exists()
+    if not agreement.evidence_items.filter(upload_status="confirmed").exists():
+        return False
+    if agreement.status == AgreementStatus.PENDING_CONSENT:
+        # Avoid a circular import by doing the import here.
+        from apps.consent.selectors import ConsentSelector  # noqa: PLC0415
+        return ConsentSelector.all_parties_consented(agreement_id=agreement.pk)
+    return True  # ACTIVE: consent was already verified when transitioning from PENDING_CONSENT.
 
 
 def can_reopen(agreement) -> bool:

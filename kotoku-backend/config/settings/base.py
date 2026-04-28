@@ -104,13 +104,21 @@ CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", os.getenv("REDIS_URL", "redis
 CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", "redis://localhost:6379/1")
 CELERY_TASK_ALWAYS_EAGER = False
 
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": os.getenv("REDIS_URL", "redis://localhost:6379/0"),
+    }
+}
+
 AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID", "")
 AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY", "")
 AWS_STORAGE_BUCKET_NAME = os.getenv("AWS_STORAGE_BUCKET_NAME", "kotoku-evidence")
 AWS_S3_REGION_NAME = os.getenv("AWS_S3_REGION_NAME", "eu-west-1")
 
-SMS_API_URL = os.getenv("SMS_API_URL", "https://api.africastalking.com/v1/messaging")
+SMS_API_URL = os.getenv("SMS_API_URL", "https://api.africastalking.com/version1/messaging")
 SMS_API_KEY = os.getenv("SMS_API_KEY", "")
+SMS_USERNAME = os.getenv("SMS_USERNAME", "sandbox")
 SMS_SENDER_ID = os.getenv("SMS_SENDER_ID", "KOTOKU")
 
 SENTRY_DSN = os.getenv("SENTRY_DSN", "")

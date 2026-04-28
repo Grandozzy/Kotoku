@@ -6,7 +6,10 @@ from common.exceptions import DomainError
 _TRANSITIONS: dict[tuple[str, str], str] = {
     (AgreementStatus.DRAFT, "add_party"): AgreementStatus.DRAFT,
     (AgreementStatus.DRAFT, "request_consent"): AgreementStatus.PENDING_CONSENT,
+    # Legacy path: all_consented transitions to ACTIVE (kept for backward compat).
     (AgreementStatus.PENDING_CONSENT, "all_consented"): AgreementStatus.ACTIVE,
+    # New path: seal directly from PENDING_CONSENT once all parties have consented.
+    (AgreementStatus.PENDING_CONSENT, "seal"): AgreementStatus.SEALED,
     (AgreementStatus.ACTIVE, "seal"): AgreementStatus.SEALED,
     (AgreementStatus.SEALED, "close"): AgreementStatus.CLOSED,
     (AgreementStatus.SEALED, "reopen"): AgreementStatus.ACTIVE,

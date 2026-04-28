@@ -9,6 +9,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from apps.agreements.domain.enums import AgreementStatus
+from apps.agreements.domain.policies import can_request_consent
 from apps.agreements.domain.state_machine import next_state
 from apps.agreements.models import Agreement
 from apps.audit.services import AuditService
@@ -17,6 +18,7 @@ from apps.notifications.models import Notification
 from apps.notifications.services import NotificationService
 from apps.parties.models import Party
 from common.exceptions import DomainError
+from infrastructure.sms.gateway import SmsGateway
 
 logger = logging.getLogger(__name__)
 
@@ -134,4 +136,136 @@ class ConsentService:
                 entity_type="agreement",
                 entity_id=str(agreement.pk),
             )
+        return record
+
+    # ------------------------------------------------------------------ #
+    # New API flow: phone-based OTP request and confirmation.             #
+    # ------------------------------------------------------------------ #
+
+    @staticmethod
+    @transaction.atomic
+    def request_otp(*, agreement_id: int) -> list[ConsentRecord]:
+        """Transition the agreement to PENDING_CONSENT and issue OTPs to all parties.
+
+        Accepted from DRAFT (first call) or PENDING_CONSENT (re-issue after expiry).
+        SMS is sent directly to party.phone via SmsGateway so this works for parties
+        created via the Parties API that may not yet have a linked Account.
+        """
+        agreement = Agreement.objects.select_for_update().get(pk=agreement_id)
+
+        if not can_request_consent(agreement):
+            raise DomainError(
+                "Agreement must have at least 2 parties and be in draft or "
+                "pending_consent status."
+            )
+
+        from apps.consent.selectors import ConsentSelector  # noqa: PLC0415
+        if agreement.status == AgreementStatus.PENDING_CONSENT:
+            if ConsentSelector.all_parties_consented(agreement_id=agreement_id):
+                raise DomainError(
+                    "All parties have already consented. Proceed to seal."
+                )
+            # Re-issue: wipe stale records so each party gets a fresh OTP.
+            ConsentRecord.objects.filter(agreement=agreement).delete()
+        else:
+            # DRAFT → PENDING_CONSENT
+            agreement.status = next_state(agreement.status, "request_consent")
+            agreement.save(update_fields=["status", "updated_at"])
+            AuditService.record_event(
+                event_type="agreement.consent_requested",
+                entity_type="agreement",
+                entity_id=str(agreement.pk),
+            )
+
+        parties = list(Party.objects.filter(agreement=agreement))
+        if not parties:
+            raise DomainError("Cannot issue OTPs: agreement has no parties.")
+
+        gateway = SmsGateway()
+        records = []
+        for party in parties:
+            otp_code = generate_otp()
+            record = ConsentRecord.objects.create(
+                agreement=agreement,
+                party=party,
+                otp_code_hash=hash_otp(otp_code),
+                channel=ConsentRecord.Channel.SMS,
+                expires_at=generate_otp_expiry(),
+            )
+            phone = party.phone
+            if phone:
+                try:
+                    gateway.send(
+                        to=phone,
+                        body=(
+                            f"Your Kotoku consent code is {otp_code}. "
+                            f"Valid for 10 minutes. Do not share this code."
+                        ),
+                    )
+                except Exception:
+                    logger.exception(
+                        "Failed to send consent OTP SMS to party %s", party.pk
+                    )
+            AuditService.record_event(
+                event_type="consent.otp_issued",
+                entity_type="consent_record",
+                entity_id=str(record.pk),
+                actor=str(party.pk),
+                metadata={"channel": ConsentRecord.Channel.SMS, "party_id": party.pk},
+            )
+            records.append(record)
+        return records
+
+    @staticmethod
+    @transaction.atomic
+    def confirm_by_phone(
+        *, agreement_id: int, party_phone: str, otp_code: str
+    ) -> ConsentRecord:
+        """Verify a party's consent OTP identified by their phone number.
+
+        Rate-limited to _OTP_MAX_ATTEMPTS attempts per consent record with a
+        _OTP_LOCKOUT_SECONDS lockout, matching the existing verify_otp() behaviour.
+        Errors are intentionally unified to avoid leaking record state.
+        """
+        try:
+            party = Party.objects.get(agreement_id=agreement_id, phone=party_phone)
+        except Party.DoesNotExist:
+            raise DomainError("Invalid or expired verification code.") from None
+
+        try:
+            record = (
+                ConsentRecord.objects.select_for_update()
+                .get(agreement_id=agreement_id, party=party, granted=False)
+            )
+        except ConsentRecord.DoesNotExist:
+            raise DomainError("Invalid or expired verification code.") from None
+
+        cache_key = f"otp_attempts:{record.pk}"
+        attempts = cache.get(cache_key, 0)
+        if attempts >= _OTP_MAX_ATTEMPTS:
+            raise DomainError("Too many verification attempts. Try again later.")
+
+        valid = (
+            record.expires_at >= timezone.now()
+            and verify_otp_hash(otp_code, record.otp_code_hash)
+        )
+        if not valid:
+            cache.set(cache_key, attempts + 1, timeout=_OTP_LOCKOUT_SECONDS)
+            logger.warning(
+                "Failed consent OTP for party phone=%s agreement=%s (attempt %s)",
+                party_phone, agreement_id, attempts + 1,
+            )
+            raise DomainError("Invalid or expired verification code.")
+
+        cache.delete(cache_key)
+        record.granted = True
+        record.granted_at = timezone.now()
+        record.save(update_fields=["granted", "granted_at"])
+
+        AuditService.record_event(
+            event_type="consent.granted",
+            entity_type="consent_record",
+            entity_id=str(record.pk),
+            metadata={"party_id": party.pk, "channel": record.channel},
+        )
         return record

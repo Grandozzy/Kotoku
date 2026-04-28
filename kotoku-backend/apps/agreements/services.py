@@ -97,7 +97,8 @@ class AgreementService:
         agreement = Agreement.objects.select_for_update().get(pk=agreement_id)
         if not can_request_consent(agreement):
             raise DomainError(
-                "Cannot request consent: agreement must be draft with at least 2 parties"
+                "Cannot request consent: agreement must have at least 2 parties "
+                "and be in draft or pending_consent status."
             )
         new_status = next_state(agreement.status, "request_consent")
         agreement.status = new_status
@@ -115,7 +116,8 @@ class AgreementService:
         agreement = Agreement.objects.select_for_update().get(pk=agreement_id)
         if not can_seal(agreement):
             raise DomainError(
-                "Cannot seal: agreement must be active with evidence attached"
+                "Cannot seal: all parties must have consented and at least one "
+                "piece of evidence must be confirmed."
             )
         new_status = next_state(agreement.status, "seal")
         agreement.status = new_status

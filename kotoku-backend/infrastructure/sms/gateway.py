@@ -1,5 +1,5 @@
-import json
 import logging
+import urllib.parse
 import urllib.request
 
 from django.conf import settings
@@ -9,27 +9,30 @@ logger = logging.getLogger(__name__)
 
 class SmsGateway:
     def __init__(self) -> None:
-        self.api_url = getattr(settings, "SMS_API_URL", "https://api.africastalking.com/v1/messaging")
+        self.api_url = getattr(settings, "SMS_API_URL", "https://api.africastalking.com/version1/messaging")
         self.api_key = getattr(settings, "SMS_API_KEY", "")
+        self.username = getattr(settings, "SMS_USERNAME", "sandbox")
         self.sender_id = getattr(settings, "SMS_SENDER_ID", "KOTOKU")
 
     def send(self, to: str, body: str) -> bool:
         if not self.api_key:
             raise RuntimeError(
-                "SMS_API_KEY is not configured. Use StubNotificationProvider in tests "
-                "or set SMS_API_KEY in your environment."
+                "SMS_API_KEY is not configured. Set SMS_API_KEY in your environment."
             )
-        payload = json.dumps({
-            "username": self.sender_id,
+        # Africa's Talking requires application/x-www-form-urlencoded
+        payload = urllib.parse.urlencode({
+            "username": self.username,
             "to": to,
             "message": body,
+            "from": self.sender_id,
         }).encode()
         req = urllib.request.Request(
             self.api_url,
             data=payload,
             headers={
-                "Content-Type": "application/json",
-                "apikey": self.api_key,
+                "Content-Type": "application/x-www-form-urlencoded",
+                "Accept": "application/json",
+                "apiKey": self.api_key,
             },
             method="POST",
         )

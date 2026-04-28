@@ -11,7 +11,9 @@ from apps.agreements.api.serializers import (
 )
 from apps.agreements.models import Agreement
 from apps.agreements.selectors import AgreementSelector
+from apps.agreements.domain.validators import validate_agreement
 from apps.agreements.services import AgreementService
+from common.exceptions import DomainError
 from common.pagination import DefaultPagination
 from common.responses import ok
 
@@ -78,4 +80,42 @@ class AgreementDetailView(APIView):
             agreement_id=agreement_id,
             **serializer.validated_data,
         )
+        return ok({"agreement": AgreementDetailSerializer(agreement).data})
+
+
+class ValidateView(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, agreement_id: int):
+        try:
+            agreement = AgreementSelector.get_agreement_detail(
+                agreement_id, account_id=request.user.account.pk
+            )
+        except Agreement.DoesNotExist:
+            raise Http404 from None
+        result = validate_agreement(agreement)
+        return ok(
+            {
+                "valid": result.valid,
+                "errors": [
+                    {"code": e.code, "message": e.message, "field": e.field}
+                    for e in result.errors
+                ],
+            }
+        )
+
+
+class SealView(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, agreement_id: int):
+        try:
+            agreement = AgreementSelector.get_agreement_detail(
+                agreement_id, account_id=request.user.account.pk
+            )
+        except Agreement.DoesNotExist:
+            raise Http404 from None
+        agreement = AgreementService.seal_agreement(agreement_id=agreement_id)
         return ok({"agreement": AgreementDetailSerializer(agreement).data})

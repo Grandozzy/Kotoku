@@ -10,3 +10,10 @@ COPY . .
 RUN pip install --upgrade pip && pip install -e .[dev]
 
 CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000"]
+
+# Dockerfile
+
+WORKDIR /app
+# your copy / install steps here...
+
+RUN mkdir -p /app/logs
