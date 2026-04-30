@@ -216,6 +216,136 @@ class ConsentService:
             records.append(record)
         return records
 
+    # ------------------------------------------------------------------ #
+    # Reopen-consent OTP flow (bilateral re-auth for Sprint 6).          #
+    # ------------------------------------------------------------------ #
+
+    @staticmethod
+    @transaction.atomic
+    def request_reopen_otp(*, agreement_id: int) -> list[ConsentRecord]:
+        """Issue reopen-consent OTPs to all parties on a REOPEN_REQUESTED agreement.
+
+        Any existing ungranted reopen-consent records are wiped first so
+        each call starts fresh (re-issue after expiry).
+        """
+        from apps.agreements.domain.enums import AgreementStatus  # noqa: PLC0415
+        from apps.agreements.models import Agreement  # noqa: PLC0415
+
+        agreement = Agreement.objects.select_for_update().get(pk=agreement_id)
+        if agreement.status != AgreementStatus.REOPEN_REQUESTED:
+            raise DomainError(
+                "Reopen OTPs can only be issued for agreements in reopen_requested status."
+            )
+
+        # Wipe stale ungranted reopen-consent records.
+        ConsentRecord.objects.filter(
+            agreement=agreement,
+            purpose=ConsentRecord.Purpose.REOPEN,
+            granted=False,
+        ).delete()
+
+        parties = list(Party.objects.filter(agreement=agreement))
+        if not parties:
+            raise DomainError("Cannot issue reopen OTPs: agreement has no parties.")
+
+        gateway = SmsGateway()
+        records = []
+        for party in parties:
+            otp_code = generate_otp()
+            record = ConsentRecord.objects.create(
+                agreement=agreement,
+                party=party,
+                purpose=ConsentRecord.Purpose.REOPEN,
+                otp_code_hash=hash_otp(otp_code),
+                channel=ConsentRecord.Channel.SMS,
+                expires_at=generate_otp_expiry(),
+            )
+            phone = party.phone
+            if phone:
+                try:
+                    gateway.send(
+                        to=phone,
+                        body=(
+                            f"Your Kotoku reopen code is {otp_code}. "
+                            f"Valid for 10 minutes. Do not share this code."
+                        ),
+                    )
+                except Exception:
+                    logger.exception(
+                        "Failed to send reopen OTP SMS to party %s", party.pk
+                    )
+            AuditService.record_event(
+                event_type="consent.reopen_otp_issued",
+                entity_type="consent_record",
+                entity_id=str(record.pk),
+                actor=str(party.pk),
+                metadata={"channel": ConsentRecord.Channel.SMS, "party_id": party.pk},
+            )
+            records.append(record)
+        return records
+
+    @staticmethod
+    @transaction.atomic
+    def confirm_reopen_by_phone(
+        *, agreement_id: int, party_phone: str, otp_code: str
+    ) -> ConsentRecord:
+        """Verify a party's reopen-consent OTP identified by their phone number.
+
+        When all parties have confirmed, this triggers the bilateral_confirm
+        state transition (REOPEN_REQUESTED → ACTIVE) via AgreementService.
+        """
+        try:
+            party = Party.objects.get(agreement_id=agreement_id, phone=party_phone)
+        except Party.DoesNotExist:
+            raise DomainError("Invalid or expired verification code.") from None
+
+        try:
+            record = ConsentRecord.objects.select_for_update().get(
+                agreement_id=agreement_id,
+                party=party,
+                purpose=ConsentRecord.Purpose.REOPEN,
+                granted=False,
+            )
+        except ConsentRecord.DoesNotExist:
+            raise DomainError("Invalid or expired verification code.") from None
+
+        cache_key = f"reopen_otp_attempts:{record.pk}"
+        attempts = cache.get(cache_key, 0)
+        if attempts >= _OTP_MAX_ATTEMPTS:
+            raise DomainError("Too many verification attempts. Try again later.")
+
+        valid = (
+            record.expires_at >= timezone.now()
+            and verify_otp_hash(otp_code, record.otp_code_hash)
+        )
+        if not valid:
+            cache.set(cache_key, attempts + 1, timeout=_OTP_LOCKOUT_SECONDS)
+            logger.warning(
+                "Failed reopen OTP for party phone=%s agreement=%s (attempt %s)",
+                party_phone, agreement_id, attempts + 1,
+            )
+            raise DomainError("Invalid or expired verification code.")
+
+        cache.delete(cache_key)
+        record.granted = True
+        record.granted_at = timezone.now()
+        record.save(update_fields=["granted", "granted_at"])
+
+        AuditService.record_event(
+            event_type="consent.reopen_granted",
+            entity_type="consent_record",
+            entity_id=str(record.pk),
+            metadata={"party_id": party.pk, "channel": record.channel},
+        )
+
+        # Check if all parties have now confirmed; if so, complete the reopen.
+        from apps.agreements.domain.policies import all_parties_confirmed_reopen  # noqa: PLC0415
+        if all_parties_confirmed_reopen(agreement_id):
+            from apps.agreements.services import AgreementService  # noqa: PLC0415
+            AgreementService.complete_bilateral_reopen(agreement_id=agreement_id)
+
+        return record
+
     @staticmethod
     @transaction.atomic
     def confirm_by_phone(

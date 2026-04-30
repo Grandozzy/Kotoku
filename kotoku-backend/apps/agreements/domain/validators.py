@@ -166,6 +166,24 @@ def _check_room_rental(agreement, parties: list, result: ValidationResult) -> No
             )
 
 
+# ── Identity baseline checks ──────────────────────────────────────────────── #
+
+def _check_identity_baseline(parties: list, result: ValidationResult) -> None:
+    """Every non-witness party must have id_type and id_number recorded."""
+    for party in parties:
+        if party.role == "witness":
+            continue
+        if not party.id_type or not party.id_number:
+            result.add(
+                code="MISSING_PARTY_IDENTITY",
+                message=(
+                    f"Identity document details are required for the {party.role}. "
+                    "Please provide id_type and id_number."
+                ),
+                field_name="parties",
+            )
+
+
 _SCENARIO_CHECKERS = {
     SCENARIO_USED_VEHICLE_SALE: _check_used_vehicle_sale,
     SCENARIO_ROOM_RENTAL: _check_room_rental,
@@ -183,6 +201,7 @@ def validate_agreement(agreement) -> ValidationResult:
 
     _check_core_fields(agreement, result)
     parties = _check_parties(agreement, result)
+    _check_identity_baseline(parties, result)
 
     scenario = agreement.scenario_template
     checker = _SCENARIO_CHECKERS.get(scenario)

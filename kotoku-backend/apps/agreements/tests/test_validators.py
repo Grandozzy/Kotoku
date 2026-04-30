@@ -37,9 +37,14 @@ def _agreement(account, scenario="", title="Test Agreement"):
     )
 
 
-def _party(agreement, role):
+def _party(agreement, role, id_type="ghana_card", id_number="GHA-DEFAULT"):
     return Party.objects.create(
-        agreement=agreement, role=role, display_name=role.title(), phone=""
+        agreement=agreement,
+        role=role,
+        display_name=role.title(),
+        phone="",
+        id_type=id_type,
+        id_number=id_number,
     )
 
 
@@ -315,3 +320,53 @@ class TestValidateApi:
         client, acct = _api_client("+233600400008")
         resp = client.post(_VALIDATE_PATH.format(id=99999))
         assert resp.status_code == 404
+
+
+# ── Unit tests: identity baseline ────────────────────────────────────────── #
+
+@pytest.mark.django_db
+class TestIdentityBaselineValidation:
+    def test_party_without_id_type_fails(self):
+        _, acct = _user_and_account("+233600500001")
+        a = _agreement(acct, scenario=SCENARIO_USED_VEHICLE_SALE)
+        _party(a, "buyer", id_type="", id_number="GHA-123")
+        _party(a, "seller")
+        result = validate_agreement(a)
+        codes = {e.code for e in result.errors}
+        assert "MISSING_PARTY_IDENTITY" in codes
+
+    def test_party_without_id_number_fails(self):
+        _, acct = _user_and_account("+233600500002")
+        a = _agreement(acct, scenario=SCENARIO_USED_VEHICLE_SALE)
+        _party(a, "buyer", id_type="ghana_card", id_number="")
+        _party(a, "seller")
+        result = validate_agreement(a)
+        codes = {e.code for e in result.errors}
+        assert "MISSING_PARTY_IDENTITY" in codes
+
+    def test_witness_role_skips_identity_check(self):
+        _, acct = _user_and_account("+233600500003")
+        a = _agreement(acct, scenario="custom_deal")
+        _party(a, "buyer")
+        _party(a, "seller")
+        # Witness with no identity data — should NOT trigger MISSING_PARTY_IDENTITY
+        Party.objects.create(
+            agreement=a, role="witness", display_name="Witness",
+            phone="", id_type="", id_number="",
+        )
+        result = validate_agreement(a)
+        id_errors = [e for e in result.errors if e.code == "MISSING_PARTY_IDENTITY"]
+        assert len(id_errors) == 0
+
+    def test_all_parties_with_identity_no_error(self):
+        _, acct = _user_and_account("+233600500004")
+        a = _agreement(acct, scenario=SCENARIO_USED_VEHICLE_SALE)
+        _party(a, "buyer", id_type="ghana_card", id_number="GHA-BUY-001")
+        _party(a, "seller", id_type="passport", id_number="P123456")
+        for t in ("vehicle_photo_front", "vehicle_photo_rear", "vehicle_photo_side"):
+            _evidence(a, t)
+        _evidence(a, "buyer_id_photo")
+        _evidence(a, "seller_id_photo")
+        result = validate_agreement(a)
+        codes = {e.code for e in result.errors}
+        assert "MISSING_PARTY_IDENTITY" not in codes

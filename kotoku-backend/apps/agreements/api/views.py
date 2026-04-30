@@ -9,10 +9,12 @@ from apps.agreements.api.serializers import (
     AgreementListSerializer,
     AgreementUpdateSerializer,
 )
+from apps.agreements.domain.validators import validate_agreement
 from apps.agreements.models import Agreement
 from apps.agreements.selectors import AgreementSelector
-from apps.agreements.domain.validators import validate_agreement
 from apps.agreements.services import AgreementService
+from apps.consent.services import ConsentService
+from apps.vault.services import VaultService
 from common.exceptions import DomainError
 from common.pagination import DefaultPagination
 from common.responses import ok
@@ -118,4 +120,90 @@ class SealView(APIView):
         except Agreement.DoesNotExist:
             raise Http404 from None
         agreement = AgreementService.seal_agreement(agreement_id=agreement_id)
+        VaultService.create_for_agreement(agreement_id=agreement_id)
         return ok({"agreement": AgreementDetailSerializer(agreement).data})
+
+
+# ── Sprint 6: Bilateral reopen flow ────────────────────────────────────────── #
+
+class ReopenRequestView(APIView):
+    """POST /agreements/{id}/reopen-request/
+
+    Transitions a SEALED agreement to REOPEN_REQUESTED and immediately
+    issues reopen-consent OTPs to all parties.
+    """
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, agreement_id: int):
+        try:
+            AgreementSelector.get_agreement_detail(
+                agreement_id, account_id=request.user.account.pk
+            )
+        except Agreement.DoesNotExist:
+            raise Http404 from None
+
+        agreement = AgreementService.request_reopen(agreement_id=agreement_id)
+        ConsentService.request_reopen_otp(agreement_id=agreement_id)
+        return ok({"agreement": AgreementDetailSerializer(agreement).data})
+
+
+class ReopenOtpRequestView(APIView):
+    """POST /agreements/{id}/reopen-consent/request-otp/
+
+    Re-issues reopen OTPs to all parties (e.g. after expiry).
+    Agreement must already be in REOPEN_REQUESTED status.
+    """
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, agreement_id: int):
+        try:
+            AgreementSelector.get_agreement_detail(
+                agreement_id, account_id=request.user.account.pk
+            )
+        except Agreement.DoesNotExist:
+            raise Http404 from None
+
+        ConsentService.request_reopen_otp(agreement_id=agreement_id)
+        return ok({"detail": "Reopen OTPs issued to all parties."})
+
+
+class ReopenOtpConfirmView(APIView):
+    """POST /agreements/{id}/reopen-consent/confirm/
+
+    Body: { "phone": "+233...", "otp_code": "12345678" }
+
+    A party confirms their reopen OTP. When the last party confirms, the
+    agreement automatically transitions REOPEN_REQUESTED → ACTIVE.
+    """
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, agreement_id: int):
+        try:
+            AgreementSelector.get_agreement_detail(
+                agreement_id, account_id=request.user.account.pk
+            )
+        except Agreement.DoesNotExist:
+            raise Http404 from None
+
+        phone = request.data.get("phone", "").strip()
+        otp_code = request.data.get("otp_code", "").strip()
+        if not phone or not otp_code:
+            from common.exceptions import DomainError as _DomainError  # noqa: PLC0415
+            raise _DomainError("Both 'phone' and 'otp_code' are required.")
+
+        record = ConsentService.confirm_reopen_by_phone(
+            agreement_id=agreement_id,
+            party_phone=phone,
+            otp_code=otp_code,
+        )
+        # Refresh agreement to show final status after potential bilateral_confirm.
+        agreement = AgreementSelector.get_agreement_detail(
+            agreement_id, account_id=request.user.account.pk
+        )
+        return ok({
+            "granted": record.granted,
+            "agreement_status": agreement.status,
+        })

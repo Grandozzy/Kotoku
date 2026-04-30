@@ -12,7 +12,18 @@ _TRANSITIONS: dict[tuple[str, str], str] = {
     (AgreementStatus.PENDING_CONSENT, "seal"): AgreementStatus.SEALED,
     (AgreementStatus.ACTIVE, "seal"): AgreementStatus.SEALED,
     (AgreementStatus.SEALED, "close"): AgreementStatus.CLOSED,
+    # Legacy single-party reopen (kept for backward compat with existing service method).
     (AgreementStatus.SEALED, "reopen"): AgreementStatus.ACTIVE,
+    # Sprint 6: bilateral reopen flow.
+    (AgreementStatus.SEALED, "request_reopen"): AgreementStatus.REOPEN_REQUESTED,
+    # When all parties confirm reopen OTPs, go back to ACTIVE for re-editing.
+    (AgreementStatus.REOPEN_REQUESTED, "bilateral_confirm"): AgreementStatus.ACTIVE,
+    # A reopen request can be cancelled (e.g. by the initiator or timeout).
+    (AgreementStatus.REOPEN_REQUESTED, "cancel_reopen"): AgreementStatus.SEALED,
+    # Archival and expiry are terminal states.
+    (AgreementStatus.SEALED, "archive"): AgreementStatus.ARCHIVED,
+    (AgreementStatus.CLOSED, "archive"): AgreementStatus.ARCHIVED,
+    (AgreementStatus.SEALED, "expire"): AgreementStatus.EXPIRED,
 }
 
 

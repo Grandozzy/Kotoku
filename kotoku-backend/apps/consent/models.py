@@ -9,6 +9,10 @@ class ConsentRecord(models.Model):
         SMS = "sms", "SMS"
         WHATSAPP = "whatsapp", "WhatsApp"
 
+    class Purpose(models.TextChoices):
+        CONSENT = "consent", "Initial Consent"
+        REOPEN = "reopen_consent", "Reopen Consent"
+
     agreement = models.ForeignKey(
         Agreement,
         on_delete=models.CASCADE,
@@ -18,6 +22,12 @@ class ConsentRecord(models.Model):
         Party,
         on_delete=models.CASCADE,
         related_name="consent_records",
+    )
+    purpose = models.CharField(
+        max_length=20,
+        choices=Purpose.choices,
+        default=Purpose.CONSENT,
+        db_index=True,
     )
     otp_code_hash = models.CharField(max_length=128)
     channel = models.CharField(max_length=10, choices=Channel.choices)

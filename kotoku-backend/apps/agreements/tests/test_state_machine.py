@@ -15,6 +15,30 @@ class TestNextState:
             == AgreementStatus.PENDING_CONSENT
         )
 
+    def test_sealed_request_reopen_goes_to_reopen_requested(self):
+        assert (
+            next_state(AgreementStatus.SEALED, "request_reopen")
+            == AgreementStatus.REOPEN_REQUESTED
+        )
+
+    def test_reopen_requested_bilateral_confirm_goes_to_active(self):
+        assert (
+            next_state(AgreementStatus.REOPEN_REQUESTED, "bilateral_confirm")
+            == AgreementStatus.ACTIVE
+        )
+
+    def test_reopen_requested_cancel_goes_to_sealed(self):
+        assert (
+            next_state(AgreementStatus.REOPEN_REQUESTED, "cancel_reopen")
+            == AgreementStatus.SEALED
+        )
+
+    def test_sealed_archive_goes_to_archived(self):
+        assert next_state(AgreementStatus.SEALED, "archive") == AgreementStatus.ARCHIVED
+
+    def test_sealed_expire_goes_to_expired(self):
+        assert next_state(AgreementStatus.SEALED, "expire") == AgreementStatus.EXPIRED
+
     def test_pending_consent_all_consented_goes_to_active(self):
         assert (
             next_state(AgreementStatus.PENDING_CONSENT, "all_consented")
@@ -76,6 +100,14 @@ class TestValidActions:
         actions = valid_actions(AgreementStatus.SEALED)
         assert "close" in actions
         assert "reopen" in actions
+        assert "request_reopen" in actions
+        assert "archive" in actions
+        assert "expire" in actions
 
-    def test_closed_has_no_actions(self):
-        assert valid_actions(AgreementStatus.CLOSED) == []
+    def test_reopen_requested_actions(self):
+        actions = valid_actions(AgreementStatus.REOPEN_REQUESTED)
+        assert "bilateral_confirm" in actions
+        assert "cancel_reopen" in actions
+
+    def test_closed_can_be_archived(self):
+        assert "archive" in valid_actions(AgreementStatus.CLOSED)

@@ -1,2 +1,58 @@
+import logging
+
+from apps.agreements.domain.enums import AgreementStatus
+from apps.agreements.models import Agreement
+from apps.audit.services import AuditService
+from apps.disputes.models import Dispute
+from apps.parties.models import Party
+from common.exceptions import DomainError
+
+logger = logging.getLogger(__name__)
+
+# Disputes can be raised on sealed agreements or those that are in
+# a reopen/archive/expired terminal state — anything that is no longer
+# a simple editable draft.
+_DISPUTABLE_STATUSES = {
+    AgreementStatus.SEALED,
+    AgreementStatus.REOPEN_REQUESTED,
+    AgreementStatus.CLOSED,
+    AgreementStatus.ARCHIVED,
+    AgreementStatus.EXPIRED,
+}
+
+
 class DisputeService:
-    """Dispute service placeholder."""
+    @staticmethod
+    def open_dispute(
+        *,
+        agreement_id: int,
+        raised_by_party_id: int,
+        reason: str,
+    ) -> Dispute:
+        """Raise a dispute against a sealed (or closed/archived) agreement."""
+        agreement = Agreement.objects.get(pk=agreement_id)
+        if agreement.status not in _DISPUTABLE_STATUSES:
+            raise DomainError(
+                "Disputes can only be raised against sealed, closed, or archived agreements."
+            )
+        try:
+            party = Party.objects.get(pk=raised_by_party_id, agreement_id=agreement_id)
+        except Party.DoesNotExist:
+            raise DomainError("The disputing party must be a party on this agreement.") from None
+
+        if not reason or not reason.strip():
+            raise DomainError("A reason is required to open a dispute.")
+
+        dispute = Dispute.objects.create(
+            agreement=agreement,
+            raised_by=party,
+            reason=reason.strip(),
+        )
+        AuditService.record_event(
+            event_type="dispute.opened",
+            entity_type="dispute",
+            entity_id=str(dispute.pk),
+            actor=str(party.pk),
+            metadata={"agreement_id": agreement_id, "reason_preview": reason[:80]},
+        )
+        return dispute

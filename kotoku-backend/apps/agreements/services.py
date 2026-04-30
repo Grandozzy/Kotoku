@@ -1,14 +1,50 @@
+import hashlib
+import json
+
 from django.db import transaction
 from django.utils import timezone
 
 from apps.agreements.domain.enums import AgreementStatus
-from apps.agreements.domain.policies import can_reopen, can_request_consent, can_seal
+from apps.agreements.domain.policies import (
+    can_reopen,
+    can_request_consent,
+    can_request_reopen,
+    can_seal,
+)
 from apps.agreements.domain.state_machine import next_state
 from apps.agreements.models import Agreement
 from apps.audit.services import AuditService
 from apps.identity.models import IdentityRecord
 from apps.parties.models import Party
 from common.exceptions import DomainError
+
+
+def _compute_seal_hash(agreement) -> str:
+    """Return a SHA-256 hex digest of the agreement's state at seal time.
+
+    Captures identity, evidence, and core fields so any tampering after
+    sealing produces a detectable hash mismatch.
+    """
+    parties = list(
+        agreement.parties.order_by("role").values(
+            "role", "display_name", "id_type", "id_number", "phone"
+        )
+    )
+    evidence = list(
+        agreement.evidence_items.filter(upload_status="confirmed")
+        .order_by("evidence_type", "file_key")
+        .values("evidence_type", "file_hash", "file_key")
+    )
+    payload = {
+        "agreement_id": agreement.pk,
+        "title": agreement.title,
+        "description": agreement.description,
+        "scenario_template": agreement.scenario_template,
+        "parties": parties,
+        "evidence": evidence,
+    }
+    canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(canonical.encode()).hexdigest()
 
 
 class AgreementService:
@@ -122,7 +158,8 @@ class AgreementService:
         new_status = next_state(agreement.status, "seal")
         agreement.status = new_status
         agreement.sealed_at = timezone.now()
-        agreement.save(update_fields=["status", "sealed_at", "updated_at"])
+        agreement.seal_hash = _compute_seal_hash(agreement)
+        agreement.save(update_fields=["status", "sealed_at", "seal_hash", "updated_at"])
         AuditService.record_event(
             event_type="agreement.sealed",
             entity_type="agreement",
@@ -140,6 +177,65 @@ class AgreementService:
         agreement.save(update_fields=["status", "closed_at", "updated_at"])
         AuditService.record_event(
             event_type="agreement.closed",
+            entity_type="agreement",
+            entity_id=str(agreement.pk),
+        )
+        return agreement
+
+    @staticmethod
+    @transaction.atomic
+    def request_reopen(*, agreement_id: int) -> Agreement:
+        """Initiate a bilateral reopen request: SEALED → REOPEN_REQUESTED.
+
+        OTP issuance is handled separately by ConsentService.request_reopen_otp
+        so that the state transition and OTP dispatch can be called from the same
+        API view in a single request.
+        """
+        agreement = Agreement.objects.select_for_update().get(pk=agreement_id)
+        if not can_request_reopen(agreement):
+            raise DomainError("Reopen can only be requested for sealed agreements.")
+        new_status = next_state(agreement.status, "request_reopen")
+        agreement.status = new_status
+        agreement.save(update_fields=["status", "updated_at"])
+        AuditService.record_event(
+            event_type="agreement.reopen_requested",
+            entity_type="agreement",
+            entity_id=str(agreement.pk),
+        )
+        return agreement
+
+    @staticmethod
+    @transaction.atomic
+    def complete_bilateral_reopen(*, agreement_id: int) -> Agreement:
+        """Finalize the reopen once all parties have confirmed: REOPEN_REQUESTED → ACTIVE.
+
+        Called automatically by ConsentService.confirm_reopen_by_phone when the
+        last party confirms. Clears sealed_at and seal_hash so the agreement can
+        be edited and re-sealed cleanly.
+        """
+        agreement = Agreement.objects.select_for_update().get(pk=agreement_id)
+        new_status = next_state(agreement.status, "bilateral_confirm")
+        agreement.status = new_status
+        agreement.sealed_at = None
+        agreement.seal_hash = ""
+        agreement.save(update_fields=["status", "sealed_at", "seal_hash", "updated_at"])
+        AuditService.record_event(
+            event_type="agreement.reopened_bilateral",
+            entity_type="agreement",
+            entity_id=str(agreement.pk),
+        )
+        return agreement
+
+    @staticmethod
+    @transaction.atomic
+    def cancel_reopen(*, agreement_id: int) -> Agreement:
+        """Cancel a pending reopen request: REOPEN_REQUESTED → SEALED."""
+        agreement = Agreement.objects.select_for_update().get(pk=agreement_id)
+        new_status = next_state(agreement.status, "cancel_reopen")
+        agreement.status = new_status
+        agreement.save(update_fields=["status", "updated_at"])
+        AuditService.record_event(
+            event_type="agreement.reopen_cancelled",
             entity_type="agreement",
             entity_id=str(agreement.pk),
         )

@@ -173,6 +173,58 @@ class TestSealAgreement:
         assert sealed.status == AgreementStatus.SEALED
         assert sealed.sealed_at is not None
 
+    def test_seal_hash_stored_on_seal(self, db):
+        account = _account("seal_hash1@t.com")
+        agreement = AgreementService.create_draft(title="Hash Test", created_by=account)
+        agreement.status = AgreementStatus.ACTIVE
+        agreement.save()
+        id1 = _identity(account)
+        party = Party.objects.create(
+            agreement=agreement,
+            identity=id1,
+            role=Party.Role.BUYER,
+            display_name="B",
+            id_type="ghana_card",
+            id_number="GHA-001",
+        )
+        EvidenceItem.objects.create(
+            agreement=agreement,
+            uploaded_by=party,
+            file_type=EvidenceItem.FileType.PHOTO,
+            file_hash="def456",
+        )
+        sealed = AgreementService.seal_agreement(agreement_id=agreement.pk)
+        assert sealed.seal_hash != ""
+        assert len(sealed.seal_hash) == 64  # SHA-256 hex digest
+
+    def test_seal_hash_is_deterministic(self, db):
+        """Same agreement data always produces the same hash."""
+        from apps.agreements.services import _compute_seal_hash
+
+        account = _account("seal_hash2@t.com")
+        agreement = AgreementService.create_draft(title="Deterministic", created_by=account)
+        agreement.status = AgreementStatus.ACTIVE
+        agreement.save()
+        id1 = _identity(account)
+        party = Party.objects.create(
+            agreement=agreement,
+            identity=id1,
+            role=Party.Role.BUYER,
+            display_name="C",
+            id_type="passport",
+            id_number="P999",
+        )
+        EvidenceItem.objects.create(
+            agreement=agreement,
+            uploaded_by=party,
+            file_type=EvidenceItem.FileType.PHOTO,
+            file_hash="xyz789",
+        )
+        hash1 = _compute_seal_hash(agreement)
+        hash2 = _compute_seal_hash(agreement)
+        assert hash1 == hash2
+        assert len(hash1) == 64
+
     def test_raises_when_no_evidence(self, db):
         account = _account("g@t.com")
         agreement = AgreementService.create_draft(title="T", created_by=account)

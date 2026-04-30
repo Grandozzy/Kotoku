@@ -41,6 +41,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "common.middleware.RequestIdMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -103,6 +104,12 @@ REST_FRAMEWORK = {
 CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", os.getenv("REDIS_URL", "redis://localhost:6379/0"))
 CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", "redis://localhost:6379/1")
 CELERY_TASK_ALWAYS_EAGER = False
+CELERY_BEAT_SCHEDULE = {
+    "archive-expired-vault-entries": {
+        "task": "apps.vault.tasks.archive_expired_vault_entries",
+        "schedule": 86400,  # once per day (seconds)
+    },
+}
 
 CACHES = {
     "default": {
@@ -124,6 +131,8 @@ SMS_SENDER_ID = os.getenv("SMS_SENDER_ID", "KOTOKU")
 SENTRY_DSN = os.getenv("SENTRY_DSN", "")
 OTEL_EXPORTER_OTLP_ENDPOINT = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "")
 
+_LOG_FORMAT = os.getenv("LOG_FORMAT", "verbose")  # set LOG_FORMAT=json in production
+
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
@@ -132,23 +141,32 @@ LOGGING = {
             "format": "{asctime} {levelname} {name} {module} {message}",
             "style": "{",
         },
+        "json": {
+            "()": "common.logging.JsonFormatter",
+        },
     },
     "handlers": {
         "console": {
             "class": "logging.StreamHandler",
-            "formatter": "verbose",
+            "formatter": _LOG_FORMAT,
         },
         "file": {
             "class": "logging.handlers.RotatingFileHandler",
             "filename": BASE_DIR / "logs" / "kotoku.log",
             "maxBytes": 5 * 1024 * 1024,
             "backupCount": 5,
-            "formatter": "verbose",
+            "formatter": _LOG_FORMAT,
         },
     },
     "loggers": {
         "kotoku": {
             "handlers": ["console", "file"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        # Surface Celery task logs through our handler so request IDs carry through.
+        "celery": {
+            "handlers": ["console"],
             "level": "INFO",
             "propagate": False,
         },

@@ -43,6 +43,7 @@ class AgreementDetailSerializer(serializers.ModelSerializer):
             "status",
             "scenario_template",
             "sealed_at",
+            "seal_hash",
             "closed_at",
             "created_at",
             "updated_at",
