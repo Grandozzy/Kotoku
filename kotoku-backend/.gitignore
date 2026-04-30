@@ -12,3 +12,5 @@ output/
 dist/
 build/
 *.egg-info/
+celerybeat-schedule
+logs/

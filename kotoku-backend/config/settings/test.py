@@ -8,6 +8,12 @@ DATABASES["default"] = {  # type: ignore[index]
 }
 CELERY_TASK_ALWAYS_EAGER = True
 
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+    }
+}
+
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
