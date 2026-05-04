@@ -8,6 +8,7 @@ from apps.agreements.models import Agreement
 from apps.audit.services import AuditService
 from apps.identity.models import IdentityRecord
 from apps.parties.models import Party
+from apps.vault.services import VaultService
 from common.exceptions import DomainError
 
 
@@ -126,6 +127,7 @@ class AgreementService:
             entity_type="agreement",
             entity_id=str(agreement.pk),
         )
+        VaultService.create_entry(agreement=agreement, actor=agreement.created_by)
         return agreement
 
     @staticmethod
