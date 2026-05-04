@@ -5,6 +5,15 @@ from .models import VaultEntry
 
 @admin.register(VaultEntry)
 class VaultEntryAdmin(admin.ModelAdmin):
-    list_display = ("id", "agreement", "evidence_item", "sealed_at", "archived")
-    list_select_related = ("agreement", "evidence_item")
-    list_filter = ("archived",)
+    list_display = (
+        "id",
+        "agreement",
+        "export_status",
+        "sealed_at",
+        "retention_until",
+        "is_free_retention",
+        "retry_count",
+        "archived",
+    )
+    list_filter = ("export_status", "archived")
+    list_select_related = ("agreement",)
