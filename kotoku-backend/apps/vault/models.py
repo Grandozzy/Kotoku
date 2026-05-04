@@ -1,24 +1,41 @@
 from django.db import models
 
 from apps.agreements.models import Agreement
-from apps.evidence.models import EvidenceItem
 
 
 class VaultEntry(models.Model):
-    agreement = models.ForeignKey(
+    class ExportStatus(models.TextChoices):
+        PENDING = "pending", "Pending"
+        PROCESSING = "processing", "Processing"
+        COMPLETED = "completed", "Completed"
+        FAILED = "failed", "Failed"
+
+    agreement = models.OneToOneField(
         Agreement,
         on_delete=models.CASCADE,
-        related_name="vault_entries",
+        related_name="vault_entry",
     )
-    evidence_item = models.ForeignKey(
-        EvidenceItem,
-        on_delete=models.CASCADE,
-        related_name="vault_entries",
+    export_status = models.CharField(
+        max_length=20,
+        choices=ExportStatus.choices,
+        default=ExportStatus.PENDING,
+        db_index=True,
     )
+    pdf_storage_key = models.CharField(max_length=512, blank=True)
     sealed_at = models.DateTimeField(null=True, blank=True)
-    pdf_url = models.URLField(blank=True)
+    retention_until = models.DateTimeField(null=True, blank=True)
+    is_free_retention = models.BooleanField(default=True)
+    retry_count = models.IntegerField(default=0)
     archived = models.BooleanField(default=False, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["agreement"],
+                name="unique_vault_entry_per_agreement",
+            ),
+        ]
+
     def __str__(self) -> str:
-        return f"Vault: {self.agreement} - {self.evidence_item}"
+        return f"Vault: {self.agreement} [{self.export_status}]"
