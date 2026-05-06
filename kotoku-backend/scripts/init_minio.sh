@@ -22,7 +22,7 @@ else:
 PY
 
 python - <<PY
-import boto3, os
+import boto3, json, os
 
 s3 = boto3.client(
     "s3",
@@ -37,4 +37,16 @@ if bucket not in buckets:
     print(f"Created bucket: {bucket}")
 else:
     print(f"Bucket already exists: {bucket}")
+
+policy = {
+    "Version": "2012-10-17",
+    "Statement": [{
+        "Effect": "Allow",
+        "Principal": {"AWS": ["*"]},
+        "Action": ["s3:GetObject"],
+        "Resource": [f"arn:aws:s3:::{bucket}/*"]
+    }]
+}
+s3.put_bucket_policy(Bucket=bucket, Policy=json.dumps(policy))
+print(f"Set public read policy on bucket: {bucket}")
 PY

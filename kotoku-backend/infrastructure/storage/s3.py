@@ -16,9 +16,11 @@ def _get_client():
 
 
 def _build_object_url(key: str) -> str:
+    external_url = getattr(settings, "AWS_S3_EXTERNAL_URL", "")
+    if external_url:
+        return f"{external_url.rstrip('/')}/{settings.AWS_STORAGE_BUCKET_NAME}/{key}"
     endpoint_url = getattr(settings, "AWS_ENDPOINT_URL_S3", None)
     if endpoint_url:
-        # MinIO / local: use the endpoint directly
         return f"{endpoint_url.rstrip('/')}/{settings.AWS_STORAGE_BUCKET_NAME}/{key}"
     return f"https://{settings.AWS_STORAGE_BUCKET_NAME}.s3.{settings.AWS_S3_REGION_NAME}.amazonaws.com/{key}"
 
