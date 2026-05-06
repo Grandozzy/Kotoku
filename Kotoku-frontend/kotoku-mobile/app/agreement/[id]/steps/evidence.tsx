@@ -108,7 +108,7 @@ export default function EvidenceStep() {
       )}
 
       <Button
-        title="Next — Review"
+        title="Proceed"
         variant="primary"
         size="lg"
         fullWidth

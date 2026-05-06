@@ -73,7 +73,7 @@ export default function ReviewStep() {
       })}
 
       <Button
-        title="Request consent codes"
+        title="Proceed"
         variant="primary"
         size="lg"
         fullWidth
