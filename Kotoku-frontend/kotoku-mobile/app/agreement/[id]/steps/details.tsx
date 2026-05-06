@@ -103,26 +103,30 @@ export default function DetailsStep() {
         </View>
       ))}
 
-      <Button
-        title="Proceed"
-        variant="primary"
-        size="lg"
-        fullWidth
-        disabled={!isValid}
-        onPress={handleSubmit(onSubmit)}
-      />
-      {stepIndex > 0 && (
-        <Button
-          title="Back"
-          variant="secondary"
-          size="lg"
-          fullWidth
-          onPress={() => {
-            prevStep();
-            router.replace(`/agreement/${id}/steps/${STEPS[stepIndex - 1]}`);
-          }}
-        />
-      )}
+      <View className="flex-row gap-sm">
+        {stepIndex > 0 && (
+          <View style={{ flex: 1 }}>
+            <Button
+              title="Back"
+              variant="secondary"
+              size="lg"
+              onPress={() => {
+                prevStep();
+                router.replace(`/agreement/${id}/steps/${STEPS[stepIndex - 1]}`);
+              }}
+            />
+          </View>
+        )}
+        <View style={{ flex: 2 }}>
+          <Button
+            title="Proceed"
+            variant="primary"
+            size="lg"
+            disabled={!isValid}
+            onPress={handleSubmit(onSubmit)}
+          />
+        </View>
+      </View>
     </ScrollView>
   );
 }

@@ -140,14 +140,30 @@ export default function ConsentStep() {
               Both parties have confirmed
             </Text>
           </View>
-          <Button
-            title="Seal agreement"
-            variant="primary"
-            size="lg"
-            fullWidth
-            loading={sealMutation.isPending}
-            onPress={() => sealMutation.mutate()}
-          />
+          <View className="flex-row gap-sm">
+            {stepIndex > 0 && (
+              <View style={{ flex: 1 }}>
+                <Button
+                  title="Back"
+                  variant="secondary"
+                  size="lg"
+                  onPress={() => {
+                    prevStep();
+                    router.replace(`/agreement/${id}/steps/${STEPS[stepIndex - 1]}`);
+                  }}
+                />
+              </View>
+            )}
+            <View style={{ flex: 2 }}>
+              <Button
+                title="Seal agreement"
+                variant="primary"
+                size="lg"
+                loading={sealMutation.isPending}
+                onPress={() => sealMutation.mutate()}
+              />
+            </View>
+          </View>
           {sealMutation.isError && (
             <Text className="text-sm text-semantic-error text-center">
               {getApiErrorMessage(sealMutation.error)}
@@ -156,7 +172,7 @@ export default function ConsentStep() {
         </View>
       )}
 
-      {stepIndex > 0 && (
+      {!bothConfirmed && stepIndex > 0 && (
         <Button
           title="Back"
           variant="secondary"

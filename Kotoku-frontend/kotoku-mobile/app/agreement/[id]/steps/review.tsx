@@ -72,25 +72,29 @@ export default function ReviewStep() {
         );
       })}
 
-      <Button
-        title="Proceed"
-        variant="primary"
-        size="lg"
-        fullWidth
-        onPress={handleNext}
-      />
-      {stepIndex > 0 && (
-        <Button
-          title="Back"
-          variant="secondary"
-          size="lg"
-          fullWidth
-          onPress={() => {
-            prevStep();
-            router.replace(`/agreement/${id}/steps/${STEPS[stepIndex - 1]}`);
-          }}
-        />
-      )}
+      <View className="flex-row gap-sm">
+        {stepIndex > 0 && (
+          <View style={{ flex: 1 }}>
+            <Button
+              title="Back"
+              variant="secondary"
+              size="lg"
+              onPress={() => {
+                prevStep();
+                router.replace(`/agreement/${id}/steps/${STEPS[stepIndex - 1]}`);
+              }}
+            />
+          </View>
+        )}
+        <View style={{ flex: 2 }}>
+          <Button
+            title="Proceed"
+            variant="primary"
+            size="lg"
+            onPress={handleNext}
+          />
+        </View>
+      </View>
     </ScrollView>
   );
 }
