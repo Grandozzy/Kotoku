@@ -4,7 +4,7 @@ from django.core.cache import cache
 from django.test import TestCase, override_settings
 from rest_framework.test import APIClient
 
-_PATCH_SMS = patch("apps.auth.services.SmsGateway.send", return_value=True)
+_PATCH_SMS = patch("infrastructure.sms.gateway.SmsGateway.send", return_value=True)
 
 
 @override_settings(CELERY_TASK_ALWAYS_EAGER=True)

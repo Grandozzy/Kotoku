@@ -127,6 +127,7 @@ SMS_API_URL = os.getenv("SMS_API_URL", "https://api.africastalking.com/version1/
 SMS_API_KEY = os.getenv("SMS_API_KEY", "")
 SMS_USERNAME = os.getenv("SMS_USERNAME", "sandbox")
 SMS_SENDER_ID = os.getenv("SMS_SENDER_ID", "KOTOKU")
+SMS_BACKEND = os.getenv("SMS_BACKEND", "africastalking")
 
 SENTRY_DSN = os.getenv("SENTRY_DSN", "")
 OTEL_EXPORTER_OTLP_ENDPOINT = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "")
