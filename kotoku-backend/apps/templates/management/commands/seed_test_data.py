@@ -153,16 +153,33 @@ class Command(BaseCommand):
                 otp_code=otp,
             )
 
+        import hashlib
+
+        from infrastructure.storage.s3 import S3StorageClient
+
+        png_bytes = (
+            b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01"
+            b"\x00\x00\x00\x01\x08\x02\x00\x00\x00\x90wS\xde\x00"
+            b"\x00\x00\x0cIDATx\x9cc\xf8\x0f\x00\x00\x01\x00\x01"
+            b"\x00\x00\x00\x00IEND\xaeB`\x82"
+        )
+        file_hash = hashlib.sha256(png_bytes).hexdigest()
+        file_key = "test-data/vehicle_front.png"
+        storage_url = S3StorageClient().upload(
+            file_key, png_bytes, content_type="image/png"
+        )
+
         EvidenceItem.objects.get_or_create(
             agreement=agreement,
             evidence_type="vehicle_photo_front",
             defaults={
                 "file_type": EvidenceItem.FileType.PHOTO,
-                "mime_type": "image/jpeg",
-                "size_bytes": 204800,
-                "file_key": "test-data/vehicle_front.jpg",
-                "storage_url": "https://example.com/vehicle_front.jpg",
-                "original_name": "vehicle_front.jpg",
+                "mime_type": "image/png",
+                "size_bytes": len(png_bytes),
+                "file_key": file_key,
+                "file_hash": file_hash,
+                "storage_url": storage_url,
+                "original_name": "vehicle_front.png",
                 "upload_status": EvidenceItem.UploadStatus.CONFIRMED,
             },
         )
