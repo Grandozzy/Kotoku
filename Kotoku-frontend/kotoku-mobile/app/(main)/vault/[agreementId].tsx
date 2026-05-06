@@ -1,6 +1,7 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ChevronLeft, Clock } from "lucide-react-native";
 import { Pressable, ScrollView, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Badge } from "@/components/ui";
 import { ExportButton } from "@/components/vault/ExportButton";
@@ -11,6 +12,7 @@ export default function VaultDetailScreen() {
   const router = useRouter();
   const { agreementId } = useLocalSearchParams<{ agreementId: string }>();
   const id = Number(agreementId);
+  const insets = useSafeAreaInsets();
 
   const { data: record, isLoading } = useVaultRecord(id);
   const { data: auditLog } = useAuditLog(id);
@@ -30,12 +32,12 @@ export default function VaultDetailScreen() {
       contentContainerClassName="pb-2xl"
     >
       {/* Top bar */}
-      <View className="flex-row items-center px-lg pt-xl pb-md gap-md">
+      <View className="flex-row items-center px-lg pb-md gap-md" style={{ paddingTop: insets.top + 12 }}>
         <Pressable onPress={() => router.back()}>
           <ChevronLeft size={24} color={colors.inkPrimary} />
         </Pressable>
         <Text className="text-xl font-semibold text-ink-primary flex-1">
-          Agreement #{id}
+          {record.title}
         </Text>
         <Badge
           label={record.status === "expired" ? "Expired" : "Sealed"}
