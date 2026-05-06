@@ -1,10 +1,10 @@
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { CheckCircle, Clock } from "lucide-react-native";
 import { useState } from "react";
 import { ScrollView, Text, View } from "react-native";
 
 import { Button, OTPInput } from "@/components/ui";
-import { useAgreementStore } from "@/features/agreements/agreementStore";
+import { useAgreementStore, STEPS } from "@/features/agreements/agreementStore";
 import {
   useConfirmOtp,
   useRequestOtp,
@@ -15,10 +15,11 @@ import { useTemplate } from "@/features/agreements/useAgreementDraft";
 import { colors } from "@/theme/tokens";
 
 export default function ConsentStep() {
+  const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const agreementId = Number(id);
 
-  const { scenarioId, consentA, consentB } = useAgreementStore();
+  const { scenarioId, consentA, consentB, prevStep, stepIndex } = useAgreementStore();
   const template = useTemplate(scenarioId);
   const [roleA, roleB] = template?.partyRoles ?? ["Party A", "Party B"];
 
@@ -153,6 +154,19 @@ export default function ConsentStep() {
             </Text>
           )}
         </View>
+      )}
+
+      {stepIndex > 0 && (
+        <Button
+          title="Back"
+          variant="secondary"
+          size="lg"
+          fullWidth
+          onPress={() => {
+            prevStep();
+            router.replace(`/agreement/${id}/steps/${STEPS[stepIndex - 1]}`);
+          }}
+        />
       )}
     </ScrollView>
   );

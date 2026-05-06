@@ -3,14 +3,14 @@ import { Pencil } from "lucide-react-native";
 import { Pressable, ScrollView, Text, View } from "react-native";
 
 import { Button } from "@/components/ui";
-import { useAgreementStore } from "@/features/agreements/agreementStore";
+import { useAgreementStore, STEPS } from "@/features/agreements/agreementStore";
 import { useTemplate } from "@/features/agreements/useAgreementDraft";
 import { colors } from "@/theme/tokens";
 
 export default function ReviewStep() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { scenarioId, partyA, partyB, subjectData, nextStep } =
+  const { scenarioId, partyA, partyB, subjectData, nextStep, prevStep, stepIndex } =
     useAgreementStore();
   const template = useTemplate(scenarioId);
   const [roleA, roleB] = template?.partyRoles ?? ["Party A", "Party B"];
@@ -79,6 +79,18 @@ export default function ReviewStep() {
         fullWidth
         onPress={handleNext}
       />
+      {stepIndex > 0 && (
+        <Button
+          title="Back"
+          variant="secondary"
+          size="lg"
+          fullWidth
+          onPress={() => {
+            prevStep();
+            router.replace(`/agreement/${id}/steps/${STEPS[stepIndex - 1]}`);
+          }}
+        />
+      )}
     </ScrollView>
   );
 }

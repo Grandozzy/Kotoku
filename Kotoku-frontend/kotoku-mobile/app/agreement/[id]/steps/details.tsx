@@ -8,6 +8,7 @@ import { Button } from "@/components/ui";
 import { FieldRenderer } from "@/components/agreement/FieldRenderer";
 import {
   useAgreementStore,
+  STEPS,
 } from "@/features/agreements/agreementStore";
 import { useTemplate } from "@/features/agreements/useAgreementDraft";
 
@@ -40,7 +41,7 @@ function buildDetailsSchema(template: {
 export default function DetailsStep() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { scenarioId, subjectData, setSubjectData, nextStep } =
+  const { scenarioId, subjectData, setSubjectData, nextStep, prevStep, stepIndex } =
     useAgreementStore();
   const template = useTemplate(scenarioId);
 
@@ -110,6 +111,18 @@ export default function DetailsStep() {
         disabled={!isValid}
         onPress={handleSubmit(onSubmit)}
       />
+      {stepIndex > 0 && (
+        <Button
+          title="Back"
+          variant="secondary"
+          size="lg"
+          fullWidth
+          onPress={() => {
+            prevStep();
+            router.replace(`/agreement/${id}/steps/${STEPS[stepIndex - 1]}`);
+          }}
+        />
+      )}
     </ScrollView>
   );
 }

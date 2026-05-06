@@ -4,7 +4,7 @@ import { ScrollView, Text, View } from "react-native";
 
 import { Button } from "@/components/ui";
 import { PhotoSlot } from "@/components/evidence/PhotoSlot";
-import { useAgreementStore } from "@/features/agreements/agreementStore";
+import { useAgreementStore, STEPS } from "@/features/agreements/agreementStore";
 import { useEvidenceUpload } from "@/features/evidence/useEvidenceUpload";
 import { useTemplate } from "@/features/agreements/useAgreementDraft";
 import { colors } from "@/theme/tokens";
@@ -12,7 +12,7 @@ import { colors } from "@/theme/tokens";
 export default function EvidenceStep() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { scenarioId, nextStep } = useAgreementStore();
+  const { scenarioId, nextStep, prevStep, stepIndex } = useAgreementStore();
   const template = useTemplate(scenarioId);
   const agreementId = Number(id);
 
@@ -115,6 +115,18 @@ export default function EvidenceStep() {
         disabled={!canProceed}
         onPress={handleNext}
       />
+      {stepIndex > 0 && (
+        <Button
+          title="Back"
+          variant="secondary"
+          size="lg"
+          fullWidth
+          onPress={() => {
+            prevStep();
+            router.replace(`/agreement/${id}/steps/${STEPS[stepIndex - 1]}`);
+          }}
+        />
+      )}
     </ScrollView>
   );
 }
