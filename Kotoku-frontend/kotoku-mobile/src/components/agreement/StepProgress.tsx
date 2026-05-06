@@ -3,9 +3,8 @@ import { Pressable, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { colors } from "@/theme/tokens";
-import { STEPS } from "@/features/agreements/agreementStore";
 
-const STEP_LABELS = STEPS.map((s) => s.charAt(0).toUpperCase() + s.slice(1));
+const STEP_LABELS = ["Parties", "Details", "Evidence", "Review", "Consent"];
 
 interface StepProgressProps {
   currentIndex: number;
