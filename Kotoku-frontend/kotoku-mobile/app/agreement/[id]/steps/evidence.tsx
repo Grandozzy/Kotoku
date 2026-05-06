@@ -42,7 +42,7 @@ export default function EvidenceStep() {
     <ScrollView
       className="flex-1 bg-surface-canvas"
       contentContainerClassName="px-lg py-xl gap-xl"
-      style={{ paddingBottom: 40 }}
+      contentContainerStyle={{ paddingBottom: 40 }}
     >
       {/* Photos */}
       <View className="gap-md">
