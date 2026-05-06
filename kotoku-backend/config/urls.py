@@ -1,6 +1,8 @@
 from django.http import JsonResponse
 from django.urls import include, path
 
+from apps.accounts.api.views import MeView
+
 
 def root(_: object) -> JsonResponse:
     return JsonResponse({"service": "kotoku-backend", "status": "ok"})
@@ -8,6 +10,7 @@ def root(_: object) -> JsonResponse:
 
 urlpatterns = [
     path("", root, name="root"),
+    path("api/me/", MeView.as_view(), name="me"),
     path("api/accounts/", include("apps.accounts.api.urls")),
     path("api/auth/", include("apps.auth.api.urls")),
     path("api/agreements/", include("apps.agreements.api.urls")),
