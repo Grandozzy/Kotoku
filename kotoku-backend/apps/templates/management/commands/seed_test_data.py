@@ -168,3 +168,7 @@ class Command(BaseCommand):
         )
 
         AgreementService.seal_agreement(agreement_id=agreement.pk)
+
+        from apps.vault.services import VaultService
+
+        VaultService.create_for_agreement(agreement_id=agreement.pk)
