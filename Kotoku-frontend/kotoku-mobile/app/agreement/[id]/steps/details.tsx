@@ -77,7 +77,8 @@ export default function DetailsStep() {
   return (
     <ScrollView
       className="flex-1 bg-surface-canvas"
-      contentContainerClassName="px-lg py-xl gap-xl pb-2xl"
+      contentContainerClassName="px-lg py-xl gap-xl"
+      style={{ paddingBottom: 40 }}
       keyboardShouldPersistTaps="handled"
     >
       {template.detailSections.map((section) => (
