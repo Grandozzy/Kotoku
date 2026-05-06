@@ -104,7 +104,7 @@ class Command(BaseCommand):
         agreement.refresh_from_db()
 
         if options["sealed"]:
-            self._seal(agreement, alice_phone, bob_phone)
+            self._seal(agreement)
 
         agreement.refresh_from_db()
         status_label = agreement.status
@@ -122,7 +122,7 @@ class Command(BaseCommand):
         self.stdout.write(f'Agreement: "{agreement.title}" ({status_label})')
         self.stdout.write(f"  GET /api/agreements/{agreement.pk}/")
 
-    def _seal(self, agreement, alice_phone, bob_phone):
+    def _seal(self, agreement):
         from unittest.mock import patch
 
         import apps.consent.services as consent_module
@@ -142,16 +142,16 @@ class Command(BaseCommand):
         with patch.object(consent_module, "generate_otp", side_effect=capture_otp):
             records = ConsentService.request_otp(agreement_id=agreement.pk)
 
-        ConsentService.confirm_by_phone(
-            agreement_id=agreement.pk,
-            party_phone=alice_phone,
-            otp_code=captured_otps[0],
-        )
-        ConsentService.confirm_by_phone(
-            agreement_id=agreement.pk,
-            party_phone=bob_phone,
-            otp_code=captured_otps[1],
-        )
+        phone_to_otp = {}
+        for record, otp in zip(records, captured_otps):
+            phone_to_otp[record.party.phone] = otp
+
+        for phone, otp in phone_to_otp.items():
+            ConsentService.confirm_by_phone(
+                agreement_id=agreement.pk,
+                party_phone=phone,
+                otp_code=otp,
+            )
 
         EvidenceItem.objects.get_or_create(
             agreement=agreement,
