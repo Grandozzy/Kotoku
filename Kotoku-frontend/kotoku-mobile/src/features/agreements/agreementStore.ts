@@ -17,7 +17,7 @@ export interface ConsentPartyState {
   confirmed: boolean;
 }
 
-const STEPS = ["parties", "details", "evidence", "review", "consent"] as const;
+export const STEPS = ["parties", "details", "evidence", "review", "consent"] as const;
 export type StepId = (typeof STEPS)[number];
 
 interface AgreementDraftStore {

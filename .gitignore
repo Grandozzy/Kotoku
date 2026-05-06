@@ -57,3 +57,25 @@ tree_expanded.yaml
 /docs
 pr_body.txt
 sprint1-remaining.md
+
+# Frontend
+node_modules/
+.expo/
+dist/
+web-build/
+
+# Agent / tool artifacts
+.agents/
+.qwen/
+openspec/
+skills/
+skills-lock.json
+openspec-guide.md
+CONTEXT.md
+
+# Backend runtime
+celerybeat-schedule
+logs/
+*.log
+makemigrations_*.txt
+pr_comment.txt

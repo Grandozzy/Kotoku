@@ -1,15 +1,18 @@
 import { useRouter } from "expo-router";
 import { ScrollView, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Button, Card } from "@/components/ui";
 
 export default function HomeScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   return (
     <ScrollView
       className="flex-1 bg-surface-canvas"
-      contentContainerClassName="px-lg py-2xl gap-lg"
+      contentContainerClassName="px-lg pb-2xl gap-lg"
+      contentContainerStyle={{ paddingTop: insets.top + 12 }}
     >
       {/* Header */}
       <View>

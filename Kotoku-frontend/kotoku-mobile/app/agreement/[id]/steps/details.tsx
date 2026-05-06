@@ -1,32 +1,49 @@
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { ScrollView, Text, View } from "react-native";
+import { z } from "zod";
 
 import { Button } from "@/components/ui";
 import { FieldRenderer } from "@/components/agreement/FieldRenderer";
 import {
   useAgreementStore,
+  STEPS,
 } from "@/features/agreements/agreementStore";
 import { useTemplate } from "@/features/agreements/useAgreementDraft";
-import { getMissingRequiredFields } from "@/features/agreements/stepValidation";
+
+function buildDetailsSchema(template: {
+  fields: Record<string, { required: boolean; type: string }>;
+}) {
+  const shape: Record<string, z.ZodTypeAny> = {};
+  for (const [key, def] of Object.entries(template.fields)) {
+    if (def.required) {
+      if (def.type === "boolean") {
+        shape[key] = z.boolean().refine((v) => v === true, "Required");
+      } else if (def.type === "number" || def.type === "currency") {
+        shape[key] = z.number({ required_error: "Required", invalid_type_error: "Enter a number" }).min(0.01, "Required");
+      } else {
+        shape[key] = z.string().min(1, "Required");
+      }
+    } else {
+      if (def.type === "boolean") {
+        shape[key] = z.boolean().optional().default(false);
+      } else if (def.type === "number" || def.type === "currency") {
+        shape[key] = z.number().optional().or(z.undefined());
+      } else {
+        shape[key] = z.string().optional().default("");
+      }
+    }
+  }
+  return z.object(shape);
+}
 
 export default function DetailsStep() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { scenarioId, subjectData, setSubjectData, nextStep } =
+  const { scenarioId, subjectData, setSubjectData, nextStep, prevStep, stepIndex } =
     useAgreementStore();
   const template = useTemplate(scenarioId);
-
-  const {
-    control,
-    handleSubmit,
-    watch,
-    formState: { errors },
-  } = useForm<Record<string, unknown>>({
-    defaultValues: subjectData,
-  });
-
-  const watchValues = watch();
 
   if (!template) {
     return (
@@ -36,14 +53,22 @@ export default function DetailsStep() {
     );
   }
 
-  // Collect all required field keys from the template
-  const requiredFieldKeys = Object.entries(template.fields)
-    .filter(([, def]) => def.required)
-    .map(([key]) => key);
+  const schema = buildDetailsSchema(template);
+
+  const {
+    control,
+    handleSubmit,
+    watch,
+    formState: { errors, isValid },
+  } = useForm<Record<string, unknown>>({
+    resolver: zodResolver(schema),
+    mode: "onChange",
+    defaultValues: subjectData,
+  });
+
+  const watchValues = watch();
 
   const onSubmit = (values: Record<string, unknown>) => {
-    const missing = getMissingRequiredFields(requiredFieldKeys, values);
-    if (missing.length > 0) return; // form errors will show inline
     setSubjectData(values);
     nextStep();
     router.push(`/agreement/${id}/steps/evidence`);
@@ -53,6 +78,7 @@ export default function DetailsStep() {
     <ScrollView
       className="flex-1 bg-surface-canvas"
       contentContainerClassName="px-lg py-xl gap-xl"
+      contentContainerStyle={{ paddingBottom: 60 }}
       keyboardShouldPersistTaps="handled"
     >
       {template.detailSections.map((section) => (
@@ -78,13 +104,30 @@ export default function DetailsStep() {
         </View>
       ))}
 
-      <Button
-        title="Next — Evidence"
-        variant="primary"
-        size="lg"
-        fullWidth
-        onPress={handleSubmit(onSubmit)}
-      />
+      <View className="flex-row gap-sm">
+        {stepIndex > 0 && (
+          <View style={{ flex: 1 }}>
+            <Button
+              title="Back"
+              variant="secondary"
+              size="lg"
+              onPress={() => {
+                prevStep();
+                router.replace(`/agreement/${id}/steps/${STEPS[stepIndex - 1]}`);
+              }}
+            />
+          </View>
+        )}
+        <View style={{ flex: 2 }}>
+          <Button
+            title="Proceed"
+            variant="primary"
+            size="lg"
+            disabled={!isValid}
+            onPress={handleSubmit(onSubmit)}
+          />
+        </View>
+      </View>
     </ScrollView>
   );
 }

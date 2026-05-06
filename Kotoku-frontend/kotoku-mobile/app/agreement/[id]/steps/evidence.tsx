@@ -4,7 +4,7 @@ import { ScrollView, Text, View } from "react-native";
 
 import { Button } from "@/components/ui";
 import { PhotoSlot } from "@/components/evidence/PhotoSlot";
-import { useAgreementStore } from "@/features/agreements/agreementStore";
+import { useAgreementStore, STEPS } from "@/features/agreements/agreementStore";
 import { useEvidenceUpload } from "@/features/evidence/useEvidenceUpload";
 import { useTemplate } from "@/features/agreements/useAgreementDraft";
 import { colors } from "@/theme/tokens";
@@ -12,7 +12,7 @@ import { colors } from "@/theme/tokens";
 export default function EvidenceStep() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { scenarioId, nextStep } = useAgreementStore();
+  const { scenarioId, nextStep, prevStep, stepIndex } = useAgreementStore();
   const template = useTemplate(scenarioId);
   const agreementId = Number(id);
 
@@ -42,6 +42,7 @@ export default function EvidenceStep() {
     <ScrollView
       className="flex-1 bg-surface-canvas"
       contentContainerClassName="px-lg py-xl gap-xl"
+      contentContainerStyle={{ paddingBottom: 60 }}
     >
       {/* Photos */}
       <View className="gap-md">
@@ -107,14 +108,30 @@ export default function EvidenceStep() {
         </Text>
       )}
 
-      <Button
-        title="Next — Review"
-        variant="primary"
-        size="lg"
-        fullWidth
-        disabled={!canProceed}
-        onPress={handleNext}
-      />
+      <View className="flex-row gap-sm">
+        {stepIndex > 0 && (
+          <View style={{ flex: 1 }}>
+            <Button
+              title="Back"
+              variant="secondary"
+              size="lg"
+              onPress={() => {
+                prevStep();
+                router.replace(`/agreement/${id}/steps/${STEPS[stepIndex - 1]}`);
+              }}
+            />
+          </View>
+        )}
+        <View style={{ flex: 2 }}>
+          <Button
+            title="Proceed"
+            variant="primary"
+            size="lg"
+            disabled={!canProceed}
+            onPress={handleNext}
+          />
+        </View>
+      </View>
     </ScrollView>
   );
 }

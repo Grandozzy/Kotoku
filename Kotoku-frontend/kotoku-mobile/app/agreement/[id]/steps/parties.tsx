@@ -1,7 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useForm } from "react-hook-form";
-import { ScrollView, Text, View } from "react-native";
+import { Controller, useForm } from "react-hook-form";
+import { Pressable, ScrollView, Text, View } from "react-native";
 import { z } from "zod";
 
 import { Button, TextInput } from "@/components/ui";
@@ -15,7 +15,12 @@ const partySchema = z.object({
   fullName: z.string().min(2, "Full name is required"),
   phone: z
     .string()
-    .regex(/^\+[1-9]\d{9,14}$/, "Enter a valid number with country code"),
+    .min(10, "Phone number is too short")
+    .max(15, "Phone number is too long")
+    .refine(
+      (v) => /^(\+\d{10,15}|\d{10,15})$/.test(v.replace(/\s/g, "")),
+      "Enter a valid phone number (e.g. +233501234567 or 0501234567)",
+    ),
   idType: z.enum(["ghana_card", "passport", "other"]),
   idNumber: z.string().min(3, "ID number is required"),
 });
@@ -42,22 +47,17 @@ export default function PartiesStep() {
   const [roleA, roleB] = template?.partyRoles ?? ["Party A", "Party B"];
 
   const {
-    register,
+    control,
     handleSubmit,
-    watch,
-    setValue,
     formState: { errors, isValid },
   } = useForm<PartiesFormValues>({
     resolver: zodResolver(partiesSchema),
     mode: "onChange",
     defaultValues: {
-      partyA: partyA.fullName ? partyA : { fullName: "", phone: "", idType: "ghana_card", idNumber: "" },
-      partyB: partyB.fullName ? partyB : { fullName: "", phone: "", idType: "ghana_card", idNumber: "" },
+      partyA: partyA.fullName ? partyA : { fullName: "", phone: "", idType: "ghana_card" as IdType, idNumber: "" },
+      partyB: partyB.fullName ? partyB : { fullName: "", phone: "", idType: "ghana_card" as IdType, idNumber: "" },
     },
   });
-
-  const watchedA = watch("partyA");
-  const watchedB = watch("partyB");
 
   const onSubmit = (values: PartiesFormValues) => {
     setPartyA(values.partyA);
@@ -70,124 +70,139 @@ export default function PartiesStep() {
     <ScrollView
       className="flex-1 bg-surface-canvas"
       contentContainerClassName="px-lg py-xl gap-xl"
+      contentContainerStyle={{ paddingBottom: 60 }}
       keyboardShouldPersistTaps="handled"
     >
-      {/* Party A */}
       <PartySection
         title={roleA}
         prefix="partyA"
-        register={register}
+        control={control}
         errors={errors.partyA}
-        idType={watchedA?.idType ?? "ghana_card"}
-        onIdTypeChange={(v) => setValue("partyA.idType", v)}
       />
 
-      {/* Party B */}
       <PartySection
         title={roleB}
         prefix="partyB"
-        register={register}
+        control={control}
         errors={errors.partyB}
-        idType={watchedB?.idType ?? "ghana_card"}
-        onIdTypeChange={(v) => setValue("partyB.idType", v)}
       />
 
-      <Button
-        title="Next — Details"
-        variant="primary"
-        size="lg"
-        fullWidth
-        disabled={!isValid}
-        onPress={handleSubmit(onSubmit)}
-      />
+      <View className="flex-row gap-sm">
+        <View style={{ flex: 2 }}>
+          <Button
+            title="Proceed"
+            variant="primary"
+            size="lg"
+            disabled={!isValid}
+            onPress={handleSubmit(onSubmit)}
+          />
+        </View>
+      </View>
     </ScrollView>
   );
 }
 
 // ---------- Sub-component ----------
 
-import { Pressable } from "react-native";
-import {
-  UseFormRegister,
-  FieldErrors,
-  Path,
-  RegisterOptions,
-} from "react-hook-form";
+import type { Control, FieldErrors } from "react-hook-form";
 
 interface PartySectionProps {
   title: string;
   prefix: "partyA" | "partyB";
-  register: UseFormRegister<PartiesFormValues>;
+  control: Control<PartiesFormValues>;
   errors?: FieldErrors<PartiesFormValues["partyA"]>;
-  idType: IdType;
-  onIdTypeChange: (v: IdType) => void;
 }
 
 function PartySection({
   title,
   prefix,
-  register,
+  control,
   errors,
-  idType,
-  onIdTypeChange,
 }: PartySectionProps) {
   return (
     <View className="gap-md">
       <Text className="text-lg font-semibold text-ink-primary">{title}</Text>
 
-      <TextInput
-        label="Full name"
-        placeholder="As on ID document"
-        required
-        error={errors?.fullName?.message}
-        {...register(`${prefix}.fullName`)}
-      />
-      <TextInput
-        label="Phone number"
-        placeholder="+233 XX XXX XXXX"
-        keyboardType="phone-pad"
-        required
-        error={errors?.phone?.message}
-        {...register(`${prefix}.phone`)}
+      <Controller
+        control={control}
+        name={`${prefix}.fullName` as const}
+        render={({ field: { onChange, value } }) => (
+          <TextInput
+            label="Full name"
+            placeholder="As on ID document"
+            required
+            error={errors?.fullName?.message}
+            value={value}
+            onChangeText={onChange}
+          />
+        )}
       />
 
-      {/* ID type selector */}
-      <View className="gap-xs">
-        <Text className="text-sm font-medium text-ink-secondary">
-          ID type <Text className="text-semantic-error">*</Text>
-        </Text>
-        <View className="flex-row gap-sm">
-          {ID_TYPE_OPTIONS.map((opt) => (
-            <Pressable
-              key={opt.value}
-              onPress={() => onIdTypeChange(opt.value)}
-              className={[
-                "px-md py-sm rounded-pill border flex-1 items-center",
-                idType === opt.value
-                  ? "bg-brand-primary border-brand-primary"
-                  : "bg-surface-card border-border-subtle",
-              ].join(" ")}
-            >
-              <Text
-                className={
-                  idType === opt.value
-                    ? "text-xs font-medium text-white"
-                    : "text-xs text-ink-primary"
-                }
-              >
-                {opt.label}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-      </View>
+      <Controller
+        control={control}
+        name={`${prefix}.phone` as const}
+        render={({ field: { onChange, value } }) => (
+          <TextInput
+            label="Phone number"
+            placeholder="+233501234567 or 0501234567"
+            keyboardType="phone-pad"
+            required
+            error={errors?.phone?.message}
+            value={value}
+            onChangeText={onChange}
+          />
+        )}
+      />
 
-      <TextInput
-        label="ID number"
-        placeholder="Enter ID number"
-        required
-        error={errors?.idNumber?.message}
-        {...register(`${prefix}.idNumber`)}
+      <Controller
+        control={control}
+        name={`${prefix}.idType` as const}
+        render={({ field: { onChange, value } }) => (
+          <View className="gap-xs">
+            <Text className="text-sm font-medium text-ink-secondary">
+              ID type <Text className="text-semantic-error">*</Text>
+            </Text>
+            <View className="flex-row gap-sm">
+              {ID_TYPE_OPTIONS.map((opt) => (
+                <Pressable
+                  key={opt.value}
+                  onPress={() => onChange(opt.value)}
+                  className={[
+                    "px-md py-sm rounded-pill border flex-1 items-center",
+                    value === opt.value
+                      ? "bg-brand-primary border-brand-primary"
+                      : "bg-surface-card border-border-subtle",
+                  ].join(" ")}
+                >
+                  <Text
+                    className={
+                      value === opt.value
+                        ? "text-xs font-medium text-white"
+                        : "text-xs text-ink-primary"
+                    }
+                  >
+                    {opt.label}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+        )}
+      />
+
+      <Controller
+        control={control}
+        name={`${prefix}.idNumber` as const}
+        render={({ field: { onChange, value } }) => (
+          <TextInput
+            label="ID number"
+            placeholder="Enter ID number"
+            required
+            error={errors?.idNumber?.message}
+            value={value}
+            onChangeText={onChange}
+          />
+        )}
       />
     </View>
   );

@@ -1,4 +1,5 @@
 import { FlatList, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Card } from "@/components/ui";
 import { VaultCard } from "@/components/vault/VaultCard";
@@ -7,11 +8,12 @@ import { LOCAL_TEMPLATES } from "@/constants/templates";
 
 export default function VaultScreen() {
   const { data: records, isLoading, error } = useVaultList();
+  const insets = useSafeAreaInsets();
 
   return (
     <View className="flex-1 bg-surface-canvas">
       {/* Header */}
-      <View className="px-lg pt-2xl pb-md">
+      <View className="px-lg pb-md" style={{ paddingTop: insets.top + 12 }}>
         <Text className="text-2xl font-semibold text-ink-primary">Vault</Text>
         <Text className="text-sm text-ink-secondary mt-xs">
           Your sealed agreements

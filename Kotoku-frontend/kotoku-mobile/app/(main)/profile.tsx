@@ -1,5 +1,6 @@
 import { Text, View, Pressable } from "react-native";
 import { ScrollView } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Button, Card } from "@/components/ui";
 import { useAuth } from "@/features/auth/useAuth";
@@ -7,6 +8,7 @@ import { deleteToken } from "@/lib/secureStore";
 
 export default function ProfileScreen() {
   const { phone, clearSession } = useAuth();
+  const insets = useSafeAreaInsets();
 
   const handleLogout = async () => {
     await deleteToken();
@@ -16,7 +18,8 @@ export default function ProfileScreen() {
   return (
     <ScrollView
       className="flex-1 bg-surface-canvas"
-      contentContainerClassName="px-lg py-2xl gap-lg"
+      contentContainerClassName="px-lg pb-2xl gap-lg"
+      contentContainerStyle={{ paddingTop: insets.top + 12 }}
     >
       <View>
         <Text className="text-2xl font-semibold text-ink-primary">Profile</Text>

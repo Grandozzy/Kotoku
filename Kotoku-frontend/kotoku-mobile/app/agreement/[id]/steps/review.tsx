@@ -3,14 +3,14 @@ import { Pencil } from "lucide-react-native";
 import { Pressable, ScrollView, Text, View } from "react-native";
 
 import { Button } from "@/components/ui";
-import { useAgreementStore } from "@/features/agreements/agreementStore";
+import { useAgreementStore, STEPS } from "@/features/agreements/agreementStore";
 import { useTemplate } from "@/features/agreements/useAgreementDraft";
 import { colors } from "@/theme/tokens";
 
 export default function ReviewStep() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { scenarioId, partyA, partyB, subjectData, nextStep } =
+  const { scenarioId, partyA, partyB, subjectData, nextStep, prevStep, stepIndex } =
     useAgreementStore();
   const template = useTemplate(scenarioId);
   const [roleA, roleB] = template?.partyRoles ?? ["Party A", "Party B"];
@@ -24,6 +24,7 @@ export default function ReviewStep() {
     <ScrollView
       className="flex-1 bg-surface-canvas"
       contentContainerClassName="px-lg py-xl gap-xl"
+      contentContainerStyle={{ paddingBottom: 60 }}
     >
       <Text className="text-xl font-semibold text-ink-primary">
         Review your agreement
@@ -72,13 +73,29 @@ export default function ReviewStep() {
         );
       })}
 
-      <Button
-        title="Request consent codes"
-        variant="primary"
-        size="lg"
-        fullWidth
-        onPress={handleNext}
-      />
+      <View className="flex-row gap-sm">
+        {stepIndex > 0 && (
+          <View style={{ flex: 1 }}>
+            <Button
+              title="Back"
+              variant="secondary"
+              size="lg"
+              onPress={() => {
+                prevStep();
+                router.replace(`/agreement/${id}/steps/${STEPS[stepIndex - 1]}`);
+              }}
+            />
+          </View>
+        )}
+        <View style={{ flex: 2 }}>
+          <Button
+            title="Proceed"
+            variant="primary"
+            size="lg"
+            onPress={handleNext}
+          />
+        </View>
+      </View>
     </ScrollView>
   );
 }

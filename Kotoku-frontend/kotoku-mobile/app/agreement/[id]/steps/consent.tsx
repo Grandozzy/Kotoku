@@ -1,10 +1,10 @@
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { CheckCircle, Clock } from "lucide-react-native";
 import { useState } from "react";
 import { ScrollView, Text, View } from "react-native";
 
 import { Button, OTPInput } from "@/components/ui";
-import { useAgreementStore } from "@/features/agreements/agreementStore";
+import { useAgreementStore, STEPS } from "@/features/agreements/agreementStore";
 import {
   useConfirmOtp,
   useRequestOtp,
@@ -15,10 +15,11 @@ import { useTemplate } from "@/features/agreements/useAgreementDraft";
 import { colors } from "@/theme/tokens";
 
 export default function ConsentStep() {
+  const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const agreementId = Number(id);
 
-  const { scenarioId, consentA, consentB } = useAgreementStore();
+  const { scenarioId, consentA, consentB, prevStep, stepIndex } = useAgreementStore();
   const template = useTemplate(scenarioId);
   const [roleA, roleB] = template?.partyRoles ?? ["Party A", "Party B"];
 
@@ -67,6 +68,7 @@ export default function ConsentStep() {
     <ScrollView
       className="flex-1 bg-surface-canvas"
       contentContainerClassName="px-lg py-xl gap-xl"
+      contentContainerStyle={{ paddingBottom: 60 }}
     >
       <View className="gap-sm">
         <Text className="text-xl font-semibold text-ink-primary">
@@ -139,20 +141,49 @@ export default function ConsentStep() {
               Both parties have confirmed
             </Text>
           </View>
-          <Button
-            title="Seal agreement"
-            variant="primary"
-            size="lg"
-            fullWidth
-            loading={sealMutation.isPending}
-            onPress={() => sealMutation.mutate()}
-          />
+          <View className="flex-row gap-sm">
+            {stepIndex > 0 && (
+              <View style={{ flex: 1 }}>
+                <Button
+                  title="Back"
+                  variant="secondary"
+                  size="lg"
+                  onPress={() => {
+                    prevStep();
+                    router.replace(`/agreement/${id}/steps/${STEPS[stepIndex - 1]}`);
+                  }}
+                />
+              </View>
+            )}
+            <View style={{ flex: 2 }}>
+              <Button
+                title="Seal agreement"
+                variant="primary"
+                size="lg"
+                loading={sealMutation.isPending}
+                onPress={() => sealMutation.mutate()}
+              />
+            </View>
+          </View>
           {sealMutation.isError && (
             <Text className="text-sm text-semantic-error text-center">
               {getApiErrorMessage(sealMutation.error)}
             </Text>
           )}
         </View>
+      )}
+
+      {!bothConfirmed && stepIndex > 0 && (
+        <Button
+          title="Back"
+          variant="secondary"
+          size="lg"
+          fullWidth
+          onPress={() => {
+            prevStep();
+            router.replace(`/agreement/${id}/steps/${STEPS[stepIndex - 1]}`);
+          }}
+        />
       )}
     </ScrollView>
   );
