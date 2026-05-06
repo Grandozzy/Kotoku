@@ -1,52 +1,47 @@
-import { Stack } from "expo-router";
+import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 
 import { StepProgress } from "@/components/agreement/StepProgress";
-import { useAgreementStore } from "@/features/agreements/agreementStore";
+import { useAgreementStore, STEPS } from "@/features/agreements/agreementStore";
 import { useDraftPersistence } from "@/hooks/useDraftPersistence";
 
 export default function StepsLayout() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const router = useRouter();
   const stepIndex = useAgreementStore((s) => s.stepIndex);
+  const goToStep = useAgreementStore((s) => s.goToStep);
   useDraftPersistence();
+
+  const handleStepPress = (index: number) => {
+    if (!id) return;
+    goToStep(index);
+    router.replace(`/agreement/${id}/steps/${STEPS[index]}`);
+  };
+
+  const header = () => <StepProgress currentIndex={stepIndex} onStepPress={handleStepPress} />;
 
   return (
     <Stack
       screenOptions={{ headerShown: false }}
-      // StepProgress sits above all step screens
     >
       <Stack.Screen
         name="parties"
-        options={{
-          header: () => <StepProgress currentIndex={stepIndex} />,
-          headerShown: true,
-        }}
+        options={{ header, headerShown: true, animation: "none" }}
       />
       <Stack.Screen
         name="details"
-        options={{
-          header: () => <StepProgress currentIndex={stepIndex} />,
-          headerShown: true,
-        }}
+        options={{ header, headerShown: true, animation: "none" }}
       />
       <Stack.Screen
         name="evidence"
-        options={{
-          header: () => <StepProgress currentIndex={stepIndex} />,
-          headerShown: true,
-        }}
+        options={{ header, headerShown: true, animation: "none" }}
       />
       <Stack.Screen
         name="review"
-        options={{
-          header: () => <StepProgress currentIndex={stepIndex} />,
-          headerShown: true,
-        }}
+        options={{ header, headerShown: true, animation: "none" }}
       />
       <Stack.Screen
         name="consent"
-        options={{
-          header: () => <StepProgress currentIndex={stepIndex} />,
-          headerShown: true,
-        }}
+        options={{ header, headerShown: true, animation: "none" }}
       />
     </Stack>
   );
