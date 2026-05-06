@@ -69,7 +69,7 @@ export default function PartiesStep() {
   return (
     <ScrollView
       className="flex-1 bg-surface-canvas"
-      contentContainerClassName="px-lg py-xl gap-xl"
+      contentContainerClassName="px-lg py-xl gap-xl pb-2xl"
       keyboardShouldPersistTaps="handled"
     >
       <PartySection
