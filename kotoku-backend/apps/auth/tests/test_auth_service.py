@@ -14,20 +14,20 @@ class TestAuthService(TestCase):
         cache.clear()
 
     def test_send_otp_creates_cache_entry(self):
-        with patch("apps.auth.services.SmsGateway.send", return_value=True):
+        with patch("infrastructure.sms.gateway.SmsGateway.send", return_value=True):
             AuthService.send_otp(phone="+233501234567")
         cached = cache.get("auth_otp:+233501234567")
         assert cached is not None
         assert len(cached) == 8
 
     def test_send_otp_rate_limited(self):
-        with patch("apps.auth.services.SmsGateway.send", return_value=True):
+        with patch("infrastructure.sms.gateway.SmsGateway.send", return_value=True):
             AuthService.send_otp(phone="+233501234567")
             with self.assertRaises(DomainError):
                 AuthService.send_otp(phone="+233501234567")
 
     def test_verify_otp_creates_user_and_account(self):
-        with patch("apps.auth.services.SmsGateway.send", return_value=True):
+        with patch("infrastructure.sms.gateway.SmsGateway.send", return_value=True):
             AuthService.send_otp(phone="+233501234567")
         otp = cache.get("auth_otp:+233501234567")
         result = AuthService.verify_otp(phone="+233501234567", otp_code=otp)
@@ -35,13 +35,13 @@ class TestAuthService(TestCase):
         assert Account.objects.filter(user=result["user"]).exists()
 
     def test_verify_otp_wrong_code_raises(self):
-        with patch("apps.auth.services.SmsGateway.send", return_value=True):
+        with patch("infrastructure.sms.gateway.SmsGateway.send", return_value=True):
             AuthService.send_otp(phone="+233501234567")
         with self.assertRaises(DomainError):
             AuthService.verify_otp(phone="+233501234567", otp_code="00000000")
 
     def test_verify_otp_expired_raises(self):
-        with patch("apps.auth.services.SmsGateway.send", return_value=True):
+        with patch("infrastructure.sms.gateway.SmsGateway.send", return_value=True):
             AuthService.send_otp(phone="+233501234567")
         cache.delete("auth_otp:+233501234567")
         with self.assertRaises(DomainError):
@@ -50,7 +50,7 @@ class TestAuthService(TestCase):
     def test_verify_otp_returns_existing_user(self):
         user = User.objects.create_user(phone="+233501234567")
         Account.objects.create(user=user, email="+233501234567@kotoku.app", phone=user.phone)
-        with patch("apps.auth.services.SmsGateway.send", return_value=True):
+        with patch("infrastructure.sms.gateway.SmsGateway.send", return_value=True):
             AuthService.send_otp(phone="+233501234567")
         otp = cache.get("auth_otp:+233501234567")
         result = AuthService.verify_otp(phone="+233501234567", otp_code=otp)

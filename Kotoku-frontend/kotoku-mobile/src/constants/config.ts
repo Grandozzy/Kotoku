@@ -1,17 +1,42 @@
 import { Platform } from "react-native";
 
-// Android emulator routes 10.0.2.2 → host machine; iOS simulator uses localhost.
-// For physical devices set EXPO_PUBLIC_API_URL to your machine's LAN IP, e.g.:
-//   EXPO_PUBLIC_API_URL=http://192.168.x.x:8000 npx expo start
-const _defaultUrl =
-  Platform.OS === "android"
-    ? "http://10.0.2.2:8000"
-    : "http://localhost:8000";
+/**
+ * Networking guide
+ * ────────────────
+ * ┌─────────────────────┬────────────────────────────────────┐
+ * │ Target              │ What to do                         │
+ * ├─────────────────────┼────────────────────────────────────┤
+ * │ Android emulator    │ Leave .env blank — auto-detected   │
+ * │ iOS simulator       │ Leave .env blank — auto-detected   │
+ * │ Physical phone      │ Set EXPO_PUBLIC_API_URL in .env    │
+ * │                     │ to http://<YOUR_LAN_IP>:8000       │
+ * └─────────────────────┴────────────────────────────────────┘
+ *
+ * Android emulator maps 10.0.2.2 → host machine.
+ * iOS simulator shares the host's network stack (localhost works).
+ * Physical devices need your LAN IP (e.g. 192.168.100.19).
+ *
+ * To find your LAN IP:
+ *   Windows: ipconfig | findstr /i "IPv4"
+ *   macOS:   ipconfig getifaddr en0
+ *   Linux:   hostname -I | awk '{print $1}'
+ */
 
-export const API_BASE_URL =
-  process.env.EXPO_PUBLIC_API_URL ?? _defaultUrl;
+const EMULATOR_ANDROID = "http://10.0.2.2:8000";
+const SIMULATOR_IOS = "http://localhost:8000";
 
-export const OTP_EXPIRY_SECONDS = 600; // 10 minutes
+function _defaultApiUrl(): string {
+  if (Platform.OS === "android") return EMULATOR_ANDROID;
+  return SIMULATOR_IOS;
+}
+
+const envUrl = process.env.EXPO_PUBLIC_API_URL?.trim();
+
+export const API_BASE_URL = envUrl && envUrl.length > 0
+  ? envUrl
+  : _defaultApiUrl();
+
+export const OTP_EXPIRY_SECONDS = 600;
 export const OTP_MAX_ATTEMPTS = 3;
-export const FREE_RETENTION_DAYS = 60; // 2 months
+export const FREE_RETENTION_DAYS = 60;
 export const MAX_EVIDENCE_FILE_SIZE_MB = 50;

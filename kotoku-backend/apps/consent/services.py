@@ -18,7 +18,7 @@ from apps.notifications.models import Notification
 from apps.notifications.services import NotificationService
 from apps.parties.models import Party
 from common.exceptions import DomainError
-from infrastructure.sms.gateway import SmsGateway
+from infrastructure.sms import get_sms_gateway
 
 logger = logging.getLogger(__name__)
 
@@ -181,7 +181,7 @@ class ConsentService:
         if not parties:
             raise DomainError("Cannot issue OTPs: agreement has no parties.")
 
-        gateway = SmsGateway()
+        gateway = get_sms_gateway()
         records = []
         for party in parties:
             otp_code = generate_otp()
@@ -248,7 +248,7 @@ class ConsentService:
         if not parties:
             raise DomainError("Cannot issue reopen OTPs: agreement has no parties.")
 
-        gateway = SmsGateway()
+        gateway = get_sms_gateway()
         records = []
         for party in parties:
             otp_code = generate_otp()
