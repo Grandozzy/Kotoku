@@ -4,7 +4,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Card } from "@/components/ui";
 import { VaultCard } from "@/components/vault/VaultCard";
 import { useVaultList } from "@/features/vault/useVault";
-import { LOCAL_TEMPLATES } from "@/constants/templates";
 
 export default function VaultScreen() {
   const { data: records, isLoading, error } = useVaultList();
@@ -12,7 +11,6 @@ export default function VaultScreen() {
 
   return (
     <View className="flex-1 bg-surface-canvas">
-      {/* Header */}
       <View className="px-lg pb-md" style={{ paddingTop: insets.top + 12 }}>
         <Text className="text-2xl font-semibold text-ink-primary">Vault</Text>
         <Text className="text-sm text-ink-secondary mt-xs">
@@ -54,16 +52,9 @@ export default function VaultScreen() {
         data={records ?? []}
         keyExtractor={(r) => String(r.id)}
         contentContainerClassName="px-lg gap-md pb-2xl"
-        renderItem={({ item }) => {
-          const template = LOCAL_TEMPLATES[item.agreementId] ?? null;
-          return (
-            <VaultCard
-              record={item}
-              title={`Agreement #${item.agreementId}`}
-              scenarioLabel={template?.title ?? "Agreement"}
-            />
-          );
-        }}
+        renderItem={({ item }) => (
+          <VaultCard record={item} title={item.title} scenarioLabel="Sealed Agreement" />
+        )}
       />
     </View>
   );

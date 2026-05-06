@@ -2,6 +2,30 @@ import { apiClient } from "@/api/client";
 import type { ApiResponse } from "@/types/api";
 import type { VaultRecord } from "@/types/vault";
 
+interface RawVaultEntry {
+  id: number;
+  agreement: { id: number; title: string; status: string; sealed_at: string };
+  pdf_status: string;
+  pdf_url: string | null;
+  retain_until: string;
+  archived: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+function mapVaultRecord(raw: RawVaultEntry): VaultRecord {
+  return {
+    id: raw.id,
+    agreementId: raw.agreement.id,
+    title: raw.agreement.title,
+    status: raw.archived ? "archived" : "active",
+    pdfStatus: raw.pdf_status as VaultRecord["pdfStatus"],
+    pdfUrl: raw.pdf_url || null,
+    sealedAt: raw.agreement.sealed_at,
+    retentionExpiresAt: raw.retain_until,
+  };
+}
+
 export interface AuditEvent {
   id: number;
   eventType: string;
@@ -11,22 +35,22 @@ export interface AuditEvent {
 }
 
 export async function listVault(): Promise<VaultRecord[]> {
-  const res = await apiClient.get<ApiResponse<VaultRecord[]>>("/vault/");
-  return res.data.data;
+  const res = await apiClient.get<ApiResponse<{ results: RawVaultEntry[] }>>("/vault/");
+  return res.data.data.results.map(mapVaultRecord);
 }
 
 export async function getVaultRecord(agreementId: number): Promise<VaultRecord> {
-  const res = await apiClient.get<ApiResponse<VaultRecord>>(
+  const res = await apiClient.get<ApiResponse<{ vault_entry: RawVaultEntry }>>(
     `/vault/${agreementId}/`,
   );
-  return res.data.data;
+  return mapVaultRecord(res.data.data.vault_entry);
 }
 
 export async function requestPdfExport(agreementId: number): Promise<VaultRecord> {
-  const res = await apiClient.post<ApiResponse<VaultRecord>>(
+  const res = await apiClient.post<ApiResponse<{ vault_entry: RawVaultEntry }>>(
     `/vault/${agreementId}/export/`,
   );
-  return res.data.data;
+  return mapVaultRecord(res.data.data.vault_entry);
 }
 
 export async function getAuditLog(agreementId: number): Promise<AuditEvent[]> {
