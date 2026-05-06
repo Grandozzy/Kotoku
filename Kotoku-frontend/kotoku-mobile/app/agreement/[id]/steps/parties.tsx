@@ -87,14 +87,17 @@ export default function PartiesStep() {
         errors={errors.partyB}
       />
 
-      <Button
-        title="Proceed"
-        variant="primary"
-        size="lg"
-        fullWidth
-        disabled={!isValid}
-        onPress={handleSubmit(onSubmit)}
-      />
+      <View className="flex-row gap-sm">
+        <View style={{ flex: 2 }}>
+          <Button
+            title="Proceed"
+            variant="primary"
+            size="lg"
+            disabled={!isValid}
+            onPress={handleSubmit(onSubmit)}
+          />
+        </View>
+      </View>
     </ScrollView>
   );
 }
