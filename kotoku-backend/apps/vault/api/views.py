@@ -9,6 +9,7 @@ from apps.vault.selectors import VaultSelector
 from apps.vault.services import VaultService
 from common.exceptions import DomainError
 from common.pagination import DefaultPagination
+from apps.vault.api.audit import AuditEventSerializer, build_audit_timeline
 from common.responses import ok
 
 
@@ -63,3 +64,21 @@ class VaultExportView(APIView):
 
         entry = VaultService.request_export(agreement_id=agreement_id)
         return ok({"vault_entry": VaultEntrySerializer(entry).data}, status_code=202)
+
+
+class VaultAuditLogView(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, agreement_id: int):
+        try:
+            entry = VaultSelector.get_for_agreement(
+                agreement_id=agreement_id,
+                account_id=request.user.account.pk,
+            )
+        except VaultEntry.DoesNotExist:
+            raise Http404 from None
+
+        events = build_audit_timeline(entry.agreement)
+        serializer = AuditEventSerializer(events, many=True)
+        return ok({"events": serializer.data})
