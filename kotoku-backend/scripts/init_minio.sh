@@ -7,13 +7,19 @@ ACCESS_KEY="${AWS_ACCESS_KEY_ID:-kotokuadmin}"
 SECRET_KEY="${AWS_SECRET_ACCESS_KEY:-kotokuadmin123}"
 
 echo "Waiting for MinIO at ${ENDPOINT}..."
-for i in $(seq 1 30); do
-  if curl -sf "${ENDPOINT}/minio/health/live" >/dev/null 2>&1; then
-    echo "MinIO is live."
-    break
-  fi
-  sleep 1
-done
+python - <<'PY'
+import os, time, urllib.request, urllib.error
+endpoint = os.environ.get("AWS_S3_ENDPOINT_URL", "http://minio:9000")
+for i in range(30):
+    try:
+        urllib.request.urlopen(f"{endpoint}/minio/health/live", timeout=2)
+        print("MinIO is live.")
+        break
+    except (urllib.error.URLError, OSError):
+        time.sleep(1)
+else:
+    raise RuntimeError("MinIO did not become healthy in 30s")
+PY
 
 python - <<PY
 import boto3, os
