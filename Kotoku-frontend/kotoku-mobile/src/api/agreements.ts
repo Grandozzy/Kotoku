@@ -1,32 +1,70 @@
 import { apiClient } from "@/api/client";
 import type { Agreement } from "@/types/agreement";
 import type { ApiResponse } from "@/types/api";
+import type { ScenarioId } from "@/constants/scenarios";
+
+interface RawAgreement {
+  id: number;
+  title: string;
+  status: string;
+  scenario_template: string;
+  sealed_at: string | null;
+  created_at: string;
+  parties: {
+    id: number;
+    role: string;
+    display_name: string;
+    phone: string;
+    id_type: string;
+    id_number: string;
+  }[];
+}
+
+function mapAgreement(raw: RawAgreement): Agreement {
+  return {
+    id: raw.id,
+    scenarioId: raw.scenario_template as ScenarioId,
+    title: raw.title,
+    status: raw.status as Agreement["status"],
+    createdAt: raw.created_at,
+    sealedAt: raw.sealed_at,
+    parties: raw.parties.map((p) => ({
+      id: p.id,
+      role: p.role as Agreement["parties"][number]["role"],
+      displayName: p.display_name,
+      phone: p.phone,
+      idType: p.id_type as "ghana_card" | "passport" | "other",
+      idNumber: p.id_number,
+      phoneVerifiedAt: null,
+    })),
+  };
+}
 
 export async function createDraft(payload: {
   scenarioId: string;
   title: string;
 }): Promise<Agreement> {
-  const res = await apiClient.post<ApiResponse<Agreement>>("/agreements/", {
+  const res = await apiClient.post<ApiResponse<RawAgreement>>("/agreements/", {
     scenario_id: payload.scenarioId,
     title: payload.title,
   });
-  return res.data.data;
+  return mapAgreement(res.data.data);
 }
 
 export async function getAgreement(id: number): Promise<Agreement> {
-  const res = await apiClient.get<ApiResponse<Agreement>>(`/agreements/${id}/`);
-  return res.data.data;
+  const res = await apiClient.get<ApiResponse<RawAgreement>>(`/agreements/${id}/`);
+  return mapAgreement(res.data.data);
 }
 
 export async function updateAgreement(
   id: number,
   payload: Record<string, unknown>,
 ): Promise<Agreement> {
-  const res = await apiClient.patch<ApiResponse<Agreement>>(
+  const res = await apiClient.patch<ApiResponse<RawAgreement>>(
     `/agreements/${id}/`,
     payload,
   );
-  return res.data.data;
+  return mapAgreement(res.data.data);
 }
 
 export async function validateAgreement(id: number): Promise<{
@@ -40,19 +78,19 @@ export async function validateAgreement(id: number): Promise<{
 }
 
 export async function sealAgreement(id: number): Promise<Agreement> {
-  const res = await apiClient.post<ApiResponse<Agreement>>(
+  const res = await apiClient.post<ApiResponse<RawAgreement>>(
     `/agreements/${id}/seal/`,
   );
-  return res.data.data;
+  return mapAgreement(res.data.data);
 }
 
 export async function listAgreements(params?: {
   status?: string;
 }): Promise<Agreement[]> {
-  const res = await apiClient.get<ApiResponse<Agreement[]>>("/agreements/", {
+  const res = await apiClient.get<ApiResponse<RawAgreement[]>>("/agreements/", {
     params,
   });
-  return res.data.data;
+  return res.data.data.map(mapAgreement);
 }
 
 export interface PendingActionItem {

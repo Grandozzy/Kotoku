@@ -23,6 +23,9 @@ class PartySerializer(serializers.Serializer):
     id = serializers.IntegerField()
     role = serializers.CharField()
     display_name = serializers.CharField()
+    phone = serializers.CharField()
+    id_type = serializers.CharField()
+    id_number = serializers.CharField()
 
 
 class AgreementListSerializer(serializers.ModelSerializer):

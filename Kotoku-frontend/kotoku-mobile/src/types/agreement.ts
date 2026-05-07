@@ -20,6 +20,8 @@ export interface Party {
   role: "buyer" | "seller" | "landlord" | "tenant" | "witness";
   displayName: string;
   phone: string;
+  idType: "ghana_card" | "passport" | "other";
+  idNumber: string;
   phoneVerifiedAt: string | null;
 }
 

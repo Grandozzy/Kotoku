@@ -12,12 +12,12 @@ import { useAuditLog, useRequestExport, useVaultRecord } from "@/features/vault/
 import type { ScenarioId } from "@/constants/scenarios";
 import { colors } from "@/theme/tokens";
 
-function mapPartyToDraft(role: string, phone: string): PartyDraft {
+function mapPartyToDraft(fullName: string, phone: string, idType: string, idNumber: string): PartyDraft {
   return {
-    fullName: role,
+    fullName,
     phone,
-    idType: "ghana_card",
-    idNumber: "",
+    idType: idType as PartyDraft["idType"],
+    idNumber,
   };
 }
 
@@ -101,24 +101,34 @@ export default function VaultDetailScreen() {
 
         {record.agreementStatus === "active" && (
           <View className="gap-sm">
-            <Pressable
-              onPress={() => {
-                let partyA: PartyDraft | undefined;
-                let partyB: PartyDraft | undefined;
-                if (fullAgreement?.parties && fullAgreement.parties.length >= 2) {
-                  partyA = mapPartyToDraft(fullAgreement.parties[0].displayName, fullAgreement.parties[0].phone);
-                  partyB = mapPartyToDraft(fullAgreement.parties[1].displayName, fullAgreement.parties[1].phone);
-                }
-                initReopened(record.agreementId, record.scenarioId as ScenarioId, partyA, partyB);
-                router.push(`/agreement/${record.agreementId}/steps/parties`);
-              }}
-              className="flex-row items-center justify-center gap-sm bg-brand-primary rounded-lg py-md active:opacity-80"
-            >
-              <Pencil size={18} color="white" />
-              <Text className="text-md font-semibold text-white">
-                Edit agreement
-              </Text>
-            </Pressable>
+            {!fullAgreement ? (
+              <View className="flex-row items-center justify-center gap-sm bg-surface-card rounded-lg py-md border border-border-subtle">
+                <Text className="text-md text-ink-muted">
+                  Loading agreement data…
+                </Text>
+              </View>
+            ) : (
+              <Pressable
+                onPress={() => {
+                  let partyA: PartyDraft | undefined;
+                  let partyB: PartyDraft | undefined;
+                  if (fullAgreement.parties.length >= 2) {
+                    const pA = fullAgreement.parties[0];
+                    const pB = fullAgreement.parties[1];
+                    partyA = mapPartyToDraft(pA.displayName, pA.phone, pA.idType, pA.idNumber);
+                    partyB = mapPartyToDraft(pB.displayName, pB.phone, pB.idType, pB.idNumber);
+                  }
+                  initReopened(record.agreementId, record.scenarioId as ScenarioId, partyA, partyB);
+                  router.push(`/agreement/${record.agreementId}/steps/parties`);
+                }}
+                className="flex-row items-center justify-center gap-sm bg-brand-primary rounded-lg py-md active:opacity-80"
+              >
+                <Pencil size={18} color="white" />
+                <Text className="text-md font-semibold text-white">
+                  Edit agreement
+                </Text>
+              </Pressable>
+            )}
           </View>
         )}
 
