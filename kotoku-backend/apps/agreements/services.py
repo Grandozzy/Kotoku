@@ -15,6 +15,7 @@ from apps.agreements.domain.state_machine import next_state
 from apps.agreements.models import Agreement, AgreementRevision
 from apps.audit.services import AuditService
 from apps.identity.models import IdentityRecord
+from apps.notifications.push import send_to_user
 from apps.parties.models import Party
 from common.exceptions import DomainError
 
@@ -211,6 +212,13 @@ class AgreementService:
         agreement.sealed_at = timezone.now()
         agreement.seal_hash = _compute_seal_hash(agreement)
         agreement.save(update_fields=["status", "sealed_at", "seal_hash", "updated_at"])
+        parties = Party.objects.filter(agreement=agreement)
+        for p in parties:
+            if p.phone:
+                send_to_user(p.phone, "agreement.sealed", {
+                    "agreement_id": agreement.pk,
+                    "title": agreement.title,
+                })
         AuditService.record_event(
             event_type="agreement.sealed",
             entity_type="agreement",
@@ -248,6 +256,13 @@ class AgreementService:
         new_status = next_state(agreement.status, "request_reopen")
         agreement.status = new_status
         agreement.save(update_fields=["status", "updated_at"])
+        parties = Party.objects.filter(agreement=agreement)
+        for p in parties:
+            if p.phone:
+                send_to_user(p.phone, "agreement.reopen_requested", {
+                    "agreement_id": agreement.pk,
+                    "title": agreement.title,
+                })
         AuditService.record_event(
             event_type="agreement.reopen_requested",
             entity_type="agreement",
@@ -282,6 +297,13 @@ class AgreementService:
         agreement.sealed_at = None
         agreement.seal_hash = ""
         agreement.save(update_fields=["status", "sealed_at", "seal_hash", "updated_at"])
+        parties = Party.objects.filter(agreement=agreement)
+        for p in parties:
+            if p.phone:
+                send_to_user(p.phone, "agreement.reopen_confirmed", {
+                    "agreement_id": agreement.pk,
+                    "title": agreement.title,
+                })
         AuditService.record_event(
             event_type="agreement.reopened_bilateral",
             entity_type="agreement",

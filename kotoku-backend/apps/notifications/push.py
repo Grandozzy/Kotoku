@@ -1,4 +1,3 @@
-import json
 import logging
 from datetime import datetime, timezone
 
@@ -30,7 +29,10 @@ def send_to_user(phone: str, event_type: str, payload: dict):
     import asyncio
 
     try:
-        loop = asyncio.get_running_loop()
-        loop.create_task(_async_send_to_user(phone, event_type, payload))
-    except RuntimeError:
-        asyncio.run(_async_send_to_user(phone, event_type, payload))
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(_async_send_to_user(phone, event_type, payload))
+        except RuntimeError:
+            asyncio.run(_async_send_to_user(phone, event_type, payload))
+    except Exception:
+        logger.warning("Failed to push %s to %s", event_type, phone, exc_info=True)
