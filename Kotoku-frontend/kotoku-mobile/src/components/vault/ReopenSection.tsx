@@ -45,6 +45,25 @@ export function ReopenSection({
     }
   }, [confirmResult]);
 
+  // Reopened = both parties confirmed, agreement is now active/editable.
+  // Show success regardless of whether agreementStatus has already flipped to "active"
+  // (cache invalidation) or is still "reopen_requested" (local mutation result).
+  if (reopened) {
+    return (
+      <View className="bg-surface-card rounded-lg border border-border-subtle p-lg gap-sm">
+        <View className="flex-row items-center gap-sm">
+          <CheckCircle size={18} color={colors.success} />
+          <Text className="text-sm font-medium text-emerald-700">
+            Agreement reopened!
+          </Text>
+        </View>
+        <Text className="text-sm text-ink-muted">
+          Both parties confirmed. The agreement is now editable.
+        </Text>
+      </View>
+    );
+  }
+
   if (
     agreementStatus === "active" ||
     agreementStatus === "draft" ||
@@ -89,22 +108,6 @@ export function ReopenSection({
   }
 
   if (agreementStatus === "reopen_requested") {
-    if (reopened) {
-      return (
-        <View className="bg-surface-card rounded-lg border border-border-subtle p-lg gap-sm">
-          <View className="flex-row items-center gap-sm">
-            <CheckCircle size={18} color={colors.success} />
-            <Text className="text-sm font-medium text-emerald-700">
-              Agreement reopened!
-            </Text>
-          </View>
-          <Text className="text-sm text-ink-muted">
-            Both parties confirmed. The agreement is now editable.
-          </Text>
-        </View>
-      );
-    }
-
     return (
       <View className="gap-sm">
         <Text className="text-md font-semibold text-ink-primary">

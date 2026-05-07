@@ -44,40 +44,46 @@ export default function VaultDetailScreen() {
           label={
             record.agreementStatus === "reopen_requested"
               ? "Reopen Requested"
-              : record.status === "expired"
-                ? "Expired"
-                : "Sealed"
+              : record.agreementStatus === "active"
+                ? "Active"
+                : record.status === "expired"
+                  ? "Expired"
+                  : "Sealed"
           }
           variant={
             record.agreementStatus === "reopen_requested"
               ? "default"
-              : record.status === "expired"
-                ? "default"
-                : "sealed"
+              : record.agreementStatus === "active"
+                ? "sealed"
+                : record.status === "expired"
+                  ? "default"
+                  : "sealed"
           }
         />
       </View>
 
       <View className="px-lg gap-xl">
-        {/* Seal details */}
-        <View className="bg-surface-card rounded-lg border border-border-subtle p-lg gap-sm">
-          <DetailRow
-            label="Sealed on"
-            value={new Date(record.sealedAt).toLocaleDateString("en-GH", {
-              weekday: "long",
-              day: "numeric",
-              month: "long",
-              year: "numeric",
-            })}
-          />
-          <DetailRow
-            label="Free retention until"
-            value={new Date(record.retentionExpiresAt).toLocaleDateString(
-              "en-GH",
-              { day: "numeric", month: "short", year: "numeric" },
-            )}
-          />
-        </View>
+        {/* Seal details — only shown when sealed */}
+        {record.sealedAt && (
+          <View className="bg-surface-card rounded-lg border border-border-subtle p-lg gap-sm">
+            <DetailRow
+              label="Sealed on"
+              value={new Date(record.sealedAt).toLocaleDateString("en-GH", {
+                weekday: "long",
+                day: "numeric",
+                month: "long",
+                year: "numeric",
+              })}
+            />
+            <DetailRow
+              label="Free retention until"
+              value={new Date(record.retentionExpiresAt).toLocaleDateString(
+                "en-GH",
+                { day: "numeric", month: "short", year: "numeric" },
+              )}
+            />
+          </View>
+        )}
 
         <ReopenSection
           agreementId={record.agreementId}
