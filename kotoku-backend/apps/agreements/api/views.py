@@ -85,10 +85,18 @@ class AgreementDetailView(APIView):
         )
         serializer = AgreementUpdateSerializer(data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
-        agreement = AgreementService.update_draft(
-            agreement_id=agreement_id,
-            **serializer.validated_data,
-        )
+        if agreement.status == AgreementStatus.DRAFT:
+            agreement = AgreementService.update_draft(
+                agreement_id=agreement_id,
+                **serializer.validated_data,
+            )
+        elif agreement.status == AgreementStatus.ACTIVE:
+            agreement = AgreementService.update_active(
+                agreement_id=agreement_id,
+                **serializer.validated_data,
+            )
+        else:
+            raise DomainError("Cannot update agreement in this status")
         return ok({"agreement": AgreementDetailSerializer(agreement).data})
 
 

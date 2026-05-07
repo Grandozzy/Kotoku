@@ -126,7 +126,7 @@ class TestSetParties:
     def test_raises_when_agreement_sealed(self):
         acct = _account()
         agreement = _agreement(acct, status=AgreementStatus.SEALED)
-        with pytest.raises(DomainError, match="sealed"):
+        with pytest.raises(DomainError, match="editable state"):
             PartyService.set_parties(
                 agreement_id=agreement.pk,
                 initiator_account=acct,
@@ -192,7 +192,7 @@ class TestPatchParties:
     def test_raises_when_sealed(self):
         acct = _account()
         agreement = _agreement(acct, status=AgreementStatus.SEALED)
-        with pytest.raises(DomainError, match="sealed"):
+        with pytest.raises(DomainError, match="editable state"):
             PartyService.patch_parties(
                 agreement_id=agreement.pk,
                 initiator_account=acct,
