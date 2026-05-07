@@ -110,6 +110,10 @@ CELERY_BEAT_SCHEDULE = {
         "task": "apps.vault.tasks.archive_expired_vault_entries",
         "schedule": 86400,  # once per day (seconds)
     },
+    "recover-stuck-pdf-generating": {
+        "task": "apps.vault.tasks.recover_stuck_pdf_generating",
+        "schedule": 300,
+    },
 }
 
 CACHES = {
