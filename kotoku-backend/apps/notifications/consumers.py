@@ -22,7 +22,7 @@ class NotificationConsumer(AsyncWebsocketConsumer):
             return
         self.user = token.user
         phone = getattr(self.user, "phone", None) or self.user.username
-        self.group_name = f"user.{phone}"
+        self.group_name = f"user.{phone.replace('+', '')}"
         await self.channel_layer.group_add(self.group_name, self.channel_name)
         await self.accept()
         logger.info("WS connected: user=%s group=%s", self.user, self.group_name)

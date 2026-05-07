@@ -11,7 +11,7 @@ async def _async_send_to_user(phone: str, event_type: str, payload: dict):
     if channel_layer is None:
         logger.warning("No channel layer configured — skipping push to %s", phone)
         return
-    group_name = f"user.{phone}"
+    group_name = f"user.{phone.replace('+', '')}"
     await channel_layer.group_send(
         group_name,
         {

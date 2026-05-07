@@ -8,6 +8,12 @@ DATABASES["default"] = {  # type: ignore[index]
 }
 CELERY_TASK_ALWAYS_EAGER = True
 
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer",
+    },
+}
+
 CACHES = {
     "default": {
         "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
