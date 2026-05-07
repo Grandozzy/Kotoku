@@ -1,6 +1,12 @@
 from django.db.models import Q, QuerySet
 
+from apps.agreements.domain.enums import AgreementStatus
 from apps.vault.models import VaultEntry
+
+_VAULT_VISIBLE_STATUSES = (
+    AgreementStatus.SEALED,
+    AgreementStatus.REOPEN_REQUESTED,
+)
 
 
 class VaultSelector:
@@ -31,7 +37,10 @@ class VaultSelector:
         else:
             qs = qs.filter(agreement__created_by__pk=account_id)
         return (
-            qs.filter(archived=False)
+            qs.filter(
+                archived=False,
+                agreement__status__in=_VAULT_VISIBLE_STATUSES,
+            )
             .select_related("agreement", "agreement__created_by")
             .order_by("-created_at")
             .distinct()

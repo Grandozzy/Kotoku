@@ -112,7 +112,7 @@ export function ExportButton({
     );
   }
 
-  if (pdfStatus === "pending") {
+  if (pdfStatus === "generating") {
     return (
       <View className="flex-row items-center justify-center gap-sm bg-surface-subtle rounded-lg p-md">
         <Loader size={16} color={colors.inkMuted} />

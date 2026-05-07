@@ -11,14 +11,7 @@ from apps.parties.models import Party
 
 
 class Command(BaseCommand):
-    help = "Seed repeatable test data (users, accounts, identities, agreements)"
-
-    def add_arguments(self, parser):
-        parser.add_argument(
-            "--sealed",
-            action="store_true",
-            help="Run the full consent + seal flow so sealed agreements end as SEALED",
-        )
+    help = "Seed repeatable test data (users, accounts, identities, sealed agreements)"
 
     def handle(self, *args, **options):
         from django.core.management import call_command
@@ -316,12 +309,10 @@ class Command(BaseCommand):
         for label, agreement in agreements:
             agreement.refresh_from_db()
 
-        if options["sealed"]:
-            self._seal(agreement_1, label="Toyota Corolla Sale")
-            self._seal(agreement_2, label="East Legon Rental")
-            agreement_3.refresh_from_db()
-            if agreement_3.status == Agreement.Status.DRAFT:
-                AgreementService.request_consent(agreement_id=agreement_3.pk)
+        self._seal(agreement_1, label="Toyota Corolla Sale")
+        self._seal(agreement_2, label="East Legon Rental")
+        self._seal(agreement_3, label="Honda Civic Sale")
+        self._seal(agreement_4, label="Nissan Patrol Sale")
 
         self.stdout.write("")
         self.stdout.write(self.style.SUCCESS("Seeded test data"))
