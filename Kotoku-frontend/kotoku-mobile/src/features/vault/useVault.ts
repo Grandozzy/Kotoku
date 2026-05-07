@@ -23,11 +23,6 @@ export function useVaultRecord(agreementId: number) {
       const data = query.state.data;
       if (!data) return false;
       if (data.pdfStatus === "pending") return 5000;
-      if (
-        data.agreementStatus === "sealed" ||
-        data.agreementStatus === "reopen_requested"
-      )
-        return 5000;
       return false;
     },
   });

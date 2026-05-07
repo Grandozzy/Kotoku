@@ -11,6 +11,7 @@ import { runMigrations } from "@/db/migrations";
 import { queryClient } from "@/lib/queryClient";
 import { getAccountId, getPhone, getToken } from "@/lib/secureStore";
 import { useSessionStore } from "@/store/sessionStore";
+import { useNotifications } from "@/hooks/useNotifications";
 import { useOfflineGuard } from "@/hooks/useOfflineGuard";
 import { useSyncQueue } from "@/hooks/useSyncQueue";
 
@@ -58,6 +59,8 @@ function AuthGuard() {
       router.replace("/(main)/home");
     }
   }, [isAuthenticated, segments]);
+
+  useNotifications();
 
   return <Slot />;
 }
