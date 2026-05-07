@@ -40,10 +40,7 @@ export default function VaultDetailScreen() {
     setEditLoading(true);
     setEditError(null);
     try {
-      console.log("[VaultDetail] Fetching agreement id:", id);
       const agreement = await getAgreement(id);
-      console.log("[VaultDetail] Got agreement:", JSON.stringify(agreement, null, 2));
-      console.log("[VaultDetail] Parties:", JSON.stringify(agreement.parties, null, 2));
       let partyA: PartyDraft | undefined;
       let partyB: PartyDraft | undefined;
       if (agreement.parties.length >= 2) {
@@ -51,22 +48,11 @@ export default function VaultDetailScreen() {
         const pB = agreement.parties[1];
         partyA = mapPartyToDraft(pA.displayName, pA.phone, pA.idType ?? "ghana_card", pA.idNumber ?? "");
         partyB = mapPartyToDraft(pB.displayName, pB.phone, pB.idType ?? "ghana_card", pB.idNumber ?? "");
-      } else {
-        console.warn("[VaultDetail] Agreement has", agreement.parties.length, "parties");
       }
-      console.log("[VaultDetail] Navigating to steps with partyA=", JSON.stringify(partyA));
       initReopened(record!.agreementId, record!.scenarioId as ScenarioId, partyA, partyB);
       router.push(`/agreement/${record!.agreementId}/steps/parties`);
     } catch (err) {
-      console.error("[VaultDetail] getAgreement failed:", err);
-      if (err && typeof err === "object" && "response" in err) {
-        const axiosErr = err as { response?: { status: number; data: unknown } };
-        console.error("[VaultDetail] Response status:", axiosErr.response?.status);
-        console.error("[VaultDetail] Response data:", JSON.stringify(axiosErr.response?.data));
-        setEditError(`API error ${axiosErr.response?.status}: ${JSON.stringify(axiosErr.response?.data)}`);
-      } else {
-        setEditError(`Failed to load agreement data: ${String(err)}`);
-      }
+      setEditError("Failed to load agreement data");
     } finally {
       setEditLoading(false);
     }
