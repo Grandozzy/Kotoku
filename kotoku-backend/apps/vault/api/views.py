@@ -18,7 +18,10 @@ class VaultCollectionView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        qs = VaultSelector.list_for_account(account_id=request.user.account.pk)
+        qs = VaultSelector.list_for_account(
+            account_id=request.user.account.pk,
+            account_phone=request.user.account.phone,
+        )
         paginator = DefaultPagination()
         page = paginator.paginate_queryset(qs, request)
         serializer = VaultEntrySerializer(page, many=True)
@@ -34,17 +37,24 @@ class VaultDetailView(APIView):
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
 
-    def _get_entry(self, agreement_id: int, account_id: int) -> VaultEntry:
+    def _get_entry(
+        self, agreement_id: int, account_id: int, account_phone: str
+    ) -> VaultEntry:
         try:
             return VaultSelector.get_for_agreement(
                 agreement_id=agreement_id,
                 account_id=account_id,
+                account_phone=account_phone,
             )
         except VaultEntry.DoesNotExist:
             raise Http404 from None
 
     def get(self, request, agreement_id: int):
-        entry = self._get_entry(agreement_id, request.user.account.pk)
+        entry = self._get_entry(
+            agreement_id,
+            request.user.account.pk,
+            request.user.account.phone,
+        )
         return ok({"vault_entry": VaultEntrySerializer(entry).data})
 
 
@@ -53,11 +63,11 @@ class VaultExportView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, agreement_id: int):
-        # Ownership check before triggering the export.
         try:
             VaultSelector.get_for_agreement(
                 agreement_id=agreement_id,
                 account_id=request.user.account.pk,
+                account_phone=request.user.account.phone,
             )
         except VaultEntry.DoesNotExist:
             raise Http404 from None
@@ -75,6 +85,7 @@ class VaultAuditLogView(APIView):
             entry = VaultSelector.get_for_agreement(
                 agreement_id=agreement_id,
                 account_id=request.user.account.pk,
+                account_phone=request.user.account.phone,
             )
         except VaultEntry.DoesNotExist:
             raise Http404 from None

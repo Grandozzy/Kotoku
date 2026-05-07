@@ -10,6 +10,7 @@ class AgreementSummarySerializer(serializers.Serializer):
     scenario_template = serializers.CharField()
     sealed_at = serializers.DateTimeField()
     seal_hash = serializers.CharField()
+    created_by_phone = serializers.CharField(source="created_by.phone")
 
 
 class VaultEntrySerializer(serializers.ModelSerializer):
