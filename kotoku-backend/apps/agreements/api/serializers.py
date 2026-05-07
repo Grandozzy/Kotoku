@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from apps.agreements.models import Agreement
+from apps.agreements.models import Agreement, AgreementRevision
 
 
 class AgreementCreateSerializer(serializers.Serializer):
@@ -49,3 +49,9 @@ class AgreementDetailSerializer(serializers.ModelSerializer):
             "updated_at",
             "parties",
         )
+
+
+class AgreementRevisionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AgreementRevision
+        fields = ("id", "revision_number", "seal_hash", "sealed_at", "created_at")
