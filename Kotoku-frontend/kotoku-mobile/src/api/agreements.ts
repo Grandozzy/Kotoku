@@ -54,3 +54,24 @@ export async function listAgreements(params?: {
   });
   return res.data.data;
 }
+
+export interface PendingActionItem {
+  id: number;
+  title: string;
+  status: string;
+  scenario_template: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PendingActionsResponse {
+  action_required: PendingActionItem[];
+  drafts: PendingActionItem[];
+}
+
+export async function fetchPendingActions(): Promise<PendingActionsResponse> {
+  const res = await apiClient.get<ApiResponse<PendingActionsResponse>>(
+    "/agreements/pending-actions/",
+  );
+  return res.data.data;
+}

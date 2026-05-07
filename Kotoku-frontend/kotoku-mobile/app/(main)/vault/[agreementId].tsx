@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Badge } from "@/components/ui";
 import { ExportButton } from "@/components/vault/ExportButton";
+import { ReopenSection } from "@/components/vault/ReopenSection";
 import { useAuditLog, useRequestExport, useVaultRecord } from "@/features/vault/useVault";
 import { colors } from "@/theme/tokens";
 
@@ -40,8 +41,20 @@ export default function VaultDetailScreen() {
           {record.title}
         </Text>
         <Badge
-          label={record.status === "expired" ? "Expired" : "Sealed"}
-          variant={record.status === "expired" ? "default" : "sealed"}
+          label={
+            record.agreementStatus === "reopen_requested"
+              ? "Reopen Requested"
+              : record.status === "expired"
+                ? "Expired"
+                : "Sealed"
+          }
+          variant={
+            record.agreementStatus === "reopen_requested"
+              ? "default"
+              : record.status === "expired"
+                ? "default"
+                : "sealed"
+          }
         />
       </View>
 
@@ -65,6 +78,12 @@ export default function VaultDetailScreen() {
             )}
           />
         </View>
+
+        <ReopenSection
+          agreementId={record.agreementId}
+          agreementStatus={record.agreementStatus}
+          createdByPhone={record.createdByPhone}
+        />
 
         {/* PDF export */}
         <View className="gap-sm">

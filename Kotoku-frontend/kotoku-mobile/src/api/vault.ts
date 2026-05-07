@@ -4,7 +4,13 @@ import type { VaultRecord } from "@/types/vault";
 
 interface RawVaultEntry {
   id: number;
-  agreement: { id: number; title: string; status: string; sealed_at: string };
+  agreement: {
+    id: number;
+    title: string;
+    status: string;
+    sealed_at: string;
+    created_by_phone: string;
+  };
   pdf_status: string;
   pdf_url: string | null;
   retain_until: string;
@@ -19,10 +25,12 @@ function mapVaultRecord(raw: RawVaultEntry): VaultRecord {
     agreementId: raw.agreement.id,
     title: raw.agreement.title,
     status: raw.archived ? "archived" : "active",
+    agreementStatus: raw.agreement.status as VaultRecord["agreementStatus"],
     pdfStatus: raw.pdf_status as VaultRecord["pdfStatus"],
     pdfUrl: raw.pdf_url || null,
     sealedAt: raw.agreement.sealed_at,
     retentionExpiresAt: raw.retain_until,
+    createdByPhone: raw.agreement.created_by_phone,
   };
 }
 
