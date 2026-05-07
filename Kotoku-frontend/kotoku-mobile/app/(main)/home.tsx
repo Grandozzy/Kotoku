@@ -1,9 +1,13 @@
 import { useRouter } from "expo-router";
+import { useState } from "react";
 import { Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Button } from "@/components/ui";
+import { getAgreement } from "@/api/agreements";
 import { usePendingActions } from "@/features/agreements/usePendingActions";
+import { useAgreementStore, type PartyDraft } from "@/features/agreements/agreementStore";
+import type { ScenarioId } from "@/constants/scenarios";
 import { colors } from "@/theme/tokens";
 
 export default function HomeScreen() {
@@ -73,8 +77,35 @@ export default function HomeScreen() {
   );
 }
 
-function ActionCard({ item }: { item: { id: number; title: string; status: string } }) {
+function ActionCard({ item }: { item: { id: number; title: string; status: string; scenario_template: string } }) {
   const router = useRouter();
+  const initForConsent = useAgreementStore((s) => s.initForConsent);
+  const [loading, setLoading] = useState(false);
+
+  const handlePress = async () => {
+    if (item.status === "pending_consent") {
+      setLoading(true);
+      try {
+        const agreement = await getAgreement(item.id);
+        const pA = agreement.parties[0];
+        const pB = agreement.parties[1];
+        initForConsent(
+          agreement.id,
+          agreement.scenarioId as ScenarioId,
+          { fullName: pA.displayName, phone: pA.phone, idType: pA.idType ?? "ghana_card", idNumber: pA.idNumber ?? "" },
+          { fullName: pB.displayName, phone: pB.phone, idType: pB.idType ?? "ghana_card", idNumber: pB.idNumber ?? "" },
+        );
+        router.push(`/agreement/${agreement.id}/steps/consent`);
+      } catch {
+      } finally {
+        setLoading(false);
+      }
+    } else if (item.status === "reopen_requested") {
+      router.push(`/(main)/vault/${item.id}`);
+    } else {
+      router.push(`/agreement/${item.id}/steps/review`);
+    }
+  };
 
   const label =
     item.status === "reopen_requested"
@@ -85,32 +116,35 @@ function ActionCard({ item }: { item: { id: number; title: string; status: strin
 
   return (
     <Pressable
-      onPress={() => {
-        if (item.status === "reopen_requested") {
-          router.push(`/(main)/vault/${item.id}`);
-        } else {
-          router.push(`/agreement/${item.id}/steps/review`);
-        }
-      }}
+      onPress={handlePress}
+      disabled={loading}
       className="bg-surface-card rounded-lg border-l-4 border-l-amber-500 border border-border-subtle p-lg active:opacity-70"
     >
       <Text className="text-md font-semibold text-ink-primary" numberOfLines={1}>
         {item.title}
       </Text>
       <Text className="text-sm text-amber-600 mt-xs">{label}</Text>
-      <Text className="text-xs text-brand-primary mt-xs">Tap to continue →</Text>
+      <Text className="text-xs text-brand-primary mt-xs">
+        {loading ? "Loading…" : "Tap to continue →"}
+      </Text>
     </Pressable>
   );
 }
 
-function DraftCard({ item }: { item: { id: number; title: string; updated_at: string } }) {
+function DraftCard({ item }: { item: { id: number; title: string; updated_at: string; scenario_template: string; status: string } }) {
   const router = useRouter();
+  const initDraft = useAgreementStore((s) => s.initDraft);
+
+  const handlePress = () => {
+    initDraft(item.id, item.scenario_template as ScenarioId);
+    router.push(`/agreement/${item.id}/steps/${item.status === "draft" ? "parties" : "review"}`);
+  };
 
   const relativeTime = getRelativeTime(item.updated_at);
 
   return (
     <Pressable
-      onPress={() => router.push(`/agreement/${item.id}/steps/review`)}
+      onPress={handlePress}
       className="bg-surface-card rounded-lg border border-border-subtle p-lg active:opacity-70"
     >
       <Text className="text-md font-semibold text-ink-primary" numberOfLines={1}>

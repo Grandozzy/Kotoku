@@ -3,8 +3,11 @@ from botocore.config import Config as BotoConfig
 from django.conf import settings
 
 
-def _get_client():
-    endpoint_url = getattr(settings, "AWS_ENDPOINT_URL_S3", None)
+def _get_client(external: bool = False):
+    if external:
+        endpoint_url = getattr(settings, "AWS_S3_EXTERNAL_URL", None) or getattr(settings, "AWS_ENDPOINT_URL_S3", None)
+    else:
+        endpoint_url = getattr(settings, "AWS_ENDPOINT_URL_S3", None)
     return boto3.client(
         "s3",
         endpoint_url=endpoint_url,
@@ -37,7 +40,7 @@ class S3StorageClient:
         return _build_object_url(key)
 
     def generate_presigned_url(self, key: str, expires_in: int = 3600) -> str:
-        client = _get_client()
+        client = _get_client(external=True)
         return client.generate_presigned_url(
             "get_object",
             Params={"Bucket": settings.AWS_STORAGE_BUCKET_NAME, "Key": key},
@@ -47,12 +50,7 @@ class S3StorageClient:
     def generate_presigned_upload_url(
         self, key: str, content_type: str, expires_in: int = 900
     ) -> tuple[str, dict]:
-        """Return a presigned PUT URL the client can use to upload directly to S3.
-
-        The 15-minute (900 s) default gives enough time for a mobile client on
-        a slow connection without leaving the URL valid indefinitely.
-        """
-        client = _get_client()
+        client = _get_client(external=True)
         url = client.generate_presigned_url(
             "put_object",
             Params={

@@ -60,7 +60,7 @@ export default function EvidenceStep() {
                 label={slot.label}
                 required={slot.required}
                 localUri={items[slot.id]?.localUri}
-                onPress={() => pickImage(slot.id)}
+                onPress={() => pickImage(slot.id, slot.id)}
               />
             </View>
           ))}
