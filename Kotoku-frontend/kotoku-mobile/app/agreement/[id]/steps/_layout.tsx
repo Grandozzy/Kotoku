@@ -13,14 +13,32 @@ function ReeditHeader({ onExit }: { onExit: () => void }) {
 
   return (
     <View
-      className="flex-row items-center px-lg bg-surface-card border-b border-border-subtle"
-      style={{ paddingTop: insets.top + 12, paddingBottom: 8 }}
+      className="flex-row items-center px-lg bg-surface-card"
+      style={{ paddingTop: insets.top + 12, paddingBottom: 5 }}
     >
       <Pressable onPress={onExit} className="p-xs">
         <ChevronLeft size={24} color={colors.inkPrimary} />
       </Pressable>
       <Text className="text-md font-semibold text-ink-primary flex-1 text-center mr-xl">
         Edit agreement
+      </Text>
+    </View>
+  );
+}
+
+function FormHeader({ onExit }: { onExit: () => void }) {
+  const insets = useSafeAreaInsets();
+
+  return (
+    <View
+      className="flex-row items-center px-lg bg-surface-card"
+      style={{ paddingTop: insets.top + 12, paddingBottom: 5 }}
+    >
+      <Pressable onPress={onExit} className="p-xs">
+        <ChevronLeft size={24} color={colors.inkPrimary} />
+      </Pressable>
+      <Text className="text-md font-semibold text-ink-primary flex-1 text-center mr-xl">
+        New Agreement
       </Text>
     </View>
   );
@@ -48,7 +66,11 @@ export default function StepsLayout() {
 
   const header = () => (
     <View>
-      {isReopened && <ReeditHeader onExit={handleExit} />}
+      {isReopened ? (
+        <ReeditHeader onExit={handleExit} />
+      ) : (
+        <FormHeader onExit={handleExit} />
+      )}
       <StepProgress currentIndex={stepIndex} onStepPress={handleStepPress} />
     </View>
   );

@@ -6,5 +6,6 @@ export function usePendingActions() {
   return useQuery({
     queryKey: ["pending-actions"],
     queryFn: fetchPendingActions,
+    refetchInterval: 15000,
   });
 }
