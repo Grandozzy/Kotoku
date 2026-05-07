@@ -50,7 +50,7 @@ def generate_pdf_export(self, vault_entry_id: int) -> None:
             )
         except Exception:
             logger.exception("Could not mark vault_entry=%s as failed", vault_entry_id)
-        raise self.retry(exc=exc)
+        raise self.retry(exc=exc) from None
 
 
 def _on_generate_pdf_failure(exc, task_id, args, kwargs, einfo):
@@ -112,8 +112,8 @@ def archive_expired_vault_entries() -> dict:
     archived=False. Returns a summary dict for observability.
     Scheduled daily via CELERY_BEAT_SCHEDULE.
     """
-    from apps.vault.models import VaultEntry  # noqa: PLC0415
     from apps.audit.services import AuditService  # noqa: PLC0415
+    from apps.vault.models import VaultEntry  # noqa: PLC0415
 
     now = timezone.now()
     expired_qs = VaultEntry.objects.filter(retain_until__lt=now, archived=False)

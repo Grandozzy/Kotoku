@@ -5,7 +5,6 @@ Endpoints under test:
   GET  /api/vault/{agreementId}/
   POST /api/vault/{agreementId}/export/
 """
-import apps.vault.pdf  # noqa: F401 — ensures submodule is loaded so patch() can resolve it
 from datetime import timedelta
 from unittest.mock import patch
 
@@ -14,6 +13,7 @@ from django.utils import timezone
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APIClient
 
+import apps.vault.pdf  # noqa: F401 — ensures submodule is loaded so patch() can resolve it
 from apps.accounts.models import Account, User
 from apps.agreements.domain.enums import AgreementStatus
 from apps.agreements.models import Agreement
@@ -232,7 +232,6 @@ class TestVaultExport:
 
 from apps.vault.api.audit import build_audit_timeline
 
-
 _AUDIT_PATH = "/api/vault/{id}/audit-log/"
 
 
@@ -312,7 +311,9 @@ class TestVaultRetryExport:
     def test_retry_returns_404_for_other_users_agreement(self):
         client, acct = _make_client("+233700500007")
         _, other_acct = _make_client("+233700500008")
-        agreement, entry = _sealed_agreement_with_vault(other_acct, other_acct.phone, "+233700500009")
+        agreement, entry = _sealed_agreement_with_vault(
+            other_acct, other_acct.phone, "+233700500009"
+        )
         entry.pdf_status = VaultEntry.PdfStatus.FAILED
         entry.save()
 
