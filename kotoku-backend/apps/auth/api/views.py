@@ -22,5 +22,7 @@ class VerifyOtpView(APIView):
             phone=serializer.validated_data["phone"],
             otp_code=serializer.validated_data["otp_code"],
         )
-        token, _ = Token.objects.get_or_create(user=result["user"])
-        return ok({"token": token.key, "is_new_user": result["is_new"]})
+        user = result["user"]
+        token, _ = Token.objects.get_or_create(user=user)
+        account_id = user.account.pk
+        return ok({"token": token.key, "is_new_user": result["is_new"], "account_id": account_id})

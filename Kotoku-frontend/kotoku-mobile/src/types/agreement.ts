@@ -8,6 +8,8 @@ export type AgreementStatus =
   | "sealed"
   | "reopen_requested"
   | "reopened_mutual"
+  | "active"
+  | "pending_consent"
   | "superseded"
   | "annotated_post_seal"
   | "archived"
@@ -18,6 +20,8 @@ export interface Party {
   role: "buyer" | "seller" | "landlord" | "tenant" | "witness";
   displayName: string;
   phone: string;
+  idType: "ghana_card" | "passport" | "other";
+  idNumber: string;
   phoneVerifiedAt: string | null;
 }
 
@@ -28,5 +32,6 @@ export interface Agreement {
   status: AgreementStatus;
   createdAt: string;
   sealedAt: string | null;
+  fieldData: Record<string, unknown>;
   parties: Party[];
 }

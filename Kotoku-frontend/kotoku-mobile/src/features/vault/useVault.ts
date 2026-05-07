@@ -6,11 +6,14 @@ import {
   listVault,
   requestPdfExport,
 } from "@/api/vault";
+import { useSessionStore } from "@/store/sessionStore";
 
 export function useVaultList() {
+  const isAuthenticated = useSessionStore((s) => s.isAuthenticated);
   return useQuery({
     queryKey: ["vault"],
     queryFn: listVault,
+    enabled: isAuthenticated,
   });
 }
 
@@ -19,10 +22,11 @@ export function useVaultRecord(agreementId: number) {
     queryKey: ["vault", agreementId],
     queryFn: () => getVaultRecord(agreementId),
     enabled: agreementId > 0,
-    // Poll every 5s while PDF is still pending so UI updates when ready
     refetchInterval: (query) => {
       const data = query.state.data;
-      return data?.pdfStatus === "pending" ? 5000 : false;
+      if (!data) return false;
+      if (data.pdfStatus === "pending") return 5000;
+      return false;
     },
   });
 }

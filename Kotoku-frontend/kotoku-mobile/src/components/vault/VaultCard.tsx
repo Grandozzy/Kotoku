@@ -35,10 +35,28 @@ export function VaultCard({
   const router = useRouter();
   const expired = record.status === "expired";
 
+  let badgeLabel: string;
+  let badgeVariant: "default" | "sealed";
+  let borderClass = "";
+
+  if (record.agreementStatus === "reopen_requested") {
+    badgeLabel = "Reopen Requested";
+    badgeVariant = "default";
+  } else if (record.agreementStatus === "active") {
+    badgeLabel = "Active";
+    badgeVariant = "sealed";
+  } else {
+    badgeLabel = expired ? "Expired" : "Sealed";
+    badgeVariant = expired ? "default" : "sealed";
+  }
+
   return (
     <Pressable
       onPress={() => router.push(`/(main)/vault/${record.agreementId}`)}
-      className="bg-surface-card rounded-lg border border-border-subtle p-lg flex-row items-center gap-md active:opacity-70"
+      className={[
+        "bg-surface-card rounded-lg border border-border-subtle p-lg flex-row items-center gap-md active:opacity-70",
+        borderClass,
+      ].join(" ")}
     >
       {/* Icon */}
       <View
@@ -69,10 +87,7 @@ export function VaultCard({
           </Text>
         )}
         <View className="flex-row items-center gap-sm mt-xs">
-          <Badge
-            label={record.status === "expired" ? "Expired" : "Sealed"}
-            variant={record.status === "expired" ? "default" : "sealed"}
-          />
+          <Badge label={badgeLabel} variant={badgeVariant} />
           {record.pdfStatus === "ready" && (
             <View className="flex-row items-center gap-xs">
               <FileText size={12} color={colors.brandPrimary} />

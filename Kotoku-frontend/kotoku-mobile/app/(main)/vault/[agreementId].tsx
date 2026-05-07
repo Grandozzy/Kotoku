@@ -1,12 +1,26 @@
+import { useState } from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { ChevronLeft, Clock } from "lucide-react-native";
+import { ChevronLeft, Clock, Loader2, Pencil } from "lucide-react-native";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Badge } from "@/components/ui";
 import { ExportButton } from "@/components/vault/ExportButton";
+import { ReopenSection } from "@/components/vault/ReopenSection";
+import { getAgreement } from "@/api/agreements";
+import { useAgreementStore, type PartyDraft } from "@/features/agreements/agreementStore";
 import { useAuditLog, useRequestExport, useVaultRecord } from "@/features/vault/useVault";
+import type { ScenarioId } from "@/constants/scenarios";
 import { colors } from "@/theme/tokens";
+
+function mapPartyToDraft(fullName: string, phone: string, idType: string, idNumber: string): PartyDraft {
+  return {
+    fullName,
+    phone,
+    idType: idType as PartyDraft["idType"],
+    idNumber,
+  };
+}
 
 export default function VaultDetailScreen() {
   const router = useRouter();
@@ -17,6 +31,33 @@ export default function VaultDetailScreen() {
   const { data: record, isLoading } = useVaultRecord(id);
   const { data: auditLog } = useAuditLog(id);
   const exportMutation = useRequestExport(id);
+  const initReopened = useAgreementStore((s) => s.initReopened);
+
+  const [editLoading, setEditLoading] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+
+  const handleEdit = async () => {
+    setEditLoading(true);
+    setEditError(null);
+    try {
+      const agreement = await getAgreement(id);
+      let partyA: PartyDraft | undefined;
+      let partyB: PartyDraft | undefined;
+      if (agreement.parties.length >= 2) {
+        const pA = agreement.parties[0];
+        const pB = agreement.parties[1];
+        partyA = mapPartyToDraft(pA.displayName, pA.phone, pA.idType ?? "ghana_card", pA.idNumber ?? "");
+        partyB = mapPartyToDraft(pB.displayName, pB.phone, pB.idType ?? "ghana_card", pB.idNumber ?? "");
+      }
+      const scId = record!.scenarioId;
+      initReopened(record!.agreementId, scId as ScenarioId, partyA, partyB, agreement.fieldData);
+      router.push(`/agreement/${record!.agreementId}/steps/parties?scenarioId=${scId}`);
+    } catch (err) {
+      setEditError("Failed to load agreement data");
+    } finally {
+      setEditLoading(false);
+    }
+  };
 
   if (isLoading || !record) {
     return (
@@ -40,31 +81,77 @@ export default function VaultDetailScreen() {
           {record.title}
         </Text>
         <Badge
-          label={record.status === "expired" ? "Expired" : "Sealed"}
-          variant={record.status === "expired" ? "default" : "sealed"}
+          label={
+            record.agreementStatus === "reopen_requested"
+              ? "Reopen Requested"
+              : record.agreementStatus === "active"
+                ? "Active"
+                : record.status === "expired"
+                  ? "Expired"
+                  : "Sealed"
+          }
+          variant={
+            record.agreementStatus === "reopen_requested"
+              ? "default"
+              : record.agreementStatus === "active"
+                ? "sealed"
+                : record.status === "expired"
+                  ? "default"
+                  : "sealed"
+          }
         />
       </View>
 
       <View className="px-lg gap-xl">
-        {/* Seal details */}
-        <View className="bg-surface-card rounded-lg border border-border-subtle p-lg gap-sm">
-          <DetailRow
-            label="Sealed on"
-            value={new Date(record.sealedAt).toLocaleDateString("en-GH", {
-              weekday: "long",
-              day: "numeric",
-              month: "long",
-              year: "numeric",
-            })}
-          />
-          <DetailRow
-            label="Free retention until"
-            value={new Date(record.retentionExpiresAt).toLocaleDateString(
-              "en-GH",
-              { day: "numeric", month: "short", year: "numeric" },
+        {/* Seal details — only shown when sealed */}
+        {record.sealedAt && (
+          <View className="bg-surface-card rounded-lg border border-border-subtle p-lg gap-sm">
+            <DetailRow
+              label="Sealed on"
+              value={new Date(record.sealedAt).toLocaleDateString("en-GH", {
+                weekday: "long",
+                day: "numeric",
+                month: "long",
+                year: "numeric",
+              })}
+            />
+            <DetailRow
+              label="Free retention until"
+              value={new Date(record.retentionExpiresAt).toLocaleDateString(
+                "en-GH",
+                { day: "numeric", month: "short", year: "numeric" },
+              )}
+            />
+          </View>
+        )}
+
+        {record.agreementStatus === "active" && (
+          <View className="gap-sm">
+            <Pressable
+              disabled={editLoading}
+              onPress={handleEdit}
+              className="flex-row items-center justify-center gap-sm bg-brand-primary rounded-lg py-md active:opacity-80"
+            >
+              {editLoading ? (
+                <Loader2 size={18} color="white" />
+              ) : (
+                <Pencil size={18} color="white" />
+              )}
+              <Text className="text-md font-semibold text-white">
+                {editLoading ? "Loading…" : "Edit agreement"}
+              </Text>
+            </Pressable>
+            {editError && (
+              <Text className="text-xs text-semantic-error text-center">{editError}</Text>
             )}
-          />
-        </View>
+          </View>
+        )}
+
+        <ReopenSection
+          agreementId={record.agreementId}
+          agreementStatus={record.agreementStatus}
+          parties={record.parties}
+        />
 
         {/* PDF export */}
         <View className="gap-sm">

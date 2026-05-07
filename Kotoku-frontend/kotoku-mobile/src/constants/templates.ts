@@ -249,11 +249,11 @@ export const USED_VEHICLE_SALE_TEMPLATE: ScenarioTemplate = {
   evidenceRequirements: {
     minimumPhotoCount: 3,
     slots: [
-      { id: "vehicle_front", label: "Vehicle — front", fileType: "photo", required: true },
-      { id: "vehicle_back", label: "Vehicle — back", fileType: "photo", required: true },
-      { id: "vehicle_dashboard", label: "Dashboard / odometer", fileType: "photo", required: true },
-      { id: "seller_id", label: "Seller ID photo", fileType: "photo", required: true },
-      { id: "buyer_id", label: "Buyer ID photo", fileType: "photo", required: true },
+      { id: "vehicle_photo_front", label: "Vehicle — front", fileType: "photo", required: true },
+      { id: "vehicle_photo_rear", label: "Vehicle — rear", fileType: "photo", required: true },
+      { id: "vehicle_odometer", label: "Dashboard / odometer", fileType: "photo", required: true },
+      { id: "seller_id_photo", label: "Seller ID photo", fileType: "photo", required: false },
+      { id: "buyer_id_photo", label: "Buyer ID photo", fileType: "photo", required: false },
       { id: "voice_summary", label: "Voice summary", fileType: "voice_note", required: false },
     ],
   },
@@ -433,11 +433,11 @@ export const RENTAL_AGREEMENT_TEMPLATE: ScenarioTemplate = {
   evidenceRequirements: {
     minimumPhotoCount: 2,
     slots: [
-      { id: "property_entrance", label: "Property entrance", fileType: "photo", required: true },
-      { id: "property_interior", label: "Interior", fileType: "photo", required: true },
+      { id: "property_photo_entrance", label: "Property entrance", fileType: "photo", required: true },
+      { id: "property_photo_interior", label: "Interior", fileType: "photo", required: true },
       { id: "property_bath", label: "Bathroom / toilet", fileType: "photo", required: false },
-      { id: "landlord_id", label: "Landlord ID photo", fileType: "photo", required: true },
-      { id: "tenant_id", label: "Tenant ID photo", fileType: "photo", required: true },
+      { id: "landlord_id_photo", label: "Landlord ID photo", fileType: "photo", required: false },
+      { id: "tenant_id_photo", label: "Tenant ID photo", fileType: "photo", required: false },
       { id: "voice_summary", label: "Voice summary", fileType: "voice_note", required: false },
     ],
   },

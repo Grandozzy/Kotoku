@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from apps.agreements.models import Agreement
+from apps.agreements.models import Agreement, AgreementRevision
 
 
 class AgreementCreateSerializer(serializers.Serializer):
@@ -15,20 +15,24 @@ class AgreementUpdateSerializer(serializers.Serializer):
     title = serializers.CharField(max_length=255, required=False)
     description = serializers.CharField(required=False, allow_blank=True)
     scenario_template = serializers.CharField(
-        max_length=128, required=False, allow_blank=True
+        max_length=128, required=False, default="", allow_blank=True
     )
+    field_data = serializers.JSONField(required=False)
 
 
 class PartySerializer(serializers.Serializer):
     id = serializers.IntegerField()
     role = serializers.CharField()
     display_name = serializers.CharField()
+    phone = serializers.CharField()
+    id_type = serializers.CharField()
+    id_number = serializers.CharField()
 
 
 class AgreementListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Agreement
-        fields = ("id", "title", "status", "scenario_template", "created_at", "updated_at")
+        fields = ("id", "title", "status", "scenario_template", "field_data", "created_at", "updated_at")
 
 
 class AgreementDetailSerializer(serializers.ModelSerializer):
@@ -42,6 +46,7 @@ class AgreementDetailSerializer(serializers.ModelSerializer):
             "description",
             "status",
             "scenario_template",
+            "field_data",
             "sealed_at",
             "seal_hash",
             "closed_at",
@@ -49,3 +54,9 @@ class AgreementDetailSerializer(serializers.ModelSerializer):
             "updated_at",
             "parties",
         )
+
+
+class AgreementRevisionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AgreementRevision
+        fields = ("id", "revision_number", "seal_hash", "sealed_at", "created_at")

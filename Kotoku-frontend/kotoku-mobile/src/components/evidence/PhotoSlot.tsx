@@ -25,7 +25,7 @@ export function PhotoSlot({ label, required, localUri, onPress }: PhotoSlotProps
       {filled ? (
         <View className="flex-1">
           <Image
-            source={{ uri: localUri }}
+            source={{ uri: localUri, cache: "force-cache" }}
             className="flex-1"
             resizeMode="cover"
           />

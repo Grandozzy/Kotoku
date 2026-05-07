@@ -6,7 +6,11 @@ from apps.agreements.domain.enums import AgreementStatus
 
 
 def can_request_consent(agreement) -> bool:
-    if agreement.status not in (AgreementStatus.DRAFT, AgreementStatus.PENDING_CONSENT):
+    if agreement.status not in (
+        AgreementStatus.DRAFT,
+        AgreementStatus.PENDING_CONSENT,
+        AgreementStatus.ACTIVE,
+    ):
         return False
     return agreement.parties.count() >= 2
 

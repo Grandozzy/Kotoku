@@ -103,7 +103,14 @@ class TestBilateralReopenFlow:
                 otp_map[to] = otp
             return True
 
-        with patch("infrastructure.sms.gateway.SmsGateway.send", side_effect=_capture):
+        class MockGateway:
+            def send(self, to, body):
+                otp = _otp_capture(to, body)
+                if otp:
+                    otp_map[to] = otp
+                return True
+
+        with patch("apps.consent.services.get_sms_gateway", return_value=MockGateway()):
             resp = client.post(_REOPEN_REQUEST.format(id=agr.pk))
         assert resp.status_code == 200
         assert resp.json()["data"]["agreement"]["status"] == AgreementStatus.REOPEN_REQUESTED
@@ -152,13 +159,14 @@ class TestBilateralReopenFlow:
 
         otp_map = {}
 
-        def _capture(to, body):
-            otp = _otp_capture(to, body)
-            if otp:
-                otp_map[to] = otp
-            return True
+        class MockGateway:
+            def send(self, to, body):
+                otp = _otp_capture(to, body)
+                if otp:
+                    otp_map[to] = otp
+                return True
 
-        with patch("infrastructure.sms.gateway.SmsGateway.send", side_effect=_capture):
+        with patch("apps.consent.services.get_sms_gateway", return_value=MockGateway()):
             client.post(_REOPEN_REQUEST.format(id=agr.pk))
 
         first_phone = seller_phone

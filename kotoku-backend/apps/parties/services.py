@@ -26,8 +26,8 @@ class PartyService:
         """
         agreement = Agreement.objects.select_for_update().get(pk=agreement_id)
 
-        if agreement.status == AgreementStatus.SEALED:
-            raise DomainError("Cannot modify parties of a sealed agreement.")
+        if agreement.status not in (AgreementStatus.DRAFT, AgreementStatus.ACTIVE):
+            raise DomainError("Cannot modify parties: agreement is not in an editable state.")
 
         if len(parties_data) < 2:
             raise DomainError("At least two parties are required.")
@@ -80,8 +80,8 @@ class PartyService:
         """
         agreement = Agreement.objects.select_for_update().get(pk=agreement_id)
 
-        if agreement.status == AgreementStatus.SEALED:
-            raise DomainError("Cannot modify parties of a sealed agreement.")
+        if agreement.status not in (AgreementStatus.DRAFT, AgreementStatus.ACTIVE):
+            raise DomainError("Cannot modify parties: agreement is not in an editable state.")
 
         updated = []
         for patch in parties_data:

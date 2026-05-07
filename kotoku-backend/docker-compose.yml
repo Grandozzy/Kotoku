@@ -104,6 +104,21 @@ services:
     volumes:
       - minio_data:/data
 
+  minio-init:
+    build: .
+    entrypoint: ["bash", "/app/scripts/init_minio.sh"]
+    env_file:
+      - .env
+    environment:
+      AWS_S3_ENDPOINT_URL: http://minio:9000
+      AWS_STORAGE_BUCKET_NAME: ${AWS_STORAGE_BUCKET_NAME:-kotoku-local}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-${MINIO_ROOT_USER:-kotokuadmin}}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-${MINIO_ROOT_PASSWORD:-kotokuadmin123}}
+    volumes:
+      - .:/app
+    depends_on:
+      - minio
+
 volumes:
   postgres_data:
   minio_data:

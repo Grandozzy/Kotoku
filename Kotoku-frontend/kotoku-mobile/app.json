@@ -52,7 +52,8 @@
           "microphonePermission": "Kotoku needs microphone access to record voice summaries."
         }
       ],
-      "expo-sqlite"
+      "expo-sqlite",
+      "expo-media-library"
     ],
     "experiments": {
       "typedRoutes": true

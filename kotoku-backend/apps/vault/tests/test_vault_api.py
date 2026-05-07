@@ -69,6 +69,7 @@ def _sealed_agreement_with_vault(account, initiator_phone, second_phone):
     # Grant consent for all parties and move to PENDING_CONSENT
     agreement.status = AgreementStatus.PENDING_CONSENT
     agreement.save()
+    now = timezone.now()
     ConsentRecord.objects.bulk_create([
         ConsentRecord(
             agreement=agreement,
@@ -76,7 +77,8 @@ def _sealed_agreement_with_vault(account, initiator_phone, second_phone):
             otp_code_hash="fakehash",
             channel=ConsentRecord.Channel.SMS,
             granted=True,
-            expires_at=timezone.now() + timedelta(minutes=10),
+            granted_at=now,
+            expires_at=now + timedelta(minutes=10),
         )
         for p in agreement.parties.all()
     ])
@@ -222,3 +224,57 @@ class TestVaultExport:
     def test_unauthenticated_returns_401(self):
         resp = APIClient().post(_EXPORT_PATH.format(id=1))
         assert resp.status_code == 401
+
+
+from apps.vault.api.audit import build_audit_timeline
+
+
+_AUDIT_PATH = "/api/vault/{id}/audit-log/"
+
+
+@pytest.mark.django_db
+class TestVaultAuditLog:
+    def test_returns_200_with_events(self):
+        client, acct = _make_client("+233700400001")
+        agreement, _ = _sealed_agreement_with_vault(acct, acct.phone, "+233700400002")
+        resp = client.get(_AUDIT_PATH.format(id=agreement.pk))
+        assert resp.status_code == 200
+        events = resp.json()["data"]["events"]
+        assert len(events) >= 1
+        types = [e["type"] for e in events]
+        assert "agreement_created" in types
+        assert "sealed" in types
+
+    def test_events_include_parties_and_evidence(self):
+        client, acct = _make_client("+233700400003")
+        agreement, _ = _sealed_agreement_with_vault(acct, acct.phone, "+233700400004")
+        resp = client.get(_AUDIT_PATH.format(id=agreement.pk))
+        types = [e["type"] for e in resp.json()["data"]["events"]]
+        assert "party_added" in types
+        assert "evidence_uploaded" in types
+
+    def test_returns_404_for_other_users_agreement(self):
+        client, acct = _make_client("+233700400005")
+        _, other_acct = _make_client("+233700400006")
+        agreement, _ = _sealed_agreement_with_vault(other_acct, other_acct.phone, "+233700400007")
+        resp = client.get(_AUDIT_PATH.format(id=agreement.pk))
+        assert resp.status_code == 404
+
+    def test_unauthenticated_returns_401(self):
+        resp = APIClient().get(_AUDIT_PATH.format(id=1))
+        assert resp.status_code == 401
+
+    def test_build_audit_timeline_includes_consent(self):
+        client, acct = _make_client("+233700400008")
+        agreement, _ = _sealed_agreement_with_vault(acct, acct.phone, "+233700400009")
+        events = build_audit_timeline(agreement)
+        types = [e["type"] for e in events]
+        assert "consent_requested" in types
+        assert "consent_confirmed" in types
+
+    def test_build_audit_timeline_sorted_by_timestamp(self):
+        client, acct = _make_client("+233700400010")
+        agreement, _ = _sealed_agreement_with_vault(acct, acct.phone, "+233700400011")
+        events = build_audit_timeline(agreement)
+        timestamps = [e["timestamp"] for e in events]
+        assert timestamps == sorted(timestamps)
