@@ -12,7 +12,7 @@ from apps.agreements.domain.policies import (
     can_seal,
 )
 from apps.agreements.domain.state_machine import next_state
-from apps.agreements.models import Agreement
+from apps.agreements.models import Agreement, AgreementRevision
 from apps.audit.services import AuditService
 from apps.identity.models import IdentityRecord
 from apps.parties.models import Party
@@ -45,6 +45,27 @@ def _compute_seal_hash(agreement) -> str:
     }
     canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(canonical.encode()).hexdigest()
+
+
+def _build_snapshot(agreement) -> dict:
+    parties = list(
+        agreement.parties.order_by("role").values(
+            "role", "display_name", "id_type", "id_number", "phone"
+        )
+    )
+    evidence = list(
+        agreement.evidence_items.filter(upload_status="confirmed")
+        .order_by("evidence_type", "file_key")
+        .values("evidence_type", "file_hash", "file_key")
+    )
+    return {
+        "agreement_id": agreement.pk,
+        "title": agreement.title,
+        "description": agreement.description,
+        "scenario_template": agreement.scenario_template,
+        "parties": parties,
+        "evidence": evidence,
+    }
 
 
 class AgreementService:
@@ -95,6 +116,36 @@ class AgreementService:
         agreement.save(update_fields=update_fields)
         AuditService.record_event(
             event_type="agreement.updated",
+            entity_type="agreement",
+            entity_id=str(agreement.pk),
+            metadata={"updated_fields": update_fields},
+        )
+        return agreement
+
+    @staticmethod
+    def update_active(
+        *,
+        agreement_id: int,
+        title: str | None = None,
+        description: str | None = None,
+        scenario_template: str | None = None,
+    ) -> Agreement:
+        agreement = Agreement.objects.get(pk=agreement_id)
+        if agreement.status != AgreementStatus.ACTIVE:
+            raise DomainError("Can only update an active (reopened) agreement")
+        update_fields = ["updated_at"]
+        if title is not None:
+            agreement.title = title
+            update_fields.append("title")
+        if description is not None:
+            agreement.description = description
+            update_fields.append("description")
+        if scenario_template is not None:
+            agreement.scenario_template = scenario_template
+            update_fields.append("scenario_template")
+        agreement.save(update_fields=update_fields)
+        AuditService.record_event(
+            event_type="agreement.updated_active",
             entity_type="agreement",
             entity_id=str(agreement.pk),
             metadata={"updated_fields": update_fields},
@@ -211,10 +262,22 @@ class AgreementService:
 
         Called automatically by ConsentService.confirm_reopen_by_phone when the
         last party confirms. Clears sealed_at and seal_hash so the agreement can
-        be edited and re-sealed cleanly.
+        be edited and re-sealed cleanly. Creates an AgreementRevision snapshot
+        before clearing seal data.
         """
         agreement = Agreement.objects.select_for_update().get(pk=agreement_id)
         new_status = next_state(agreement.status, "bilateral_confirm")
+        snapshot_data = _build_snapshot(agreement)
+        revision_number = AgreementRevision.objects.filter(
+            agreement=agreement
+        ).count() + 1
+        AgreementRevision.objects.create(
+            agreement=agreement,
+            revision_number=revision_number,
+            seal_hash=agreement.seal_hash,
+            sealed_at=agreement.sealed_at,
+            snapshot=snapshot_data,
+        )
         agreement.status = new_status
         agreement.sealed_at = None
         agreement.seal_hash = ""
