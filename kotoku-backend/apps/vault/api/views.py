@@ -76,6 +76,24 @@ class VaultExportView(APIView):
         return ok({"vault_entry": VaultEntrySerializer(entry).data}, status_code=202)
 
 
+class VaultRetryExportView(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, agreement_id: int):
+        try:
+            VaultSelector.get_for_agreement(
+                agreement_id=agreement_id,
+                account_id=request.user.account.pk,
+                account_phone=request.user.account.phone,
+            )
+        except VaultEntry.DoesNotExist:
+            raise Http404 from None
+
+        entry = VaultService.retry_export(agreement_id=agreement_id)
+        return ok({"vault_entry": VaultEntrySerializer(entry).data}, status_code=202)
+
+
 class VaultAuditLogView(APIView):
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
