@@ -6,10 +6,20 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Badge } from "@/components/ui";
 import { ExportButton } from "@/components/vault/ExportButton";
 import { ReopenSection } from "@/components/vault/ReopenSection";
-import { useAgreementStore } from "@/features/agreements/agreementStore";
+import { useAgreementStore, type PartyDraft } from "@/features/agreements/agreementStore";
+import { useAgreement } from "@/features/agreements/useAgreementDraft";
 import { useAuditLog, useRequestExport, useVaultRecord } from "@/features/vault/useVault";
 import type { ScenarioId } from "@/constants/scenarios";
 import { colors } from "@/theme/tokens";
+
+function mapPartyToDraft(role: string, phone: string): PartyDraft {
+  return {
+    fullName: role,
+    phone,
+    idType: "ghana_card",
+    idNumber: "",
+  };
+}
 
 export default function VaultDetailScreen() {
   const router = useRouter();
@@ -18,6 +28,7 @@ export default function VaultDetailScreen() {
   const insets = useSafeAreaInsets();
 
   const { data: record, isLoading } = useVaultRecord(id);
+  const { data: fullAgreement } = useAgreement(id);
   const { data: auditLog } = useAuditLog(id);
   const exportMutation = useRequestExport(id);
   const initReopened = useAgreementStore((s) => s.initReopened);
@@ -92,7 +103,13 @@ export default function VaultDetailScreen() {
           <View className="gap-sm">
             <Pressable
               onPress={() => {
-                initReopened(record.agreementId, record.scenarioId as ScenarioId);
+                let partyA: PartyDraft | undefined;
+                let partyB: PartyDraft | undefined;
+                if (fullAgreement?.parties && fullAgreement.parties.length >= 2) {
+                  partyA = mapPartyToDraft(fullAgreement.parties[0].displayName, fullAgreement.parties[0].phone);
+                  partyB = mapPartyToDraft(fullAgreement.parties[1].displayName, fullAgreement.parties[1].phone);
+                }
+                initReopened(record.agreementId, record.scenarioId as ScenarioId, partyA, partyB);
                 router.push(`/agreement/${record.agreementId}/steps/parties`);
               }}
               className="flex-row items-center justify-center gap-sm bg-brand-primary rounded-lg py-md active:opacity-80"

@@ -54,12 +54,14 @@ export function useValidateAgreement(id: number) {
 export function useSealAgreement(id: number) {
   const router = useRouter();
   const reset = useAgreementStore((s) => s.reset);
+  const isReopened = useAgreementStore((s) => s.isReopened);
 
   return useMutation({
     mutationFn: () => sealAgreement(id),
     onSuccess: () => {
+      const wasReopened = isReopened;
       reset();
-      router.replace(`/agreement/${id}/sealed`);
+      router.replace(`/agreement/${id}/sealed?reopened=${wasReopened}`);
     },
   });
 }

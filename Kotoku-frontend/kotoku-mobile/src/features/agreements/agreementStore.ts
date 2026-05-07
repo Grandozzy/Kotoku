@@ -43,7 +43,7 @@ interface AgreementDraftStore {
 
   // Actions
   initDraft: (agreementId: number, scenarioId: ScenarioId) => void;
-  initReopened: (agreementId: number, scenarioId: ScenarioId) => void;
+  initReopened: (agreementId: number, scenarioId: ScenarioId, partyA?: PartyDraft, partyB?: PartyDraft, subjectData?: Record<string, unknown>) => void;
   goToStep: (index: number) => void;
   nextStep: () => void;
   prevStep: () => void;
@@ -83,8 +83,16 @@ export const useAgreementStore = create<AgreementDraftStore>((set) => ({
   initDraft: (agreementId, scenarioId) =>
     set({ agreementId, scenarioId, stepIndex: 0, isReopened: false }),
 
-  initReopened: (agreementId, scenarioId) =>
-    set({ agreementId, scenarioId, stepIndex: 0, isReopened: true }),
+  initReopened: (agreementId, scenarioId, partyA, partyB, subjectData) =>
+    set({
+      agreementId,
+      scenarioId,
+      stepIndex: 0,
+      isReopened: true,
+      partyA: partyA ?? emptyParty,
+      partyB: partyB ?? emptyParty,
+      subjectData: subjectData ?? {},
+    }),
 
   goToStep: (index) => set({ stepIndex: index }),
 
