@@ -4,14 +4,14 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Button, Card } from "@/components/ui";
 import { useAuth } from "@/features/auth/useAuth";
-import { deleteToken } from "@/lib/secureStore";
+import { clearSession as clearStoredSession } from "@/lib/secureStore";
 
 export default function ProfileScreen() {
   const { phone, clearSession } = useAuth();
   const insets = useSafeAreaInsets();
 
   const handleLogout = async () => {
-    await deleteToken();
+    await clearStoredSession();
     clearSession();
   };
 

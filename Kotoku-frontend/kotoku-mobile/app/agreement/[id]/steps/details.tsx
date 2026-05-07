@@ -11,6 +11,7 @@ import {
   STEPS,
 } from "@/features/agreements/agreementStore";
 import { useTemplate } from "@/features/agreements/useAgreementDraft";
+import { updateAgreement } from "@/api/agreements";
 
 function buildDetailsSchema(template: {
   fields: Record<string, { required: boolean; type: string }>;
@@ -40,8 +41,10 @@ function buildDetailsSchema(template: {
 
 export default function DetailsStep() {
   const router = useRouter();
-  const { id } = useLocalSearchParams<{ id: string }>();
-  const { scenarioId, subjectData, setSubjectData, nextStep, prevStep, stepIndex } =
+  const { id, scenarioId: urlScenarioId } = useLocalSearchParams<{ id: string; scenarioId?: string }>();
+  const storeScenarioId = useAgreementStore((s) => s.scenarioId);
+  const scenarioId = storeScenarioId ?? urlScenarioId;
+  const { subjectData, setSubjectData, nextStep, prevStep, stepIndex } =
     useAgreementStore();
   const template = useTemplate(scenarioId);
 
@@ -64,12 +67,16 @@ export default function DetailsStep() {
     resolver: zodResolver(schema),
     mode: "onChange",
     defaultValues: subjectData,
+    values: Object.keys(subjectData).length > 0 ? subjectData : undefined,
   });
 
   const watchValues = watch();
 
-  const onSubmit = (values: Record<string, unknown>) => {
+  const onSubmit = async (values: Record<string, unknown>) => {
     setSubjectData(values);
+    try {
+      await updateAgreement(Number(id), { field_data: values });
+    } catch {}
     nextStep();
     router.push(`/agreement/${id}/steps/evidence`);
   };

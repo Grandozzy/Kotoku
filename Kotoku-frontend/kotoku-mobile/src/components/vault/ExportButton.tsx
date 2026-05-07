@@ -1,4 +1,4 @@
-import { cacheDirectory, downloadAsync } from "expo-file-system/legacy";
+import { downloadAsync, deleteAsync, cacheDirectory } from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
 import { Loader } from "lucide-react-native";
 import { useState } from "react";
@@ -21,51 +21,100 @@ export function ExportButton({
   onRequestExport,
   isRequesting,
 }: ExportButtonProps) {
-  const [downloading, setDownloading] = useState(false);
-  const [downloadError, setDownloadError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [sharing, setSharing] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [shareError, setShareError] = useState<string | null>(null);
+  const handleSaveToDevice = async () => {
+    if (!pdfUrl) return;
+    setSaving(true);
+    setSaveError(null);
+    let downloadedUri: string | null = null;
+    try {
+      const result = await downloadAsync(pdfUrl, cacheDirectory + "agreement.pdf");
+      downloadedUri = result.uri;
+      await Sharing.shareAsync(downloadedUri, {
+        mimeType: "application/pdf",
+        dialogTitle: "Save agreement PDF",
+        UTI: "com.adobe.pdf",
+      });
+    } catch (err) {
+      console.warn("[DEBUG] SAVE ERROR:", err);
+      setSaveError("Could not save to device. Please try again.");
+    } finally {
+      setSaving(false);
+      if (downloadedUri) {
+        try {
+          await deleteAsync(downloadedUri);
+        } catch {}
+      }
+    }
+  };
 
   const handleShare = async () => {
     if (!pdfUrl) return;
-    setDownloading(true);
-    setDownloadError(null);
+    setSharing(true);
+    setShareError(null);
+    let downloadedUri: string | null = null;
     try {
-      // Download to app cache directory then share
-      const filename = `kotoku-agreement-${Date.now()}.pdf`;
-      const localUri = `${cacheDirectory}${filename}`;
-      await downloadAsync(pdfUrl, localUri);
-      await Sharing.shareAsync(localUri, {
+      const result = await downloadAsync(pdfUrl, cacheDirectory + "agreement.pdf");
+      downloadedUri = result.uri;
+      await Sharing.shareAsync(downloadedUri, {
         mimeType: "application/pdf",
         dialogTitle: "Share agreement PDF",
       });
     } catch {
-      setDownloadError("Could not download the PDF. Please try again.");
+      setShareError("Could not download the PDF. Please try again.");
     } finally {
-      setDownloading(false);
+      setSharing(false);
+      if (downloadedUri) {
+        try {
+          await deleteAsync(downloadedUri);
+        } catch {}
+      }
     }
   };
+
+  const isBusy = saving || sharing;
 
   if (pdfStatus === "ready" && pdfUrl) {
     return (
       <View className="gap-xs">
         <Button
-          title={downloading ? "Preparing…" : "Share PDF"}
+          title={saving ? "Saving…" : "Save to Device"}
           variant="primary"
           size="md"
           fullWidth
-          loading={downloading}
+          loading={saving}
+          disabled={isBusy}
+          onPress={handleSaveToDevice}
+          accessibilityLabel="Save PDF to device"
+        />
+        {saveError && (
+          <Text className="text-xs text-semantic-error text-center">
+            {saveError}
+          </Text>
+        )}
+        <Button
+          title={sharing ? "Preparing…" : "Share PDF"}
+          variant="secondary"
+          size="md"
+          fullWidth
+          loading={sharing}
+          disabled={isBusy}
           onPress={handleShare}
           accessibilityLabel="Share agreement PDF"
         />
-        {downloadError && (
+        {shareError && (
           <Text className="text-xs text-semantic-error text-center">
-            {downloadError}
+            {shareError}
           </Text>
         )}
       </View>
     );
   }
 
-  if (pdfStatus === "pending") {
+  if (pdfStatus === "generating") {
     return (
       <View className="flex-row items-center justify-center gap-sm bg-surface-subtle rounded-lg p-md">
         <Loader size={16} color={colors.inkMuted} />
@@ -74,7 +123,6 @@ export function ExportButton({
     );
   }
 
-  // failed or not yet requested
   return (
     <Button
       title={isRequesting ? "Requesting…" : "Get PDF"}

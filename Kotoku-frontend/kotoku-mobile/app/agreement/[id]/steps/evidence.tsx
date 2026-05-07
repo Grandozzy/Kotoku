@@ -11,8 +11,10 @@ import { colors } from "@/theme/tokens";
 
 export default function EvidenceStep() {
   const router = useRouter();
-  const { id } = useLocalSearchParams<{ id: string }>();
-  const { scenarioId, nextStep, prevStep, stepIndex } = useAgreementStore();
+  const { id, scenarioId: urlScenarioId } = useLocalSearchParams<{ id: string; scenarioId?: string }>();
+  const storeScenarioId = useAgreementStore((s) => s.scenarioId);
+  const scenarioId = storeScenarioId ?? urlScenarioId;
+  const { nextStep, prevStep, stepIndex } = useAgreementStore();
   const template = useTemplate(scenarioId);
   const agreementId = Number(id);
 
@@ -24,18 +26,14 @@ export default function EvidenceStep() {
   const photoSlots = slots.filter((s) => s.fileType === "photo");
   const voiceSlots = slots.filter((s) => s.fileType === "voice_note");
 
-  // Check minimum required photo slots are filled
-  const requiredPhotoIds = photoSlots
-    .filter((s) => s.required)
-    .map((s) => s.id);
-  const filledRequiredPhotos = requiredPhotoIds.filter(
-    (sid) => items[sid]?.uploadStatus === "uploaded",
-  );
-  const canProceed = filledRequiredPhotos.length === requiredPhotoIds.length;
+  const uploadedPhotoCount = photoSlots.filter(
+    (s) => items[s.id]?.uploadStatus === "uploaded",
+  ).length;
+  const canProceed = uploadedPhotoCount >= minimumPhotoCount;
 
   const handleNext = () => {
     nextStep();
-    router.push(`/agreement/${id}/steps/review`);
+    router.push(`/agreement/${id}/steps/review?scenarioId=${scenarioId}`);
   };
 
   return (
@@ -60,7 +58,7 @@ export default function EvidenceStep() {
                 label={slot.label}
                 required={slot.required}
                 localUri={items[slot.id]?.localUri}
-                onPress={() => pickImage(slot.id)}
+                onPress={() => pickImage(slot.id, slot.id)}
               />
             </View>
           ))}
@@ -104,7 +102,7 @@ export default function EvidenceStep() {
 
       {!canProceed && (
         <Text className="text-xs text-ink-muted text-center">
-          Add all required photos to continue.
+          Upload at least {minimumPhotoCount} photo{minimumPhotoCount !== 1 ? "s" : ""} to continue.
         </Text>
       )}
 

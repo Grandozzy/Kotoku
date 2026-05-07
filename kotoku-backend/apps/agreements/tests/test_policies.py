@@ -77,6 +77,15 @@ class TestCanRequestConsent:
         _make_party(agreement, Party.Role.SELLER)
         assert can_request_consent(agreement) is False
 
+    def test_returns_true_when_active_with_two_parties(self, db):
+        account = _make_account("active_consent@test.com")
+        agreement = _make_agreement(
+            status=AgreementStatus.ACTIVE, created_by=account
+        )
+        _make_party(agreement, Party.Role.BUYER)
+        _make_party(agreement, Party.Role.SELLER)
+        assert can_request_consent(agreement) is True
+
 
 class TestCanSeal:
     def test_returns_true_when_active_with_evidence(self, db):

@@ -4,14 +4,13 @@ import { useState } from "react";
 import { ScrollView, Text, View } from "react-native";
 
 import { Button, OTPInput } from "@/components/ui";
-import { useAgreementStore, STEPS } from "@/features/agreements/agreementStore";
+import { STEPS, useAgreementStore } from "@/features/agreements/agreementStore";
 import {
   useConfirmOtp,
   useRequestOtp,
   getApiErrorMessage,
 } from "@/features/consent/useConsentFlow";
-import { useSealAgreement } from "@/features/agreements/useAgreementDraft";
-import { useTemplate } from "@/features/agreements/useAgreementDraft";
+import { useSealAgreement, useTemplate } from "@/features/agreements/useAgreementDraft";
 import { colors } from "@/theme/tokens";
 
 export default function ConsentStep() {
@@ -19,7 +18,8 @@ export default function ConsentStep() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const agreementId = Number(id);
 
-  const { scenarioId, consentA, consentB, prevStep, stepIndex } = useAgreementStore();
+  const { scenarioId, consentA, consentB, partyA, partyB, prevStep, stepIndex } =
+    useAgreementStore();
   const template = useTemplate(scenarioId);
   const [roleA, roleB] = template?.partyRoles ?? ["Party A", "Party B"];
 
@@ -33,32 +33,16 @@ export default function ConsentStep() {
   const bothConfirmed = consentA.confirmed && consentB.confirmed;
   const otpsSent = consentA.otpSent && consentB.otpSent;
 
-  // TODO: replace hardcoded partyId placeholders with real IDs from the agreement
-  // once the parties API is wired. For now these are sentinel values.
-  const PARTY_A_ID = 1;
-  const PARTY_B_ID = 2;
-
   const handleRequestCodes = () => {
-    requestOtp.mutate({ party: "A", partyId: PARTY_A_ID });
-    requestOtp.mutate({ party: "B", partyId: PARTY_B_ID });
+    requestOtp.mutate();
   };
 
   const handleConfirmA = () => {
-    if (!consentA.consentRecordId) return;
-    confirmOtp.mutate({
-      party: "A",
-      consentRecordId: consentA.consentRecordId,
-      otpCode: codeA,
-    });
+    confirmOtp.mutate({ party: "A", otpCode: codeA });
   };
 
   const handleConfirmB = () => {
-    if (!consentB.consentRecordId) return;
-    confirmOtp.mutate({
-      party: "B",
-      consentRecordId: consentB.consentRecordId,
-      otpCode: codeB,
-    });
+    confirmOtp.mutate({ party: "B", otpCode: codeB });
   };
 
   const confirmError =
@@ -75,12 +59,11 @@ export default function ConsentStep() {
           Confirm consent
         </Text>
         <Text className="text-md text-ink-secondary">
-          Both parties must confirm with a one-time code before the agreement
-          can be sealed.
+          Both parties must confirm with a one-time code sent to their phone
+          before the agreement can be sealed.
         </Text>
       </View>
 
-      {/* Request codes button */}
       {!otpsSent && (
         <Button
           title="Request consent codes"
@@ -92,16 +75,16 @@ export default function ConsentStep() {
         />
       )}
 
-      {requestOtp.isError && (
+      {requestOtp.isError && !otpsSent && (
         <Text className="text-sm text-semantic-error text-center">
           {getApiErrorMessage(requestOtp.error)}
         </Text>
       )}
 
-      {/* Party A OTP */}
       {otpsSent && (
         <ConsentPartyBlock
           role={roleA}
+          phone={partyA.phone}
           confirmed={consentA.confirmed}
           code={codeA}
           onCodeChange={(v) => {
@@ -115,10 +98,10 @@ export default function ConsentStep() {
         />
       )}
 
-      {/* Party B OTP */}
       {otpsSent && (
         <ConsentPartyBlock
           role={roleB}
+          phone={partyB.phone}
           confirmed={consentB.confirmed}
           code={codeB}
           onCodeChange={(v) => {
@@ -132,7 +115,6 @@ export default function ConsentStep() {
         />
       )}
 
-      {/* Seal */}
       {bothConfirmed && (
         <View className="gap-md">
           <View className="flex-row items-center justify-center gap-sm bg-emerald-50 rounded-lg p-md">
@@ -173,7 +155,7 @@ export default function ConsentStep() {
         </View>
       )}
 
-      {!bothConfirmed && stepIndex > 0 && (
+      {!bothConfirmed && otpsSent && stepIndex > 0 && (
         <Button
           title="Back"
           variant="secondary"
@@ -189,10 +171,9 @@ export default function ConsentStep() {
   );
 }
 
-// ---------- Sub-component ----------
-
 interface ConsentPartyBlockProps {
   role: string;
+  phone: string;
   confirmed: boolean;
   code: string;
   onCodeChange: (v: string) => void;
@@ -204,6 +185,7 @@ interface ConsentPartyBlockProps {
 
 function ConsentPartyBlock({
   role,
+  phone,
   confirmed,
   code,
   onCodeChange,
@@ -215,7 +197,10 @@ function ConsentPartyBlock({
   return (
     <View className="bg-surface-card rounded-lg border border-border-subtle p-lg gap-md">
       <View className="flex-row items-center justify-between">
-        <Text className="text-md font-semibold text-ink-primary">{role}</Text>
+        <View>
+          <Text className="text-md font-semibold text-ink-primary">{role}</Text>
+          <Text className="text-xs text-ink-muted mt-xs">{phone}</Text>
+        </View>
         {confirmed ? (
           <View className="flex-row items-center gap-xs">
             <CheckCircle size={16} color={colors.success} />

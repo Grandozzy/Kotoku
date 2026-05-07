@@ -45,6 +45,12 @@ class TestNextState:
             == AgreementStatus.ACTIVE
         )
 
+    def test_active_request_consent_goes_to_pending_consent(self):
+        assert (
+            next_state(AgreementStatus.ACTIVE, "request_consent")
+            == AgreementStatus.PENDING_CONSENT
+        )
+
     def test_active_seal_goes_to_sealed(self):
         assert next_state(AgreementStatus.ACTIVE, "seal") == AgreementStatus.SEALED
 
@@ -68,7 +74,6 @@ class TestNextState:
             (AgreementStatus.DRAFT, "all_consented"),
             (AgreementStatus.DRAFT, "close"),
             (AgreementStatus.PENDING_CONSENT, "add_party"),
-            (AgreementStatus.ACTIVE, "request_consent"),
             (AgreementStatus.ACTIVE, "add_party"),
             (AgreementStatus.SEALED, "add_party"),
             (AgreementStatus.SEALED, "request_consent"),
@@ -94,7 +99,9 @@ class TestValidActions:
         assert "seal" in actions
 
     def test_active_actions(self):
-        assert valid_actions(AgreementStatus.ACTIVE) == ["seal"]
+        actions = valid_actions(AgreementStatus.ACTIVE)
+        assert "seal" in actions
+        assert "request_consent" in actions
 
     def test_sealed_actions(self):
         actions = valid_actions(AgreementStatus.SEALED)

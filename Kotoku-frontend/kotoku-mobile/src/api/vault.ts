@@ -2,9 +2,25 @@ import { apiClient } from "@/api/client";
 import type { ApiResponse } from "@/types/api";
 import type { VaultRecord } from "@/types/vault";
 
+interface RawPartySummary {
+  role: string;
+  display_name: string;
+  phone: string;
+  id_type: string;
+  id_number: string;
+}
+
 interface RawVaultEntry {
   id: number;
-  agreement: { id: number; title: string; status: string; sealed_at: string };
+  agreement: {
+    id: number;
+    title: string;
+    status: string;
+    scenario_template: string;
+    sealed_at: string;
+    created_by_phone: string;
+    parties: RawPartySummary[];
+  };
   pdf_status: string;
   pdf_url: string | null;
   retain_until: string;
@@ -18,11 +34,21 @@ function mapVaultRecord(raw: RawVaultEntry): VaultRecord {
     id: raw.id,
     agreementId: raw.agreement.id,
     title: raw.agreement.title,
+    scenarioId: raw.agreement.scenario_template,
     status: raw.archived ? "archived" : "active",
+    agreementStatus: raw.agreement.status as VaultRecord["agreementStatus"],
     pdfStatus: raw.pdf_status as VaultRecord["pdfStatus"],
     pdfUrl: raw.pdf_url || null,
     sealedAt: raw.agreement.sealed_at,
     retentionExpiresAt: raw.retain_until,
+    createdByPhone: raw.agreement.created_by_phone,
+    parties: (raw.agreement.parties ?? []).map((p) => ({
+      role: p.role,
+      displayName: p.display_name,
+      phone: p.phone,
+      idType: p.id_type,
+      idNumber: p.id_number,
+    })),
   };
 }
 

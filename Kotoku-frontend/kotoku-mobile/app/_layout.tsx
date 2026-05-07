@@ -9,8 +9,9 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { runMigrations } from "@/db/migrations";
 import { queryClient } from "@/lib/queryClient";
-import { getToken } from "@/lib/secureStore";
+import { getAccountId, getPhone, getToken } from "@/lib/secureStore";
 import { useSessionStore } from "@/store/sessionStore";
+import { useNotifications } from "@/hooks/useNotifications";
 import { useOfflineGuard } from "@/hooks/useOfflineGuard";
 import { useSyncQueue } from "@/hooks/useSyncQueue";
 
@@ -36,21 +37,33 @@ function AuthGuard() {
   const segments = useSegments();
   const isAuthenticated = useSessionStore((s) => s.isAuthenticated);
   const setSession = useSessionStore((s) => s.setSession);
+  const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
-    getToken().then((token) => {
-      if (token) setSession(token, "", 0);
-    });
+    (async () => {
+      const [token, phone, accountId] = await Promise.all([
+        getToken(),
+        getPhone(),
+        getAccountId(),
+      ]);
+      if (token && phone && accountId) {
+        setSession(token, phone, accountId);
+      }
+      setHydrated(true);
+    })();
   }, []);
 
   useEffect(() => {
+    if (!hydrated) return;
     const inAuthGroup = segments[0] === "(auth)";
     if (!isAuthenticated && !inAuthGroup) {
       router.replace("/(auth)/welcome");
     } else if (isAuthenticated && inAuthGroup) {
       router.replace("/(main)/home");
     }
-  }, [isAuthenticated, segments]);
+  }, [hydrated, isAuthenticated, segments]);
+
+  useNotifications();
 
   return <Slot />;
 }

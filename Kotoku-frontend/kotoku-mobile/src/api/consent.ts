@@ -4,38 +4,49 @@ import type { ApiResponse } from "@/types/api";
 export interface ConsentRecord {
   id: number;
   partyId: number;
+  partyPhone: string;
   granted: boolean;
+  grantedAt: string | null;
   expiresAt: string;
+}
+
+export interface RequestOtpResponse {
+  consentRecords: ConsentRecord[];
+  partiesCount: number;
 }
 
 export async function requestOtp(
   agreementId: number,
-  partyId: number,
-): Promise<ConsentRecord> {
-  const res = await apiClient.post<ApiResponse<ConsentRecord>>(
+): Promise<RequestOtpResponse> {
+  const res = await apiClient.post<ApiResponse<RequestOtpResponse>>(
     `/agreements/${agreementId}/consent/request-otp/`,
-    { party_id: partyId },
   );
   return res.data.data;
 }
 
 export async function confirmOtp(
   agreementId: number,
-  consentRecordId: number,
+  partyPhone: string,
   otpCode: string,
 ): Promise<ConsentRecord> {
-  const res = await apiClient.post<ApiResponse<ConsentRecord>>(
+  const res = await apiClient.post<ApiResponse<{ consentRecord: ConsentRecord }>>(
     `/agreements/${agreementId}/consent/confirm/`,
-    { consent_record_id: consentRecordId, otp_code: otpCode },
+    { party_phone: partyPhone, otp_code: otpCode },
   );
-  return res.data.data;
+  return res.data.data.consentRecord;
+}
+
+export interface ConsentStatus {
+  agreementId: number;
+  allConsented: boolean;
+  records: ConsentRecord[];
 }
 
 export async function getConsentStatus(
   agreementId: number,
-): Promise<ConsentRecord[]> {
-  const res = await apiClient.get<ApiResponse<ConsentRecord[]>>(
-    `/agreements/${agreementId}/consent/`,
+): Promise<ConsentStatus> {
+  const res = await apiClient.get<ApiResponse<ConsentStatus>>(
+    `/agreements/${agreementId}/consent/status/`,
   );
   return res.data.data;
 }

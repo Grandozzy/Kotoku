@@ -10,6 +10,7 @@ _TRANSITIONS: dict[tuple[str, str], str] = {
     (AgreementStatus.PENDING_CONSENT, "all_consented"): AgreementStatus.ACTIVE,
     # New path: seal directly from PENDING_CONSENT once all parties have consented.
     (AgreementStatus.PENDING_CONSENT, "seal"): AgreementStatus.SEALED,
+    (AgreementStatus.ACTIVE, "request_consent"): AgreementStatus.PENDING_CONSENT,
     (AgreementStatus.ACTIVE, "seal"): AgreementStatus.SEALED,
     (AgreementStatus.SEALED, "close"): AgreementStatus.CLOSED,
     # Legacy single-party reopen (kept for backward compat with existing service method).

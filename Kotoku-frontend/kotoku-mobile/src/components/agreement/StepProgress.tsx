@@ -1,6 +1,5 @@
 import { Check } from "lucide-react-native";
 import { Pressable, Text, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { colors } from "@/theme/tokens";
 
@@ -12,12 +11,10 @@ interface StepProgressProps {
 }
 
 export function StepProgress({ currentIndex, onStepPress }: StepProgressProps) {
-  const insets = useSafeAreaInsets();
-
   return (
     <View
       className="items-center bg-surface-card border-b border-border-subtle"
-      style={{ paddingTop: insets.top + 12, paddingBottom: 12 }}
+      style={{ paddingTop: 8, paddingBottom: 12 }}
     >
       <View className="flex-row items-center">
         {STEP_LABELS.map((label, idx) => {

@@ -158,8 +158,8 @@ class EvidenceService:
             )
 
         agreement = Agreement.objects.get(pk=agreement_id)
-        if agreement.status == AgreementStatus.SEALED:
-            raise DomainError("Cannot add evidence to a sealed agreement.")
+        if agreement.status not in (AgreementStatus.DRAFT, AgreementStatus.PENDING_CONSENT, AgreementStatus.ACTIVE):
+            raise DomainError("Cannot add evidence: agreement is not in an editable state.")
 
         ext = _MIME_TO_EXT[mime_type]
         file_key = (

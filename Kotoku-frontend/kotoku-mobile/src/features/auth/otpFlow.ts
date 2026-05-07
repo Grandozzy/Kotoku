@@ -4,7 +4,7 @@ import { z } from "zod";
 
 import { fetchMe, sendOtp, verifyOtp } from "@/api/auth";
 import { getApiErrorMessage } from "@/lib/errorHandler";
-import { saveToken } from "@/lib/secureStore";
+import { saveSession } from "@/lib/secureStore";
 import { useSessionStore } from "@/store/sessionStore";
 
 // ---------- Validation schemas ----------
@@ -52,7 +52,7 @@ export function useVerifyOtp(phone: string) {
   return useMutation({
     mutationFn: (code: string) => verifyOtp({ phone, code }),
     onSuccess: async (data) => {
-      await saveToken(data.token);
+      await saveSession(data.token, phone, data.account_id);
       setSession(data.token, phone, data.account_id);
       router.replace("/(main)/home");
     },

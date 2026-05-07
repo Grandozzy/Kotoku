@@ -23,6 +23,7 @@ class Agreement(models.Model):
         db_index=True,
     )
     scenario_template = models.CharField(max_length=128, blank=True)
+    field_data = models.JSONField(default=dict, blank=True)
     created_by = models.ForeignKey(
         Account,
         on_delete=models.CASCADE,
@@ -64,3 +65,25 @@ class Annotation(models.Model):
 
     def __str__(self) -> str:
         return f"Annotation on {self.agreement} by {self.author_party}"
+
+
+class AgreementRevision(models.Model):
+    """Snapshot of agreement state at seal time, preserved before reopening."""
+
+    agreement = models.ForeignKey(
+        Agreement,
+        on_delete=models.CASCADE,
+        related_name="revisions",
+    )
+    revision_number = models.PositiveIntegerField()
+    seal_hash = models.CharField(max_length=64)
+    sealed_at = models.DateTimeField()
+    snapshot = models.JSONField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = [("agreement", "revision_number")]
+        ordering = ["-revision_number"]
+
+    def __str__(self) -> str:
+        return f"Revision {self.revision_number} of {self.agreement}"

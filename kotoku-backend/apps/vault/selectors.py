@@ -1,26 +1,48 @@
-from django.db.models import QuerySet
+from django.db.models import Q, QuerySet
 
+from apps.agreements.domain.enums import AgreementStatus
 from apps.vault.models import VaultEntry
+
+_VAULT_VISIBLE_STATUSES = (
+    AgreementStatus.SEALED,
+    AgreementStatus.REOPEN_REQUESTED,
+    AgreementStatus.ACTIVE,
+)
 
 
 class VaultSelector:
     @staticmethod
-    def get_for_agreement(*, agreement_id: int, account_id: int) -> VaultEntry:
-        """Fetch a vault entry, scoped to the requesting user's agreements."""
-        return VaultEntry.objects.select_related(
+    def get_for_agreement(
+        *, agreement_id: int, account_id: int, account_phone: str = None
+    ) -> VaultEntry:
+        qs = VaultEntry.objects.select_related(
             "agreement", "agreement__created_by"
-        ).get(
-            agreement_id=agreement_id,
-            agreement__created_by__pk=account_id,
-        )
+        ).filter(agreement_id=agreement_id)
+        if account_phone:
+            qs = qs.filter(
+                Q(agreement__created_by__pk=account_id)
+                | Q(agreement__parties__phone=account_phone)
+            )
+        else:
+            qs = qs.filter(agreement__created_by__pk=account_id)
+        return qs.distinct().get()
 
     @staticmethod
-    def list_for_account(*, account_id: int) -> QuerySet:
-        return (
-            VaultEntry.objects.filter(
-                agreement__created_by__pk=account_id,
-                archived=False,
+    def list_for_account(*, account_id: int, account_phone: str = None) -> QuerySet:
+        qs = VaultEntry.objects
+        if account_phone:
+            qs = qs.filter(
+                Q(agreement__created_by__pk=account_id)
+                | Q(agreement__parties__phone=account_phone)
             )
-            .select_related("agreement")
+        else:
+            qs = qs.filter(agreement__created_by__pk=account_id)
+        return (
+            qs.filter(
+                archived=False,
+                agreement__status__in=_VAULT_VISIBLE_STATUSES,
+            )
+            .select_related("agreement", "agreement__created_by")
             .order_by("-created_at")
+            .distinct()
         )

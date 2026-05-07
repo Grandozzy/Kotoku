@@ -54,7 +54,7 @@ class TestNotificationService:
             entity_type="notification",
         ).exists()
 
-    @patch.object(SmsGateway, "send", return_value=False)
+    @patch("apps.notifications.providers.sms_provider.SmsNotificationProvider.send", return_value=False)
     def test_failed_status_when_provider_fails(self, mock_send, db):
         account = _account()
         notification = NotificationService.send_notification(
@@ -65,7 +65,7 @@ class TestNotificationService:
         assert notification.status == Notification.Status.FAILED
         assert notification.sent_at is None
 
-    @patch.object(SmsGateway, "send", side_effect=Exception("network error"))
+    @patch("apps.notifications.providers.sms_provider.SmsNotificationProvider.send", side_effect=Exception("network error"))
     def test_failed_status_on_exception(self, mock_send, db):
         account = _account()
         notification = NotificationService.send_notification(
@@ -98,7 +98,7 @@ class TestDispatchTask:
         assert notification.status == Notification.Status.SENT
         assert notification.sent_at is not None
 
-    @patch.object(SmsGateway, "send", return_value=False)
+    @patch("apps.notifications.providers.sms_provider.SmsNotificationProvider.send", return_value=False)
     def test_sets_failed_on_provider_failure(self, mock_send, db):
         account = _account()
         notification = Notification.objects.create(
@@ -142,10 +142,14 @@ class TestSmsGateway:
     @patch("infrastructure.sms.gateway.urllib.request.urlopen")
     def test_real_mode_returns_true_on_200(self, mock_urlopen, db):
         from django.test import override_settings
+        from unittest.mock import MagicMock
 
-        mock_urlopen.return_value.__enter__ = lambda s: s
-        mock_urlopen.return_value.__exit__ = lambda s, *a: None
-        mock_urlopen.return_value.status = 200
+        mock_response = MagicMock()
+        mock_response.read.return_value = b'{"SMSMessageData":{"Recipients":[{"status":"Success","messageId":"123"}]}}'
+        mock_response.__enter__ = lambda s: mock_response
+        mock_response.__exit__ = lambda s, *a: None
+
+        mock_urlopen.return_value = mock_response
 
         with override_settings(SMS_API_KEY="test-key"):
             gateway = SmsGateway()

@@ -11,7 +11,7 @@ from django.utils import timezone
 from apps.agreements.domain.enums import AgreementStatus
 from apps.agreements.domain.policies import can_request_consent
 from apps.agreements.domain.state_machine import next_state
-from apps.agreements.models import Agreement
+from apps.agreements.models import Agreement, AgreementRevision
 from apps.audit.services import AuditService
 from apps.consent.models import ConsentRecord
 from apps.notifications.models import Notification
@@ -128,14 +128,24 @@ class ConsentService:
             agreement=agreement, granted=False
         ).exists()
         if all_granted:
-            new_status = next_state(agreement.status, "all_consented")
-            agreement.status = new_status
-            agreement.save(update_fields=["status", "updated_at"])
-            AuditService.record_event(
-                event_type="agreement.all_consented",
-                entity_type="agreement",
-                entity_id=str(agreement.pk),
-            )
+            has_revision = AgreementRevision.objects.filter(
+                agreement=agreement
+            ).exists()
+            if not has_revision:
+                new_status = next_state(agreement.status, "all_consented")
+                agreement.status = new_status
+                agreement.save(update_fields=["status", "updated_at"])
+                AuditService.record_event(
+                    event_type="agreement.all_consented",
+                    entity_type="agreement",
+                    entity_id=str(agreement.pk),
+                )
+            else:
+                AuditService.record_event(
+                    event_type="agreement.reseal_all_consented",
+                    entity_type="agreement",
+                    entity_id=str(agreement.pk),
+                )
         return record
 
     # ------------------------------------------------------------------ #
@@ -159,6 +169,8 @@ class ConsentService:
                 "pending_consent status."
             )
 
+        original_status = agreement.status
+
         from apps.consent.selectors import ConsentSelector  # noqa: PLC0415
         if agreement.status == AgreementStatus.PENDING_CONSENT:
             if ConsentSelector.all_parties_consented(agreement_id=agreement_id):
@@ -168,11 +180,16 @@ class ConsentService:
             # Re-issue: wipe stale records so each party gets a fresh OTP.
             ConsentRecord.objects.filter(agreement=agreement).delete()
         else:
-            # DRAFT → PENDING_CONSENT
+            # DRAFT or ACTIVE → PENDING_CONSENT
             agreement.status = next_state(agreement.status, "request_consent")
             agreement.save(update_fields=["status", "updated_at"])
+            event_type = (
+                "agreement.reseal_consent_requested"
+                if original_status == AgreementStatus.ACTIVE
+                else "agreement.consent_requested"
+            )
             AuditService.record_event(
-                event_type="agreement.consent_requested",
+                event_type=event_type,
                 entity_type="agreement",
                 entity_id=str(agreement.pk),
             )

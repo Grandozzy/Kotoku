@@ -3,6 +3,7 @@ from django.urls import include, path
 from .views import (
     AgreementCollectionView,
     AgreementDetailView,
+    PendingActionsView,
     ReopenOtpConfirmView,
     ReopenOtpRequestView,
     ReopenRequestView,
@@ -12,6 +13,11 @@ from .views import (
 
 urlpatterns = [
     path("", AgreementCollectionView.as_view(), name="agreement-collection"),
+    path(
+        "pending-actions/",
+        PendingActionsView.as_view(),
+        name="agreement-pending-actions",
+    ),
     path(
         "<int:agreement_id>/",
         AgreementDetailView.as_view(),
