@@ -5,7 +5,6 @@ import { Pressable, ScrollView, Text, View } from "react-native";
 import { z } from "zod";
 
 import { Button, TextInput } from "@/components/ui";
-import { ReeditBanner } from "@/components/agreement/ReeditBanner";
 import {
   useAgreementStore,
   type IdType,
@@ -42,7 +41,7 @@ const ID_TYPE_OPTIONS: { value: IdType; label: string }[] = [
 export default function PartiesStep() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { scenarioId, partyA, partyB, setPartyA, setPartyB, nextStep, isReopened } =
+  const { scenarioId, partyA, partyB, setPartyA, setPartyB, nextStep } =
     useAgreementStore();
   const template = useTemplate(scenarioId);
   const [roleA, roleB] = template?.partyRoles ?? ["Party A", "Party B"];
@@ -87,8 +86,6 @@ export default function PartiesStep() {
         control={control}
         errors={errors.partyB}
       />
-
-      {isReopened && <ReeditBanner />}
 
       <View className="flex-row gap-sm">
         <View style={{ flex: 2 }}>

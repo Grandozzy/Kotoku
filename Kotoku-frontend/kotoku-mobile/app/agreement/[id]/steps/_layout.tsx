@@ -1,12 +1,30 @@
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { ChevronLeft } from "lucide-react-native";
 import { Pressable, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { ReeditBanner } from "@/components/agreement/ReeditBanner";
 import { StepProgress } from "@/components/agreement/StepProgress";
 import { useAgreementStore, STEPS } from "@/features/agreements/agreementStore";
 import { useDraftPersistence } from "@/hooks/useDraftPersistence";
 import { colors } from "@/theme/tokens";
+
+function ReeditHeader({ onExit }: { onExit: () => void }) {
+  const insets = useSafeAreaInsets();
+
+  return (
+    <View
+      className="flex-row items-center px-lg bg-surface-card border-b border-border-subtle"
+      style={{ paddingTop: insets.top + 12, paddingBottom: 8 }}
+    >
+      <Pressable onPress={onExit} className="p-xs">
+        <ChevronLeft size={24} color={colors.inkPrimary} />
+      </Pressable>
+      <Text className="text-md font-semibold text-ink-primary flex-1 text-center mr-xl">
+        Edit agreement
+      </Text>
+    </View>
+  );
+}
 
 export default function StepsLayout() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -30,16 +48,7 @@ export default function StepsLayout() {
 
   const header = () => (
     <View>
-      {isReopened && stepIndex === 0 && (
-        <View className="flex-row items-center px-lg pt-sm pb-xs bg-surface-card border-b border-border-subtle">
-          <Pressable onPress={handleExit} className="p-xs">
-            <ChevronLeft size={24} color={colors.inkPrimary} />
-          </Pressable>
-          <Text className="text-md font-semibold text-ink-primary flex-1 text-center mr-xl">
-            Edit agreement
-          </Text>
-        </View>
-      )}
+      {isReopened && <ReeditHeader onExit={handleExit} />}
       <StepProgress currentIndex={stepIndex} onStepPress={handleStepPress} />
     </View>
   );
