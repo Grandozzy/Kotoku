@@ -159,6 +159,8 @@ class ConsentService:
                 "pending_consent status."
             )
 
+        original_status = agreement.status
+
         from apps.consent.selectors import ConsentSelector  # noqa: PLC0415
         if agreement.status == AgreementStatus.PENDING_CONSENT:
             if ConsentSelector.all_parties_consented(agreement_id=agreement_id):
@@ -168,11 +170,16 @@ class ConsentService:
             # Re-issue: wipe stale records so each party gets a fresh OTP.
             ConsentRecord.objects.filter(agreement=agreement).delete()
         else:
-            # DRAFT → PENDING_CONSENT
+            # DRAFT or ACTIVE → PENDING_CONSENT
             agreement.status = next_state(agreement.status, "request_consent")
             agreement.save(update_fields=["status", "updated_at"])
+            event_type = (
+                "agreement.reseal_consent_requested"
+                if original_status == AgreementStatus.ACTIVE
+                else "agreement.consent_requested"
+            )
             AuditService.record_event(
-                event_type="agreement.consent_requested",
+                event_type=event_type,
                 entity_type="agreement",
                 entity_id=str(agreement.pk),
             )

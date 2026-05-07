@@ -161,3 +161,41 @@ class TestAgreementRevision:
         assert revisions.count() == 2
         assert revisions[0].revision_number == 1
         assert revisions[1].revision_number == 2
+
+
+class TestResealConsentFlow:
+    def test_active_can_transition_to_pending_consent(self, db):
+        agreement = _make_sealed_agreement()
+        agreement.status = AgreementStatus.ACTIVE
+        agreement.sealed_at = None
+        agreement.seal_hash = ""
+        agreement.save()
+        from apps.agreements.domain.policies import can_request_consent
+
+        assert can_request_consent(agreement) is True
+
+    def test_request_consent_from_active_goes_to_pending(self, db):
+        from apps.consent.services import ConsentService
+
+        account = _account("reseal_otp@test.com")
+        agreement = AgreementService.create_draft(
+            title="Re-Seal Test", created_by=account
+        )
+        id1 = _identity(account, "ref-r1")
+        id2 = IdentityRecord.objects.create(
+            account=account, reference="ref-r2", verification_type="phone"
+        )
+        Party.objects.create(
+            agreement=agreement, identity=id1, role="buyer", display_name="Buyer"
+        )
+        Party.objects.create(
+            agreement=agreement, identity=id2, role="seller", display_name="Seller"
+        )
+        agreement.status = AgreementStatus.ACTIVE
+        agreement.sealed_at = None
+        agreement.seal_hash = ""
+        agreement.save()
+        records = ConsentService.request_otp(agreement_id=agreement.pk)
+        assert len(records) == 2
+        agreement.refresh_from_db()
+        assert agreement.status == AgreementStatus.PENDING_CONSENT
