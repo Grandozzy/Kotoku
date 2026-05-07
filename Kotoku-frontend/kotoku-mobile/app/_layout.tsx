@@ -9,7 +9,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { runMigrations } from "@/db/migrations";
 import { queryClient } from "@/lib/queryClient";
-import { getToken } from "@/lib/secureStore";
+import { getAccountId, getPhone, getToken } from "@/lib/secureStore";
 import { useSessionStore } from "@/store/sessionStore";
 import { useOfflineGuard } from "@/hooks/useOfflineGuard";
 import { useSyncQueue } from "@/hooks/useSyncQueue";
@@ -38,9 +38,16 @@ function AuthGuard() {
   const setSession = useSessionStore((s) => s.setSession);
 
   useEffect(() => {
-    getToken().then((token) => {
-      if (token) setSession(token, "", 0);
-    });
+    (async () => {
+      const [token, phone, accountId] = await Promise.all([
+        getToken(),
+        getPhone(),
+        getAccountId(),
+      ]);
+      if (token && phone && accountId) {
+        setSession(token, phone, accountId);
+      }
+    })();
   }, []);
 
   useEffect(() => {

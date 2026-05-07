@@ -1,7 +1,7 @@
 import axios from "axios";
 
 import { API_BASE_URL } from "@/constants/config";
-import { getToken, deleteToken } from "@/lib/secureStore";
+import { getToken, clearSession } from "@/lib/secureStore";
 
 export const apiClient = axios.create({
   baseURL: `${API_BASE_URL}/api`,
@@ -25,7 +25,7 @@ apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     if (error.response?.status === 401) {
-      await deleteToken();
+      await clearSession();
     }
     return Promise.reject(error);
   }

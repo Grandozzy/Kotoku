@@ -1,4 +1,3 @@
-import { useRouter } from "expo-router";
 import { CheckCircle, Clock, RefreshCw } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import { Pressable, Text, View } from "react-native";
