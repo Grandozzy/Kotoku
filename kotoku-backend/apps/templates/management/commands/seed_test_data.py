@@ -11,13 +11,13 @@ from apps.parties.models import Party
 
 
 class Command(BaseCommand):
-    help = "Seed repeatable test data (users, accounts, identities, agreement)"
+    help = "Seed repeatable test data (users, accounts, identities, agreements)"
 
     def add_arguments(self, parser):
         parser.add_argument(
             "--sealed",
             action="store_true",
-            help="Run the full consent + seal flow so the agreement ends as SEALED",
+            help="Run the full consent + seal flow so sealed agreements end as SEALED",
         )
 
     def handle(self, *args, **options):
@@ -27,9 +27,13 @@ class Command(BaseCommand):
 
         alice_phone = "+233500000001"
         bob_phone = "+233500000002"
+        carlos_phone = "+233500000003"
+        diana_phone = "+233500000004"
 
         alice_user, _ = User.objects.get_or_create(phone=alice_phone)
         bob_user, _ = User.objects.get_or_create(phone=bob_phone)
+        carlos_user, _ = User.objects.get_or_create(phone=carlos_phone)
+        diana_user, _ = User.objects.get_or_create(phone=diana_phone)
 
         alice_account, _ = Account.objects.get_or_create(
             user=alice_user,
@@ -45,6 +49,22 @@ class Command(BaseCommand):
                 "email": "bob@test.kotoku",
                 "phone": bob_phone,
                 "full_name": "Bob Osei",
+            },
+        )
+        carlos_account, _ = Account.objects.get_or_create(
+            user=carlos_user,
+            defaults={
+                "email": "carlos@test.kotoku",
+                "phone": carlos_phone,
+                "full_name": "Carlos Boateng",
+            },
+        )
+        diana_account, _ = Account.objects.get_or_create(
+            user=diana_user,
+            defaults={
+                "email": "diana@test.kotoku",
+                "phone": diana_phone,
+                "full_name": "Diana Asante",
             },
         )
 
@@ -64,22 +84,44 @@ class Command(BaseCommand):
                 "verified_at": bob_account.created_at,
             },
         )
+        carlos_identity, _ = IdentityRecord.objects.get_or_create(
+            reference="GHA-000000003",
+            defaults={
+                "account": carlos_account,
+                "verification_type": IdentityRecord.VerificationType.GHANA_CARD,
+                "verified_at": carlos_account.created_at,
+            },
+        )
+        diana_identity, _ = IdentityRecord.objects.get_or_create(
+            reference="GHA-000000004",
+            defaults={
+                "account": diana_account,
+                "verification_type": IdentityRecord.VerificationType.GHANA_CARD,
+                "verified_at": diana_account.created_at,
+            },
+        )
 
         alice_token, _ = Token.objects.get_or_create(user=alice_user)
         bob_token, _ = Token.objects.get_or_create(user=bob_user)
+        carlos_token, _ = Token.objects.get_or_create(user=carlos_user)
+        diana_token, _ = Token.objects.get_or_create(user=diana_user)
 
-        agreement_title = "Cash Sale - Toyota Corolla 2020"
-        agreement, created = Agreement.objects.get_or_create(
-            title=agreement_title,
+        agreements = []
+
+        agreement_1, _ = Agreement.objects.get_or_create(
+            title="Cash Sale - Toyota Corolla 2020",
             defaults={
-                "description": "Cash sale of a 2020 Toyota Corolla between Alice (buyer) and Bob (seller).",
+                "description": (
+                    "Cash sale of a 2020 Toyota Corolla between Alice (buyer) and Bob (seller). "
+                    "Vehicle VIN: JTDBR32E760062789. Sale price: GHS 85,000. "
+                    "Payment via mobile money on or before 15 June 2026."
+                ),
                 "scenario_template": "used_vehicle_sale",
                 "created_by": alice_account,
             },
         )
-
         Party.objects.get_or_create(
-            agreement=agreement,
+            agreement=agreement_1,
             role=Party.Role.BUYER,
             defaults={
                 "identity": alice_identity,
@@ -90,7 +132,7 @@ class Command(BaseCommand):
             },
         )
         Party.objects.get_or_create(
-            agreement=agreement,
+            agreement=agreement_1,
             role=Party.Role.SELLER,
             defaults={
                 "identity": bob_identity,
@@ -100,17 +142,132 @@ class Command(BaseCommand):
                 "id_number": "GHA-000000002",
             },
         )
+        agreements.append(("Toyota Corolla Sale", agreement_1))
 
-        agreement.refresh_from_db()
+        agreement_2, _ = Agreement.objects.get_or_create(
+            title="Rental - 2BR Apartment at East Legon",
+            defaults={
+                "description": (
+                    "Rental agreement for a 2-bedroom apartment at 14 Oxford Street, East Legon, Accra. "
+                    "Landlord: Carlos Boateng. Tenant: Alice Mensah. "
+                    "Monthly rent: GHS 3,500. Security deposit: GHS 7,000. "
+                    "Lease period: 1 July 2026 to 30 June 2027."
+                ),
+                "scenario_template": "rental_agreement",
+                "created_by": carlos_account,
+            },
+        )
+        Party.objects.get_or_create(
+            agreement=agreement_2,
+            role=Party.Role.LANDLORD,
+            defaults={
+                "identity": carlos_identity,
+                "display_name": "Carlos Boateng",
+                "phone": carlos_phone,
+                "id_type": Party.IdType.GHANA_CARD,
+                "id_number": "GHA-000000003",
+            },
+        )
+        Party.objects.get_or_create(
+            agreement=agreement_2,
+            role=Party.Role.TENANT,
+            defaults={
+                "identity": alice_identity,
+                "display_name": "Alice Mensah",
+                "phone": alice_phone,
+                "id_type": Party.IdType.GHANA_CARD,
+                "id_number": "GHA-000000001",
+            },
+        )
+        agreements.append(("East Legon Rental", agreement_2))
+
+        agreement_3, _ = Agreement.objects.get_or_create(
+            title="Cash Sale - Honda Civic 2019",
+            defaults={
+                "description": (
+                    "Cash sale of a 2019 Honda Civic between Diana (buyer) and Bob (seller). "
+                    "Vehicle VIN: 2HGFC2F59KH558321. Sale price: GHS 72,000. "
+                    "Payment via bank transfer within 7 days of sealing."
+                ),
+                "scenario_template": "used_vehicle_sale",
+                "created_by": diana_account,
+            },
+        )
+        Party.objects.get_or_create(
+            agreement=agreement_3,
+            role=Party.Role.BUYER,
+            defaults={
+                "identity": diana_identity,
+                "display_name": "Diana Asante",
+                "phone": diana_phone,
+                "id_type": Party.IdType.GHANA_CARD,
+                "id_number": "GHA-000000004",
+            },
+        )
+        Party.objects.get_or_create(
+            agreement=agreement_3,
+            role=Party.Role.SELLER,
+            defaults={
+                "identity": bob_identity,
+                "display_name": "Bob Osei",
+                "phone": bob_phone,
+                "id_type": Party.IdType.GHANA_CARD,
+                "id_number": "GHA-000000002",
+            },
+        )
+        agreements.append(("Honda Civic Sale", agreement_3))
+
+        agreement_4, _ = Agreement.objects.get_or_create(
+            title="Used Vehicle Sale - Nissan Patrol 2021",
+            defaults={
+                "description": (
+                    "Sale of a 2021 Nissan Patrol between Carlos (buyer) and Diana (seller). "
+                    "Vehicle VIN: JN1TANT61Z0012345. Sale price: GHS 150,000. "
+                    "Payment via bank transfer. Odometer: 42,300 km."
+                ),
+                "scenario_template": "used_vehicle_sale",
+                "created_by": carlos_account,
+            },
+        )
+        Party.objects.get_or_create(
+            agreement=agreement_4,
+            role=Party.Role.BUYER,
+            defaults={
+                "identity": carlos_identity,
+                "display_name": "Carlos Boateng",
+                "phone": carlos_phone,
+                "id_type": Party.IdType.GHANA_CARD,
+                "id_number": "GHA-000000003",
+            },
+        )
+        Party.objects.get_or_create(
+            agreement=agreement_4,
+            role=Party.Role.SELLER,
+            defaults={
+                "identity": diana_identity,
+                "display_name": "Diana Asante",
+                "phone": diana_phone,
+                "id_type": Party.IdType.GHANA_CARD,
+                "id_number": "GHA-000000004",
+            },
+        )
+        agreements.append(("Nissan Patrol Sale", agreement_4))
+
+        for label, agreement in agreements:
+            agreement.refresh_from_db()
 
         if options["sealed"]:
-            self._seal(agreement)
+            self._seal(agreement_1, label="Toyota Corolla Sale")
+            self._seal(agreement_2, label="East Legon Rental")
+            agreement_3.refresh_from_db()
+            if agreement_3.status == Agreement.Status.DRAFT:
+                AgreementService.request_consent(agreement_id=agreement_3.pk)
 
-        agreement.refresh_from_db()
-        status_label = agreement.status
+        self.stdout.write("")
+        self.stdout.write(self.style.SUCCESS("Seeded test data"))
+        self.stdout.write("=" * 50)
 
-        self.stdout.write("Seeded test data")
-        self.stdout.write("=" * 40)
+        self.stdout.write("")
         self.stdout.write(f"Alice ({alice_phone})")
         self.stdout.write(f"  Token: {alice_token.key}")
         self.stdout.write(f"  Identity: {alice_identity.reference}")
@@ -119,16 +276,29 @@ class Command(BaseCommand):
         self.stdout.write(f"  Token: {bob_token.key}")
         self.stdout.write(f"  Identity: {bob_identity.reference}")
         self.stdout.write("")
-        self.stdout.write(f'Agreement: "{agreement.title}" ({status_label})')
-        self.stdout.write(f"  GET /api/agreements/{agreement.pk}/")
+        self.stdout.write(f"Carlos ({carlos_phone})")
+        self.stdout.write(f"  Token: {carlos_token.key}")
+        self.stdout.write(f"  Identity: {carlos_identity.reference}")
+        self.stdout.write("")
+        self.stdout.write(f"Diana ({diana_phone})")
+        self.stdout.write(f"  Token: {diana_token.key}")
+        self.stdout.write(f"  Identity: {diana_identity.reference}")
 
-    def _seal(self, agreement):
+        self.stdout.write("")
+        self.stdout.write("Agreements:")
+        for label, agreement in agreements:
+            agreement.refresh_from_db()
+            self.stdout.write(f"  [{agreement.status}] {agreement.title}")
+            self.stdout.write(f"    GET /api/agreements/{agreement.pk}/")
+
+    def _seal(self, agreement, label=""):
         from unittest.mock import patch
 
         import apps.consent.services as consent_module
 
+        agreement.refresh_from_db()
         if agreement.status != Agreement.Status.DRAFT:
-            self.stdout.write(f"Agreement already in {agreement.status}, skipping seal.")
+            self.stdout.write(f"  {label}: already {agreement.status}, skipping seal.")
             return
 
         captured_otps = []
@@ -157,35 +327,95 @@ class Command(BaseCommand):
 
         from infrastructure.storage.s3 import S3StorageClient
 
-        png_bytes = (
-            b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01"
-            b"\x00\x00\x00\x01\x08\x02\x00\x00\x00\x90wS\xde\x00"
-            b"\x00\x00\x0cIDATx\x9cc\xf8\x0f\x00\x00\x01\x00\x01"
-            b"\x00\x00\x00\x00IEND\xaeB`\x82"
-        )
-        file_hash = hashlib.sha256(png_bytes).hexdigest()
-        file_key = "test-data/vehicle_front.png"
-        storage_url = S3StorageClient().upload(
-            file_key, png_bytes, content_type="image/png"
-        )
-
-        EvidenceItem.objects.get_or_create(
-            agreement=agreement,
-            evidence_type="vehicle_photo_front",
-            defaults={
-                "file_type": EvidenceItem.FileType.PHOTO,
-                "mime_type": "image/png",
-                "size_bytes": len(png_bytes),
-                "file_key": file_key,
-                "file_hash": file_hash,
-                "storage_url": storage_url,
-                "original_name": "vehicle_front.png",
-                "upload_status": EvidenceItem.UploadStatus.CONFIRMED,
-            },
-        )
+        evidence_items = self._evidence_for_agreement(agreement)
+        for ev in evidence_items:
+            png_bytes = self._make_png()
+            file_hash = hashlib.sha256(png_bytes).hexdigest()
+            file_key = f"test-data/{ev['file_name']}"
+            try:
+                storage_url = S3StorageClient().upload(
+                    file_key, png_bytes, content_type="image/png"
+                )
+            except Exception:
+                storage_url = f"https://test-bucket.example.com/{file_key}"
+            EvidenceItem.objects.get_or_create(
+                agreement=agreement,
+                evidence_type=ev["evidence_type"],
+                defaults={
+                    "file_type": ev["file_type"],
+                    "mime_type": "image/png",
+                    "size_bytes": len(png_bytes),
+                    "file_key": file_key,
+                    "file_hash": file_hash,
+                    "storage_url": storage_url,
+                    "original_name": ev["file_name"],
+                    "upload_status": EvidenceItem.UploadStatus.CONFIRMED,
+                },
+            )
 
         AgreementService.seal_agreement(agreement_id=agreement.pk)
 
         from apps.vault.services import VaultService
 
         VaultService.create_for_agreement(agreement_id=agreement.pk)
+        self.stdout.write(f"  {label}: sealed ✓")
+
+    def _evidence_for_agreement(self, agreement):
+        template = agreement.scenario_template
+        if template == "used_vehicle_sale":
+            return [
+                {
+                    "evidence_type": "vehicle_photo_front",
+                    "file_type": EvidenceItem.FileType.PHOTO,
+                    "file_name": "vehicle_front.png",
+                },
+                {
+                    "evidence_type": "vehicle_photo_rear",
+                    "file_type": EvidenceItem.FileType.PHOTO,
+                    "file_name": "vehicle_rear.png",
+                },
+                {
+                    "evidence_type": "vehicle_odometer",
+                    "file_type": EvidenceItem.FileType.PHOTO,
+                    "file_name": "odometer_reading.png",
+                },
+                {
+                    "evidence_type": "seller_id_photo",
+                    "file_type": EvidenceItem.FileType.PHOTO,
+                    "file_name": "seller_id.png",
+                },
+            ]
+        elif template == "rental_agreement":
+            return [
+                {
+                    "evidence_type": "property_front",
+                    "file_type": EvidenceItem.FileType.PHOTO,
+                    "file_name": "property_front.png",
+                },
+                {
+                    "evidence_type": "property_interior",
+                    "file_type": EvidenceItem.FileType.PHOTO,
+                    "file_name": "property_interior.png",
+                },
+                {
+                    "evidence_type": "landlord_id_photo",
+                    "file_type": EvidenceItem.FileType.PHOTO,
+                    "file_name": "landlord_id.png",
+                },
+            ]
+        return [
+            {
+                "evidence_type": "general_evidence",
+                "file_type": EvidenceItem.FileType.PHOTO,
+                "file_name": "evidence.png",
+            },
+        ]
+
+    @staticmethod
+    def _make_png():
+        return (
+            b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01"
+            b"\x00\x00\x00\x01\x08\x02\x00\x00\x00\x90wS\xde\x00"
+            b"\x00\x00\x0cIDATx\x9cc\xf8\x0f\x00\x00\x01\x00\x01"
+            b"\x00\x00\x00\x00IEND\xaeB`\x82"
+        )
