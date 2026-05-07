@@ -97,13 +97,14 @@ class TestFullSealFlow:
 
         otp_map = {}
 
-        def _capture(to, body):
-            otp = _otp_capture(to, body)
-            if otp:
-                otp_map[to] = otp
-            return True
+        class MockGateway:
+            def send(self, to, body):
+                otp = _otp_capture(to, body)
+                if otp:
+                    otp_map[to] = otp
+                return True
 
-        with patch("infrastructure.sms.gateway.SmsGateway.send", side_effect=_capture):
+        with patch("apps.consent.services.get_sms_gateway", return_value=MockGateway()):
             resp = client.post(_REQUEST_OTP_PATH.format(id=agreement_id))
         assert resp.status_code == 201
         assert len(otp_map) == 2
