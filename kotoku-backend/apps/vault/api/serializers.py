@@ -3,6 +3,14 @@ from rest_framework import serializers
 from apps.vault.models import VaultEntry
 
 
+class PartySummarySerializer(serializers.Serializer):
+    role = serializers.CharField()
+    display_name = serializers.CharField()
+    phone = serializers.CharField()
+    id_type = serializers.CharField()
+    id_number = serializers.CharField()
+
+
 class AgreementSummarySerializer(serializers.Serializer):
     id = serializers.IntegerField()
     title = serializers.CharField()
@@ -11,6 +19,7 @@ class AgreementSummarySerializer(serializers.Serializer):
     sealed_at = serializers.DateTimeField()
     seal_hash = serializers.CharField()
     created_by_phone = serializers.CharField(source="created_by.phone")
+    parties = PartySummarySerializer(source="parties.all", many=True, read_only=True)
 
 
 class VaultEntrySerializer(serializers.ModelSerializer):

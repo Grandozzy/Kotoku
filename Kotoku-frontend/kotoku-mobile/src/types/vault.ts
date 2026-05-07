@@ -10,6 +10,14 @@ export type AgreementStatus =
   | "expired";
 export type PdfStatus = "pending" | "generating" | "ready" | "failed";
 
+export interface PartySummary {
+  role: string;
+  displayName: string;
+  phone: string;
+  idType: string;
+  idNumber: string;
+}
+
 export interface VaultRecord {
   id: number;
   agreementId: number;
@@ -22,4 +30,5 @@ export interface VaultRecord {
   sealedAt: string;
   retentionExpiresAt: string;
   createdByPhone: string;
+  parties: PartySummary[];
 }

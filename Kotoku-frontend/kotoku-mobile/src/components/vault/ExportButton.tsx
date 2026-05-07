@@ -1,4 +1,4 @@
-import { File, Paths } from "expo-file-system";
+import { downloadAsync, deleteAsync, cacheDirectory } from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
 import { Loader } from "lucide-react-native";
 import { useState } from "react";
@@ -29,10 +29,11 @@ export function ExportButton({
     if (!pdfUrl) return;
     setSaving(true);
     setSaveError(null);
-    let downloadedFile: File | null = null;
+    let downloadedUri: string | null = null;
     try {
-      downloadedFile = await File.downloadFileAsync(pdfUrl, Paths.cache);
-      await Sharing.shareAsync(downloadedFile.uri, {
+      const result = await downloadAsync(pdfUrl, cacheDirectory + "agreement.pdf");
+      downloadedUri = result.uri;
+      await Sharing.shareAsync(downloadedUri, {
         mimeType: "application/pdf",
         dialogTitle: "Save agreement PDF",
         UTI: "com.adobe.pdf",
@@ -42,9 +43,9 @@ export function ExportButton({
       setSaveError("Could not save to device. Please try again.");
     } finally {
       setSaving(false);
-      if (downloadedFile) {
+      if (downloadedUri) {
         try {
-          downloadedFile.delete();
+          await deleteAsync(downloadedUri);
         } catch {}
       }
     }
@@ -54,10 +55,11 @@ export function ExportButton({
     if (!pdfUrl) return;
     setSharing(true);
     setShareError(null);
-    let downloadedFile: File | null = null;
+    let downloadedUri: string | null = null;
     try {
-      downloadedFile = await File.downloadFileAsync(pdfUrl, Paths.cache);
-      await Sharing.shareAsync(downloadedFile.uri, {
+      const result = await downloadAsync(pdfUrl, cacheDirectory + "agreement.pdf");
+      downloadedUri = result.uri;
+      await Sharing.shareAsync(downloadedUri, {
         mimeType: "application/pdf",
         dialogTitle: "Share agreement PDF",
       });
@@ -65,9 +67,9 @@ export function ExportButton({
       setShareError("Could not download the PDF. Please try again.");
     } finally {
       setSharing(false);
-      if (downloadedFile) {
+      if (downloadedUri) {
         try {
-          downloadedFile.delete();
+          await deleteAsync(downloadedUri);
         } catch {}
       }
     }

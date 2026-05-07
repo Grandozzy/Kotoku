@@ -2,7 +2,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Controller, useForm } from "react-hook-form";
 import { Pressable, ScrollView, Text, View } from "react-native";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { z } from "zod";
 
 import { Button, TextInput } from "@/components/ui";
@@ -42,12 +42,25 @@ const ID_TYPE_OPTIONS: { value: IdType; label: string }[] = [
 
 export default function PartiesStep() {
   const router = useRouter();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, scenarioId: urlScenarioId } = useLocalSearchParams<{ id: string; scenarioId?: string }>();
+  const storeScenarioId = useAgreementStore((s) => s.scenarioId);
+  const scenarioId = storeScenarioId ?? urlScenarioId;
   const agreementId = Number(id);
-  const { scenarioId, partyA, partyB, setPartyA, setPartyB, nextStep } =
+  const { partyA, partyB, setPartyA, setPartyB, nextStep } =
     useAgreementStore();
   const template = useTemplate(scenarioId);
-  const [roleA, roleB] = template?.partyRoles ?? ["Party A", "Party B"];
+
+  // Log only when scenarioId changes
+  const prevScenarioId = useRef(scenarioId);
+  if (scenarioId !== prevScenarioId.current) {
+    console.log("[Parties] scenarioId:", scenarioId, "template:", !!template);
+    prevScenarioId.current = scenarioId;
+  }
+
+  if (!template) {
+    throw new Error("PARTIES: No template");
+  }
+  const [roleA, roleB] = template.partyRoles;
   const [saving, setSaving] = useState(false);
 
   const roleEnum = (label: string) => label.toLowerCase();
@@ -89,7 +102,7 @@ export default function PartiesStep() {
     } catch {}
     setSaving(false);
     nextStep();
-    router.push(`/agreement/${id}/steps/details`);
+    router.push(`/agreement/${id}/steps/details?scenarioId=${scenarioId}`);
   };
 
   return (

@@ -1,9 +1,10 @@
+import { useQuery } from "@tanstack/react-query";
 import { CheckCircle, Clock, RefreshCw } from "lucide-react-native";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 
 import { Button, OTPInput } from "@/components/ui";
-import { useSessionStore } from "@/store/sessionStore";
+import { getAgreement } from "@/api/agreements";
 import { getApiErrorMessage } from "@/lib/errorHandler";
 import {
   useConfirmReopen,
@@ -11,43 +12,50 @@ import {
   useResendReopenOtp,
 } from "@/features/vault/useReopen";
 import { colors } from "@/theme/tokens";
-import type { AgreementStatus } from "@/types/vault";
+import type { AgreementStatus, PartySummary } from "@/types/vault";
 
 interface ReopenSectionProps {
   agreementId: number;
   agreementStatus: AgreementStatus;
-  createdByPhone: string;
+  parties: PartySummary[];
 }
 
 export function ReopenSection({
   agreementId,
   agreementStatus,
-  createdByPhone,
+  parties,
 }: ReopenSectionProps) {
-  const phone = useSessionStore((s) => s.phone);
-  const isCreator = phone === createdByPhone;
-
-  const [otpCode, setOtpCode] = useState("");
-  const [confirmedByMe, setConfirmedByMe] = useState(false);
+  const [otpCodeA, setOtpCodeA] = useState("");
+  const [otpCodeB, setOtpCodeB] = useState("");
+  const [confirmedA, setConfirmedA] = useState(false);
+  const [confirmedB, setConfirmedB] = useState(false);
   const [reopened, setReopened] = useState(false);
 
   const requestReopen = useRequestReopen(agreementId);
   const resendOtp = useResendReopenOtp(agreementId);
   const confirmReopen = useConfirmReopen(agreementId);
 
-  const confirmResult = confirmReopen.data;
+  const { data: agreementParties } = useQuery({
+    queryKey: ["agreement", agreementId, "parties"],
+    queryFn: async () => {
+      const agreement = await getAgreement(agreementId);
+      return agreement.parties;
+    },
+    enabled: agreementStatus === "reopen_requested",
+  });
 
-  useEffect(() => {
-    if (confirmResult?.agreement_status === "active") {
-      setReopened(true);
-    } else if (confirmResult?.granted) {
-      setConfirmedByMe(true);
-    }
-  }, [confirmResult]);
+  const vaultParties = parties ?? [];
+  const effectiveParties = vaultParties.length >= 2 ? vaultParties : (agreementParties ?? []);
+  const partyA = effectiveParties[0];
+  const partyB = effectiveParties[1];
 
-  // Reopened = both parties confirmed, agreement is now active/editable.
-  // Show success regardless of whether agreementStatus has already flipped to "active"
-  // (cache invalidation) or is still "reopen_requested" (local mutation result).
+  const error: string | undefined =
+    requestReopen.isError
+      ? getApiErrorMessage(requestReopen.error)
+      : confirmReopen.isError
+        ? getApiErrorMessage(confirmReopen.error)
+        : undefined;
+
   if (reopened) {
     return (
       <View className="bg-surface-card rounded-lg border border-border-subtle p-lg gap-sm">
@@ -72,15 +80,7 @@ export function ReopenSection({
     return null;
   }
 
-  const error =
-    requestReopen.isError
-      ? getApiErrorMessage(requestReopen.error)
-      : confirmReopen.isError
-        ? getApiErrorMessage(confirmReopen.error)
-        : null;
-
   if (agreementStatus === "sealed") {
-    if (!isCreator) return null;
     return (
       <View className="gap-sm">
         <Text className="text-md font-semibold text-ink-primary">
@@ -96,9 +96,7 @@ export function ReopenSection({
           size="md"
           fullWidth
           loading={requestReopen.isPending}
-          onPress={() => {
-            requestReopen.mutate();
-          }}
+          onPress={() => requestReopen.mutate()}
         />
         {error && (
           <Text className="text-xs text-semantic-error text-center">{error}</Text>
@@ -108,73 +106,166 @@ export function ReopenSection({
   }
 
   if (agreementStatus === "reopen_requested") {
+    const allConfirmed = confirmedA && confirmedB;
+
     return (
       <View className="gap-sm">
         <Text className="text-md font-semibold text-ink-primary">
           Confirm Reopen
         </Text>
         <Text className="text-sm text-ink-secondary">
-          Enter the code sent to {phone ?? "your phone"} to confirm.
+          Both parties must enter the code sent to their phone.
         </Text>
 
-        {confirmedByMe ? (
-          <View className="bg-surface-card rounded-lg border border-border-subtle p-lg gap-sm">
-            <View className="flex-row items-center gap-sm">
-              <CheckCircle size={18} color={colors.success} />
-              <Text className="text-sm font-medium text-emerald-700">
-                You&apos;ve confirmed
-              </Text>
-            </View>
-            <View className="flex-row items-center gap-sm">
-              <Clock size={16} color={colors.inkMuted} />
-              <Text className="text-sm text-ink-muted">
-                Waiting for the other party to confirm…
-              </Text>
-            </View>
-          </View>
-        ) : (
-          <View className="bg-surface-card rounded-lg border border-border-subtle p-lg gap-md">
-            <OTPInput
-              value={otpCode}
-              onChange={(v) => {
-                setOtpCode(v);
-                if (confirmReopen.isError) confirmReopen.reset();
-              }}
-              error={error ?? undefined}
-              disabled={confirmReopen.isPending}
+        {partyA && (
+          <ReopenPartyBlock
+            role={partyA.role}
+            phone={partyA.phone}
+            displayName={partyA.displayName}
+            confirmed={confirmedA}
+            code={otpCodeA}
+            onCodeChange={(v) => {
+              setOtpCodeA(v);
+              if (confirmReopen.isError) confirmReopen.reset();
+            }}
+            onConfirm={() => {
+              confirmReopen.mutate(
+                { phone: partyA.phone, otpCode: otpCodeA },
+                {
+                  onSuccess: (result) => {
+                    setConfirmedA(true);
+                    if (result.agreement_status === "active") setReopened(true);
+                  },
+                },
+              );
+            }}
+            loading={confirmReopen.isPending}
+            error={error}
+            disabled={confirmedA}
+          />
+        )}
+
+        {partyB && (
+          <ReopenPartyBlock
+            role={partyB.role}
+            phone={partyB.phone}
+            displayName={partyB.displayName}
+            confirmed={confirmedB}
+            code={otpCodeB}
+            onCodeChange={(v) => {
+              setOtpCodeB(v);
+              if (confirmReopen.isError) confirmReopen.reset();
+            }}
+            onConfirm={() => {
+              confirmReopen.mutate(
+                { phone: partyB.phone, otpCode: otpCodeB },
+                {
+                  onSuccess: (result) => {
+                    setConfirmedB(true);
+                    if (result.agreement_status === "active") setReopened(true);
+                  },
+                },
+              );
+            }}
+            loading={confirmReopen.isPending}
+            error={error}
+            disabled={confirmedB}
+          />
+        )}
+
+        {!allConfirmed && (
+          <Pressable
+            onPress={() => resendOtp.mutate()}
+            disabled={resendOtp.isPending}
+            className="flex-row items-center justify-center gap-xs"
+          >
+            <RefreshCw
+              size={14}
+              color={resendOtp.isPending ? colors.inkMuted : colors.brandPrimary}
             />
-            <Button
-              title="Confirm Reopen"
-              variant="primary"
-              size="md"
-              fullWidth
-              disabled={otpCode.length < 8}
-              loading={confirmReopen.isPending}
-              onPress={() => {
-                if (!phone) return;
-                confirmReopen.mutate({ phone, otpCode });
-              }}
-            />
-            <Pressable
-              onPress={() => resendOtp.mutate()}
-              disabled={resendOtp.isPending}
-              className="flex-row items-center justify-center gap-xs"
+            <Text
+              className={`text-sm ${resendOtp.isPending ? "text-ink-muted" : "text-brand-primary"}`}
             >
-              <RefreshCw
-                size={14}
-                color={resendOtp.isPending ? colors.inkMuted : colors.brandPrimary}
-              />
-              <Text
-                className={`text-sm ${resendOtp.isPending ? "text-ink-muted" : "text-brand-primary"}`}
-              >
-                {resendOtp.isPending ? "Sending…" : "Resend code"}
-              </Text>
-            </Pressable>
-          </View>
+              {resendOtp.isPending ? "Sending…" : "Resend codes"}
+            </Text>
+          </Pressable>
+        )}
+
+        {error && (
+          <Text className="text-xs text-semantic-error text-center">{error}</Text>
         )}
       </View>
     );
   }
 
   return null;
+}
+
+interface ReopenPartyBlockProps {
+  role: string;
+  phone: string;
+  displayName: string;
+  confirmed: boolean;
+  code: string;
+  onCodeChange: (v: string) => void;
+  onConfirm: () => void;
+  loading: boolean;
+  error?: string;
+  disabled: boolean;
+}
+
+function ReopenPartyBlock({
+  role,
+  phone,
+  displayName,
+  confirmed,
+  code,
+  onCodeChange,
+  onConfirm,
+  loading,
+  error,
+  disabled,
+}: ReopenPartyBlockProps) {
+  return (
+    <View className="bg-surface-card rounded-lg border border-border-subtle p-lg gap-md">
+      <View className="flex-row items-center justify-between">
+        <View>
+          <Text className="text-md font-semibold text-ink-primary">
+            {displayName}
+          </Text>
+          <Text className="text-xs text-ink-muted">{role} - {phone}</Text>
+        </View>
+        {confirmed ? (
+          <View className="flex-row items-center gap-xs">
+            <CheckCircle size={16} color={colors.success} />
+            <Text className="text-sm font-medium text-emerald-600">Confirmed</Text>
+          </View>
+        ) : (
+          <View className="flex-row items-center gap-xs">
+            <Clock size={16} color={colors.inkMuted} />
+            <Text className="text-sm text-ink-muted">Pending</Text>
+          </View>
+        )}
+      </View>
+      {!confirmed && (
+        <>
+          <OTPInput
+            value={code}
+            onChange={onCodeChange}
+            error={error}
+            disabled={disabled || loading}
+          />
+          <Button
+            title={`Confirm ${displayName}`}
+            variant="primary"
+            size="md"
+            fullWidth
+            disabled={code.length < 8 || disabled}
+            loading={loading}
+            onPress={onConfirm}
+          />
+        </>
+      )}
+    </View>
+  );
 }

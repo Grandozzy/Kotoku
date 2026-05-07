@@ -118,7 +118,7 @@ function ActionCard({ item }: { item: { id: number; title: string; status: strin
     <Pressable
       onPress={handlePress}
       disabled={loading}
-      className="bg-surface-card rounded-lg border-l-4 border-l-amber-500 border border-border-subtle p-lg active:opacity-70"
+      className="bg-surface-card rounded-lg border border-border-subtle p-lg active:opacity-70"
     >
       <Text className="text-md font-semibold text-ink-primary" numberOfLines={1}>
         {item.title}

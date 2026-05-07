@@ -42,7 +42,6 @@ export function VaultCard({
   if (record.agreementStatus === "reopen_requested") {
     badgeLabel = "Reopen Requested";
     badgeVariant = "default";
-    borderClass = "border-l-4 border-l-amber-500";
   } else if (record.agreementStatus === "active") {
     badgeLabel = "Active";
     badgeVariant = "sealed";

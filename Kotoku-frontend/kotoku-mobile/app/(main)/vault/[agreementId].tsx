@@ -49,8 +49,9 @@ export default function VaultDetailScreen() {
         partyA = mapPartyToDraft(pA.displayName, pA.phone, pA.idType ?? "ghana_card", pA.idNumber ?? "");
         partyB = mapPartyToDraft(pB.displayName, pB.phone, pB.idType ?? "ghana_card", pB.idNumber ?? "");
       }
-      initReopened(record!.agreementId, record!.scenarioId as ScenarioId, partyA, partyB, agreement.fieldData);
-      router.push(`/agreement/${record!.agreementId}/steps/parties`);
+      const scId = record!.scenarioId;
+      initReopened(record!.agreementId, scId as ScenarioId, partyA, partyB, agreement.fieldData);
+      router.push(`/agreement/${record!.agreementId}/steps/parties?scenarioId=${scId}`);
     } catch (err) {
       setEditError("Failed to load agreement data");
     } finally {
@@ -149,7 +150,7 @@ export default function VaultDetailScreen() {
         <ReopenSection
           agreementId={record.agreementId}
           agreementStatus={record.agreementStatus}
-          createdByPhone={record.createdByPhone}
+          parties={record.parties}
         />
 
         {/* PDF export */}

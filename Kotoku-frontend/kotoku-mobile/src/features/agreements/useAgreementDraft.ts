@@ -63,8 +63,8 @@ export function useSealAgreement(id: number) {
     mutationFn: () => sealAgreement(id),
     onSuccess: () => {
       const wasReopened = isReopened;
-      reset();
       router.replace(`/agreement/${id}/sealed?reopened=${wasReopened}`);
+      setTimeout(() => reset(), 0);
     },
   });
 }

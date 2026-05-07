@@ -41,8 +41,10 @@ function buildDetailsSchema(template: {
 
 export default function DetailsStep() {
   const router = useRouter();
-  const { id } = useLocalSearchParams<{ id: string }>();
-  const { scenarioId, subjectData, setSubjectData, nextStep, prevStep, stepIndex } =
+  const { id, scenarioId: urlScenarioId } = useLocalSearchParams<{ id: string; scenarioId?: string }>();
+  const storeScenarioId = useAgreementStore((s) => s.scenarioId);
+  const scenarioId = storeScenarioId ?? urlScenarioId;
+  const { subjectData, setSubjectData, nextStep, prevStep, stepIndex } =
     useAgreementStore();
   const template = useTemplate(scenarioId);
 
