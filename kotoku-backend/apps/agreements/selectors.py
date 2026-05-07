@@ -32,7 +32,7 @@ class AgreementSelector:
             )
         elif account_id is not None:
             qs = qs.filter(created_by_id=account_id)
-        return qs.get(pk=agreement_id)
+        return qs.distinct().get(pk=agreement_id)
 
     @staticmethod
     def list_party_agreements(party_id: int):
