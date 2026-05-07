@@ -38,8 +38,12 @@ interface AgreementDraftStore {
   consentA: ConsentPartyState;
   consentB: ConsentPartyState;
 
+  // Re-edit mode
+  isReopened: boolean;
+
   // Actions
   initDraft: (agreementId: number, scenarioId: ScenarioId) => void;
+  initReopened: (agreementId: number, scenarioId: ScenarioId) => void;
   goToStep: (index: number) => void;
   nextStep: () => void;
   prevStep: () => void;
@@ -74,9 +78,13 @@ export const useAgreementStore = create<AgreementDraftStore>((set) => ({
   subjectData: {},
   consentA: emptyConsent,
   consentB: emptyConsent,
+  isReopened: false,
 
   initDraft: (agreementId, scenarioId) =>
-    set({ agreementId, scenarioId, stepIndex: 0 }),
+    set({ agreementId, scenarioId, stepIndex: 0, isReopened: false }),
+
+  initReopened: (agreementId, scenarioId) =>
+    set({ agreementId, scenarioId, stepIndex: 0, isReopened: true }),
 
   goToStep: (index) => set({ stepIndex: index }),
 
@@ -114,5 +122,6 @@ export const useAgreementStore = create<AgreementDraftStore>((set) => ({
       subjectData: {},
       consentA: emptyConsent,
       consentB: emptyConsent,
+      isReopened: false,
     }),
 }));

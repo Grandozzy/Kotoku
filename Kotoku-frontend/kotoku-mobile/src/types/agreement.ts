@@ -8,6 +8,8 @@ export type AgreementStatus =
   | "sealed"
   | "reopen_requested"
   | "reopened_mutual"
+  | "active"
+  | "pending_consent"
   | "superseded"
   | "annotated_post_seal"
   | "archived"

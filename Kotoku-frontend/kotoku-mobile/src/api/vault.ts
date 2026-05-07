@@ -8,6 +8,7 @@ interface RawVaultEntry {
     id: number;
     title: string;
     status: string;
+    scenario_template: string;
     sealed_at: string;
     created_by_phone: string;
   };
@@ -24,6 +25,7 @@ function mapVaultRecord(raw: RawVaultEntry): VaultRecord {
     id: raw.id,
     agreementId: raw.agreement.id,
     title: raw.agreement.title,
+    scenarioId: raw.agreement.scenario_template,
     status: raw.archived ? "archived" : "active",
     agreementStatus: raw.agreement.status as VaultRecord["agreementStatus"],
     pdfStatus: raw.pdf_status as VaultRecord["pdfStatus"],

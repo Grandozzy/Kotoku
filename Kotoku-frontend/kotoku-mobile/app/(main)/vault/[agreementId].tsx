@@ -1,12 +1,14 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { ChevronLeft, Clock } from "lucide-react-native";
+import { ChevronLeft, Clock, Pencil } from "lucide-react-native";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Badge } from "@/components/ui";
 import { ExportButton } from "@/components/vault/ExportButton";
 import { ReopenSection } from "@/components/vault/ReopenSection";
+import { useAgreementStore } from "@/features/agreements/agreementStore";
 import { useAuditLog, useRequestExport, useVaultRecord } from "@/features/vault/useVault";
+import type { ScenarioId } from "@/constants/scenarios";
 import { colors } from "@/theme/tokens";
 
 export default function VaultDetailScreen() {
@@ -18,6 +20,7 @@ export default function VaultDetailScreen() {
   const { data: record, isLoading } = useVaultRecord(id);
   const { data: auditLog } = useAuditLog(id);
   const exportMutation = useRequestExport(id);
+  const initReopened = useAgreementStore((s) => s.initReopened);
 
   if (isLoading || !record) {
     return (
@@ -82,6 +85,23 @@ export default function VaultDetailScreen() {
                 { day: "numeric", month: "short", year: "numeric" },
               )}
             />
+          </View>
+        )}
+
+        {record.agreementStatus === "active" && (
+          <View className="gap-sm">
+            <Pressable
+              onPress={() => {
+                initReopened(record.agreementId, record.scenarioId as ScenarioId);
+                router.push(`/agreement/${record.agreementId}/steps/parties`);
+              }}
+              className="flex-row items-center justify-center gap-sm bg-brand-primary rounded-lg py-md active:opacity-80"
+            >
+              <Pencil size={18} color="white" />
+              <Text className="text-md font-semibold text-white">
+                Edit agreement
+              </Text>
+            </Pressable>
           </View>
         )}
 

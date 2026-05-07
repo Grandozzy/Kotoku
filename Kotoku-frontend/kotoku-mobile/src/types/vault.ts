@@ -14,6 +14,7 @@ export interface VaultRecord {
   id: number;
   agreementId: number;
   title: string;
+  scenarioId: string;
   status: VaultStatus;
   agreementStatus: AgreementStatus;
   pdfStatus: PdfStatus;
