@@ -39,11 +39,18 @@ def _make_sealed_agreement():
     id2 = IdentityRecord.objects.create(
         account=account, reference="ref-b", verification_type="phone"
     )
-    Party.objects.create(
+    party_a = Party.objects.create(
         agreement=agreement, identity=id1, role="buyer", display_name="Buyer"
     )
     Party.objects.create(
         agreement=agreement, identity=id2, role="seller", display_name="Seller"
+    )
+    EvidenceItem.objects.create(
+        agreement=agreement,
+        uploaded_by=party_a,
+        file_type=EvidenceItem.FileType.PHOTO,
+        file_hash="abc123",
+        upload_status=EvidenceItem.UploadStatus.CONFIRMED,
     )
     agreement.status = AgreementStatus.SEALED
     agreement.sealed_at = timezone.now()
@@ -199,3 +206,41 @@ class TestResealConsentFlow:
         assert len(records) == 2
         agreement.refresh_from_db()
         assert agreement.status == AgreementStatus.PENDING_CONSENT
+
+
+class TestResealSealFlow:
+    def test_reseal_seal_after_consent(self, db):
+        agreement = _make_sealed_agreement()
+
+        agreement.status = AgreementStatus.REOPEN_REQUESTED
+        agreement.save()
+        AgreementService.complete_bilateral_reopen(agreement_id=agreement.pk)
+
+        agreement.refresh_from_db()
+        assert agreement.status == AgreementStatus.ACTIVE
+
+        AgreementService.update_active(
+            agreement_id=agreement.pk, title="Updated Title"
+        )
+
+        agreement.refresh_from_db()
+        from apps.consent.services import ConsentService
+
+        records = ConsentService.request_otp(agreement_id=agreement.pk)
+        assert len(records) == 2
+
+        agreement.refresh_from_db()
+        assert agreement.status == AgreementStatus.PENDING_CONSENT
+
+        for record in records:
+            record.granted = True
+            record.granted_at = timezone.now()
+            record.save(update_fields=["granted", "granted_at"])
+
+        agreement.refresh_from_db()
+        assert agreement.status == AgreementStatus.PENDING_CONSENT
+
+        sealed = AgreementService.seal_agreement(agreement_id=agreement.pk)
+        assert sealed.status == AgreementStatus.SEALED
+        assert sealed.sealed_at is not None
+        assert sealed.seal_hash != ""
