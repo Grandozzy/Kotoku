@@ -4,7 +4,9 @@ from django.db import transaction
 
 from apps.agreements.domain.enums import AgreementStatus
 from apps.agreements.models import Agreement
+from apps.agreements.models import Party
 from apps.audit.services import AuditService
+from apps.notifications.push import send_to_user
 from apps.vault.models import VaultEntry
 from common.exceptions import DomainError
 
@@ -88,3 +90,10 @@ class VaultService:
             entity_id=str(entry.pk),
         )
         return entry
+
+    @staticmethod
+    def _push_vault_event(*, agreement_id: int, event_type: str, payload: dict | None = None):
+        parties = Party.objects.filter(agreement_id=agreement_id).select_related("account")
+        for p in parties:
+            if p.phone:
+                send_to_user(p.phone, event_type, payload or {"agreement_id": agreement_id})
