@@ -6,11 +6,14 @@ import {
   listVault,
   requestPdfExport,
 } from "@/api/vault";
+import { useSessionStore } from "@/store/sessionStore";
 
 export function useVaultList() {
+  const isAuthenticated = useSessionStore((s) => s.isAuthenticated);
   return useQuery({
     queryKey: ["vault"],
     queryFn: listVault,
+    enabled: isAuthenticated,
   });
 }
 

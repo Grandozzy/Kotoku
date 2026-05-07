@@ -6,6 +6,7 @@ import type { ScenarioId } from "@/constants/scenarios";
 import { LOCAL_TEMPLATES } from "@/constants/templates";
 import type { ScenarioTemplate } from "@/types/template";
 import { useAgreementStore } from "./agreementStore";
+import { useSessionStore } from "@/store/sessionStore";
 
 // ---------- Draft creation ----------
 
@@ -37,9 +38,11 @@ export function useAgreement(id: number) {
 }
 
 export function useAgreements(status?: string) {
+  const isAuthenticated = useSessionStore((s) => s.isAuthenticated);
   return useQuery({
     queryKey: ["agreements", status],
     queryFn: () => listAgreements({ status }),
+    enabled: isAuthenticated,
   });
 }
 

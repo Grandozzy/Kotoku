@@ -37,6 +37,7 @@ function AuthGuard() {
   const segments = useSegments();
   const isAuthenticated = useSessionStore((s) => s.isAuthenticated);
   const setSession = useSessionStore((s) => s.setSession);
+  const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -48,17 +49,19 @@ function AuthGuard() {
       if (token && phone && accountId) {
         setSession(token, phone, accountId);
       }
+      setHydrated(true);
     })();
   }, []);
 
   useEffect(() => {
+    if (!hydrated) return;
     const inAuthGroup = segments[0] === "(auth)";
     if (!isAuthenticated && !inAuthGroup) {
       router.replace("/(auth)/welcome");
     } else if (isAuthenticated && inAuthGroup) {
       router.replace("/(main)/home");
     }
-  }, [isAuthenticated, segments]);
+  }, [hydrated, isAuthenticated, segments]);
 
   useNotifications();
 
