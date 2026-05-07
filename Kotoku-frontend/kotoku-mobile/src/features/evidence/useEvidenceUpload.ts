@@ -1,25 +1,16 @@
 import * as FileSystem from "expo-file-system";
 import * as ImagePicker from "expo-image-picker";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import {
   confirmUpload,
   getUploadUrl,
+  listEvidence,
 } from "@/api/evidence";
 import { getApiErrorMessage } from "@/lib/errorHandler";
 import type { UploadStatus } from "@/types/evidence";
 
 const MIME_JPEG = "image/jpeg";
-
-async function uploadFileToUrl(fileUri: string, uploadUrl: string, contentType: string): Promise<void> {
-  const response = await fetch(fileUri);
-  const blob = await response.blob();
-  await fetch(uploadUrl, {
-    method: "PUT",
-    headers: { "Content-Type": contentType },
-    body: blob,
-  });
-}
 
 interface UploadItem {
   slotId: string;
@@ -42,6 +33,32 @@ export function useEvidenceUpload(
 ): UseEvidenceUploadReturn {
   const [items, setItems] = useState<Record<string, UploadItem>>({});
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!agreementId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const evidence = await listEvidence(agreementId);
+        if (cancelled) return;
+        const hydrated: Record<string, UploadItem> = {};
+        for (const item of evidence) {
+          const slotId = item.evidence_type;
+          hydrated[slotId] = {
+            slotId,
+            evidenceType: item.evidence_type,
+            localUri: item.storage_url,
+            uploadStatus: "uploaded",
+            remoteId: item.id,
+          };
+        }
+        setItems((prev) => ({ ...hydrated, ...prev }));
+      } catch {
+        // hydration failure is non-fatal — user can still upload fresh
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [agreementId]);
 
   const pickImage = async (slotId: string, evidenceType: string) => {
     setError(null);
@@ -88,7 +105,19 @@ export function useEvidenceUpload(
         sizeBytes || 1,
       );
 
-      await uploadFileToUrl(asset.uri, uploadUrlRes.upload_url, MIME_JPEG);
+      const uploadResult = await FileSystem.uploadAsync(
+        uploadUrlRes.upload_url,
+        asset.uri,
+        {
+          httpMethod: "PUT",
+          headers: { "Content-Type": MIME_JPEG },
+          uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
+        },
+      );
+
+      if (uploadResult.status < 200 || uploadResult.status >= 300) {
+        throw new Error(`Upload failed with status ${uploadResult.status}`);
+      }
 
       await confirmUpload(
         agreementId,

@@ -24,14 +24,10 @@ export default function EvidenceStep() {
   const photoSlots = slots.filter((s) => s.fileType === "photo");
   const voiceSlots = slots.filter((s) => s.fileType === "voice_note");
 
-  // Check minimum required photo slots are filled
-  const requiredPhotoIds = photoSlots
-    .filter((s) => s.required)
-    .map((s) => s.id);
-  const filledRequiredPhotos = requiredPhotoIds.filter(
-    (sid) => items[sid]?.uploadStatus === "uploaded",
-  );
-  const canProceed = filledRequiredPhotos.length === requiredPhotoIds.length;
+  const uploadedPhotoCount = photoSlots.filter(
+    (s) => items[s.id]?.uploadStatus === "uploaded",
+  ).length;
+  const canProceed = uploadedPhotoCount >= minimumPhotoCount;
 
   const handleNext = () => {
     nextStep();
@@ -104,7 +100,7 @@ export default function EvidenceStep() {
 
       {!canProceed && (
         <Text className="text-xs text-ink-muted text-center">
-          Add all required photos to continue.
+          Upload at least {minimumPhotoCount} photo{minimumPhotoCount !== 1 ? "s" : ""} to continue.
         </Text>
       )}
 

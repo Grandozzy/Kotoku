@@ -50,8 +50,8 @@ export async function confirmUpload(
 export async function listEvidence(
   agreementId: number,
 ): Promise<EvidenceItemResponse[]> {
-  const res = await apiClient.get<ApiResponse<EvidenceItemResponse[]>>(
+  const res = await apiClient.get<ApiResponse<{ evidence: EvidenceItemResponse[] }>>(
     `/agreements/${agreementId}/evidence/`,
   );
-  return res.data.data;
+  return res.data.data.evidence;
 }
