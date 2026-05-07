@@ -1,13 +1,14 @@
+import { useState } from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { ChevronLeft, Clock, Pencil } from "lucide-react-native";
+import { ChevronLeft, Clock, Loader2, Pencil } from "lucide-react-native";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Badge } from "@/components/ui";
 import { ExportButton } from "@/components/vault/ExportButton";
 import { ReopenSection } from "@/components/vault/ReopenSection";
+import { getAgreement } from "@/api/agreements";
 import { useAgreementStore, type PartyDraft } from "@/features/agreements/agreementStore";
-import { useAgreement } from "@/features/agreements/useAgreementDraft";
 import { useAuditLog, useRequestExport, useVaultRecord } from "@/features/vault/useVault";
 import type { ScenarioId } from "@/constants/scenarios";
 import { colors } from "@/theme/tokens";
@@ -28,10 +29,34 @@ export default function VaultDetailScreen() {
   const insets = useSafeAreaInsets();
 
   const { data: record, isLoading } = useVaultRecord(id);
-  const { data: fullAgreement } = useAgreement(id);
   const { data: auditLog } = useAuditLog(id);
   const exportMutation = useRequestExport(id);
   const initReopened = useAgreementStore((s) => s.initReopened);
+
+  const [editLoading, setEditLoading] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+
+  const handleEdit = async () => {
+    setEditLoading(true);
+    setEditError(null);
+    try {
+      const agreement = await getAgreement(id);
+      let partyA: PartyDraft | undefined;
+      let partyB: PartyDraft | undefined;
+      if (agreement.parties.length >= 2) {
+        const pA = agreement.parties[0];
+        const pB = agreement.parties[1];
+        partyA = mapPartyToDraft(pA.displayName, pA.phone, pA.idType ?? "ghana_card", pA.idNumber ?? "");
+        partyB = mapPartyToDraft(pB.displayName, pB.phone, pB.idType ?? "ghana_card", pB.idNumber ?? "");
+      }
+      initReopened(record!.agreementId, record!.scenarioId as ScenarioId, partyA, partyB);
+      router.push(`/agreement/${record!.agreementId}/steps/parties`);
+    } catch {
+      setEditError("Failed to load agreement data");
+    } finally {
+      setEditLoading(false);
+    }
+  };
 
   if (isLoading || !record) {
     return (
@@ -101,33 +126,22 @@ export default function VaultDetailScreen() {
 
         {record.agreementStatus === "active" && (
           <View className="gap-sm">
-            {!fullAgreement ? (
-              <View className="flex-row items-center justify-center gap-sm bg-surface-card rounded-lg py-md border border-border-subtle">
-                <Text className="text-md text-ink-muted">
-                  Loading agreement data…
-                </Text>
-              </View>
-            ) : (
-              <Pressable
-                onPress={() => {
-                  let partyA: PartyDraft | undefined;
-                  let partyB: PartyDraft | undefined;
-                  if (fullAgreement.parties.length >= 2) {
-                    const pA = fullAgreement.parties[0];
-                    const pB = fullAgreement.parties[1];
-                    partyA = mapPartyToDraft(pA.displayName, pA.phone, pA.idType, pA.idNumber);
-                    partyB = mapPartyToDraft(pB.displayName, pB.phone, pB.idType, pB.idNumber);
-                  }
-                  initReopened(record.agreementId, record.scenarioId as ScenarioId, partyA, partyB);
-                  router.push(`/agreement/${record.agreementId}/steps/parties`);
-                }}
-                className="flex-row items-center justify-center gap-sm bg-brand-primary rounded-lg py-md active:opacity-80"
-              >
+            <Pressable
+              disabled={editLoading}
+              onPress={handleEdit}
+              className="flex-row items-center justify-center gap-sm bg-brand-primary rounded-lg py-md active:opacity-80"
+            >
+              {editLoading ? (
+                <Loader2 size={18} color="white" />
+              ) : (
                 <Pencil size={18} color="white" />
-                <Text className="text-md font-semibold text-white">
-                  Edit agreement
-                </Text>
-              </Pressable>
+              )}
+              <Text className="text-md font-semibold text-white">
+                {editLoading ? "Loading…" : "Edit agreement"}
+              </Text>
+            </Pressable>
+            {editError && (
+              <Text className="text-xs text-semantic-error text-center">{editError}</Text>
             )}
           </View>
         )}
