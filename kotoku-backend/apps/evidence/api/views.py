@@ -1,3 +1,5 @@
+import logging
+
 from django.http import Http404
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.permissions import IsAuthenticated
@@ -14,6 +16,8 @@ from apps.evidence.models import EvidenceItem
 from apps.evidence.selectors import EvidenceSelector
 from apps.evidence.services import EvidenceService
 from common.responses import ok
+
+logger = logging.getLogger("kotoku")
 
 
 class EvidenceUploadUrlView(APIView):
@@ -36,10 +40,20 @@ class EvidenceUploadUrlView(APIView):
         self._get_agreement(agreement_id, account_id=request.user.account.pk)
         serializer = UploadUrlRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        logger.info(
+            "[EVIDENCE] generate_upload_url agreement=%s evidence_type=%s account=%s",
+            agreement_id,
+            serializer.validated_data["evidence_type"],
+            request.user.account.pk,
+        )
         result = EvidenceService.generate_upload_url(
             agreement_id=agreement_id,
             uploading_account=request.user.account,
             **serializer.validated_data,
+        )
+        logger.info(
+            "[EVIDENCE] upload_url issued key=%s",
+            result["file_key"],
         )
         return ok(result, status_code=201)
 
@@ -63,13 +77,21 @@ class EvidenceCollectionView(APIView):
         self._get_agreement(agreement_id, account_id=request.user.account.pk)
         serializer = ConfirmUploadSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        logger.info(
+            "[EVIDENCE] confirm_upload agreement=%s evidence_type=%s key=%s",
+            agreement_id,
+            serializer.validated_data["evidence_type"],
+            serializer.validated_data["file_key"],
+        )
         item = EvidenceService.confirm_upload(
             agreement_id=agreement_id,
             **serializer.validated_data,
         )
+        logger.info("[EVIDENCE] confirmed item=%s status=%s", item.pk, item.upload_status)
         return ok({"evidence": EvidenceItemSerializer(item).data}, status_code=201)
 
     def get(self, request, agreement_id: int):
         self._get_agreement(agreement_id, account_id=request.user.account.pk)
         items = EvidenceSelector.list_confirmed_evidence(agreement_id=agreement_id)
+        logger.info("[EVIDENCE] list_evidence agreement=%s count=%s", agreement_id, len(items))
         return ok({"evidence": EvidenceItemSerializer(items, many=True).data})

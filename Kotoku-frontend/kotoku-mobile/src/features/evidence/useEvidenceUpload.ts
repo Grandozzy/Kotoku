@@ -1,4 +1,3 @@
-import * as FileSystem from "expo-file-system";
 import * as ImagePicker from "expo-image-picker";
 import { useEffect, useState } from "react";
 
@@ -62,6 +61,7 @@ export function useEvidenceUpload(
 
   const pickImage = async (slotId: string, evidenceType: string) => {
     setError(null);
+    let step = "permissions";
     try {
       const permission =
         await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -93,11 +93,8 @@ export function useEvidenceUpload(
         },
       }));
 
-      const fileInfo = await FileSystem.getInfoAsync(asset.uri);
-      const sizeBytes = fileInfo.exists && !fileInfo.isDirectory
-        ? fileInfo.size
-        : 0;
-
+      step = "getUploadUrl";
+      const sizeBytes = asset.fileSize || 1;
       const uploadUrlRes = await getUploadUrl(
         agreementId,
         evidenceType,
@@ -105,20 +102,22 @@ export function useEvidenceUpload(
         sizeBytes || 1,
       );
 
-      const uploadResult = await FileSystem.uploadAsync(
-        uploadUrlRes.upload_url,
-        asset.uri,
-        {
-          httpMethod: "PUT",
-          headers: { "Content-Type": MIME_JPEG },
-          uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
-        },
-      );
+      console.log(`[EVIDENCE-${agreementId}] getUploadUrl OK: ${uploadUrlRes.upload_url.slice(0, 100)}`);
 
-      if (uploadResult.status < 200 || uploadResult.status >= 300) {
-        throw new Error(`Upload failed with status ${uploadResult.status}`);
+      step = "uploadToS3";
+      const s3resp = await fetch(uploadUrlRes.upload_url, {
+        method: "PUT",
+        headers: { "Content-Type": MIME_JPEG },
+        body: await (await fetch(asset.uri)).blob(),
+      });
+      console.log(`[EVIDENCE-${agreementId}] S3 PUT status: ${s3resp.status}`);
+
+      if (!s3resp.ok) {
+        const body = await s3resp.text().catch(() => "(no body)");
+        throw new Error(`S3 upload failed (${s3resp.status}): ${body}`);
       }
 
+      step = "confirmUpload";
       await confirmUpload(
         agreementId,
         uploadUrlRes.file_key,
@@ -135,7 +134,9 @@ export function useEvidenceUpload(
         },
       }));
     } catch (err) {
-      const msg = getApiErrorMessage(err, "Failed to upload photo.");
+      const prefix = `[step:${step}]`;
+      const msg = getApiErrorMessage(err, `${prefix} Failed to upload photo.`);
+      console.error(`[EVIDENCE-${agreementId}] ${prefix}`, err);
       setError(msg);
       setItems((prev) => {
         if (!prev[slotId]) return prev;
