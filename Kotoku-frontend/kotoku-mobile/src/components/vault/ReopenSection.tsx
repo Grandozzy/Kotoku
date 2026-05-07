@@ -1,6 +1,6 @@
 import { useRouter } from "expo-router";
 import { CheckCircle, Clock, RefreshCw } from "lucide-react-native";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 
 import { Button, OTPInput } from "@/components/ui";
@@ -29,13 +29,22 @@ export function ReopenSection({
   const isCreator = phone === createdByPhone;
 
   const [otpCode, setOtpCode] = useState("");
-  const [otpSent, setOtpSent] = useState(false);
   const [confirmedByMe, setConfirmedByMe] = useState(false);
   const [reopened, setReopened] = useState(false);
 
   const requestReopen = useRequestReopen(agreementId);
   const resendOtp = useResendReopenOtp(agreementId);
   const confirmReopen = useConfirmReopen(agreementId);
+
+  const confirmResult = confirmReopen.data;
+
+  useEffect(() => {
+    if (confirmResult?.agreement_status === "active") {
+      setReopened(true);
+    } else if (confirmResult?.granted) {
+      setConfirmedByMe(true);
+    }
+  }, [confirmResult]);
 
   if (
     agreementStatus === "active" ||
@@ -70,9 +79,7 @@ export function ReopenSection({
           fullWidth
           loading={requestReopen.isPending}
           onPress={() => {
-            requestReopen.mutate(undefined, {
-              onSuccess: () => setOtpSent(true),
-            });
+            requestReopen.mutate();
           }}
         />
         {error && (
@@ -143,18 +150,7 @@ export function ReopenSection({
               loading={confirmReopen.isPending}
               onPress={() => {
                 if (!phone) return;
-                confirmReopen.mutate(
-                  { phone, otpCode },
-                  {
-                    onSuccess: (result) => {
-                      if (result.agreement_status === "active") {
-                        setReopened(true);
-                      } else if (result.granted) {
-                        setConfirmedByMe(true);
-                      }
-                    },
-                  },
-                );
+                confirmReopen.mutate({ phone, otpCode });
               }}
             />
             <Pressable
