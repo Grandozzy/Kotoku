@@ -53,7 +53,7 @@ def generate_pdf_export(self, vault_entry_id: int) -> None:
         raise self.retry(exc=exc)
 
 
-def _on_generate_pdf_failure(task, exc, task_id, args, kwargs, einfo):
+def _on_generate_pdf_failure(exc, task_id, args, kwargs, einfo):
     vault_entry_id = args[0] if args else None
     if vault_entry_id is None:
         return
