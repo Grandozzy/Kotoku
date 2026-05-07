@@ -65,6 +65,7 @@ export default function DetailsStep() {
     resolver: zodResolver(schema),
     mode: "onChange",
     defaultValues: subjectData,
+    values: Object.keys(subjectData).length > 0 ? subjectData : undefined,
   });
 
   const watchValues = watch();

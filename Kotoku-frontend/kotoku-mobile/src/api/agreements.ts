@@ -2,6 +2,7 @@ import { apiClient } from "@/api/client";
 import type { Agreement } from "@/types/agreement";
 import type { ApiResponse } from "@/types/api";
 import type { ScenarioId } from "@/constants/scenarios";
+import type { IdType } from "@/features/agreements/agreementStore";
 
 interface RawAgreement {
   id: number;
@@ -114,4 +115,22 @@ export async function fetchPendingActions(): Promise<PendingActionsResponse> {
     "/agreements/pending-actions/",
   );
   return res.data.data;
+}
+
+export interface PartyPayload {
+  role: string;
+  full_name: string;
+  phone: string;
+  id_type: IdType;
+  id_number: string;
+}
+
+export async function setParties(
+  agreementId: number,
+  parties: PartyPayload[],
+): Promise<void> {
+  await apiClient.post<ApiResponse<unknown>>(
+    `/agreements/${agreementId}/parties/`,
+    { parties },
+  );
 }

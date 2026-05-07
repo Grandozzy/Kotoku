@@ -12,7 +12,6 @@ export interface PartyDraft {
 }
 
 export interface ConsentPartyState {
-  consentRecordId: number | null;
   otpSent: boolean;
   confirmed: boolean;
 }
@@ -50,7 +49,7 @@ interface AgreementDraftStore {
   setPartyA: (party: PartyDraft) => void;
   setPartyB: (party: PartyDraft) => void;
   setSubjectData: (data: Record<string, unknown>) => void;
-  setConsentSent: (party: "A" | "B", consentRecordId: number) => void;
+  setConsentSent: (party: "A" | "B") => void;
   setConsentConfirmed: (party: "A" | "B") => void;
   reset: () => void;
 }
@@ -63,7 +62,6 @@ const emptyParty: PartyDraft = {
 };
 
 const emptyConsent: ConsentPartyState = {
-  consentRecordId: null,
   otpSent: false,
   confirmed: false,
 };
@@ -106,11 +104,11 @@ export const useAgreementStore = create<AgreementDraftStore>((set) => ({
   setPartyB: (partyB) => set({ partyB }),
   setSubjectData: (subjectData) => set({ subjectData }),
 
-  setConsentSent: (party, consentRecordId) =>
+  setConsentSent: (party) =>
     set((s) =>
       party === "A"
-        ? { consentA: { ...s.consentA, consentRecordId, otpSent: true } }
-        : { consentB: { ...s.consentB, consentRecordId, otpSent: true } },
+        ? { consentA: { ...s.consentA, otpSent: true } }
+        : { consentB: { ...s.consentB, otpSent: true } },
     ),
 
   setConsentConfirmed: (party) =>

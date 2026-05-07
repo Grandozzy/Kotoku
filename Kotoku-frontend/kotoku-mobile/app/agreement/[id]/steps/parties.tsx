@@ -2,6 +2,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Controller, useForm } from "react-hook-form";
 import { Pressable, ScrollView, Text, View } from "react-native";
+import { useState } from "react";
 import { z } from "zod";
 
 import { Button, TextInput } from "@/components/ui";
@@ -10,6 +11,7 @@ import {
   type IdType,
 } from "@/features/agreements/agreementStore";
 import { useTemplate } from "@/features/agreements/useAgreementDraft";
+import { setParties } from "@/api/agreements";
 
 const partySchema = z.object({
   fullName: z.string().min(2, "Full name is required"),
@@ -41,10 +43,14 @@ const ID_TYPE_OPTIONS: { value: IdType; label: string }[] = [
 export default function PartiesStep() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
+  const agreementId = Number(id);
   const { scenarioId, partyA, partyB, setPartyA, setPartyB, nextStep } =
     useAgreementStore();
   const template = useTemplate(scenarioId);
   const [roleA, roleB] = template?.partyRoles ?? ["Party A", "Party B"];
+  const [saving, setSaving] = useState(false);
+
+  const roleEnum = (label: string) => label.toLowerCase();
 
   const {
     control,
@@ -59,9 +65,29 @@ export default function PartiesStep() {
     },
   });
 
-  const onSubmit = (values: PartiesFormValues) => {
+  const onSubmit = async (values: PartiesFormValues) => {
     setPartyA(values.partyA);
     setPartyB(values.partyB);
+    setSaving(true);
+    try {
+      await setParties(agreementId, [
+        {
+          role: roleEnum(roleA),
+          full_name: values.partyA.fullName,
+          phone: values.partyA.phone,
+          id_type: values.partyA.idType,
+          id_number: values.partyA.idNumber,
+        },
+        {
+          role: roleEnum(roleB),
+          full_name: values.partyB.fullName,
+          phone: values.partyB.phone,
+          id_type: values.partyB.idType,
+          id_number: values.partyB.idNumber,
+        },
+      ]);
+    } catch {}
+    setSaving(false);
     nextStep();
     router.push(`/agreement/${id}/steps/details`);
   };
@@ -93,7 +119,8 @@ export default function PartiesStep() {
             title="Proceed"
             variant="primary"
             size="lg"
-            disabled={!isValid}
+            disabled={!isValid || saving}
+            loading={saving}
             onPress={handleSubmit(onSubmit)}
           />
         </View>
