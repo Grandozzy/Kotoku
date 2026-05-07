@@ -64,6 +64,7 @@ def _build_snapshot(agreement) -> dict:
         "title": agreement.title,
         "description": agreement.description,
         "scenario_template": agreement.scenario_template,
+        "field_data": agreement.field_data,
         "parties": parties,
         "evidence": evidence,
     }
@@ -100,6 +101,7 @@ class AgreementService:
         title: str | None = None,
         description: str | None = None,
         scenario_template: str | None = None,
+        field_data: dict | None = None,
     ) -> Agreement:
         agreement = Agreement.objects.get(pk=agreement_id)
         if agreement.status != AgreementStatus.DRAFT:
@@ -114,6 +116,9 @@ class AgreementService:
         if scenario_template is not None:
             agreement.scenario_template = scenario_template
             update_fields.append("scenario_template")
+        if field_data is not None:
+            agreement.field_data = field_data
+            update_fields.append("field_data")
         agreement.save(update_fields=update_fields)
         AuditService.record_event(
             event_type="agreement.updated",
@@ -130,6 +135,7 @@ class AgreementService:
         title: str | None = None,
         description: str | None = None,
         scenario_template: str | None = None,
+        field_data: dict | None = None,
     ) -> Agreement:
         agreement = Agreement.objects.get(pk=agreement_id)
         if agreement.status != AgreementStatus.ACTIVE:
@@ -144,6 +150,9 @@ class AgreementService:
         if scenario_template is not None:
             agreement.scenario_template = scenario_template
             update_fields.append("scenario_template")
+        if field_data is not None:
+            agreement.field_data = field_data
+            update_fields.append("field_data")
         agreement.save(update_fields=update_fields)
         AuditService.record_event(
             event_type="agreement.updated_active",

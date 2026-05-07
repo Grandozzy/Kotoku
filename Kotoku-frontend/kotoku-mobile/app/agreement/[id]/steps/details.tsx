@@ -11,6 +11,7 @@ import {
   STEPS,
 } from "@/features/agreements/agreementStore";
 import { useTemplate } from "@/features/agreements/useAgreementDraft";
+import { updateAgreement } from "@/api/agreements";
 
 function buildDetailsSchema(template: {
   fields: Record<string, { required: boolean; type: string }>;
@@ -68,8 +69,11 @@ export default function DetailsStep() {
 
   const watchValues = watch();
 
-  const onSubmit = (values: Record<string, unknown>) => {
+  const onSubmit = async (values: Record<string, unknown>) => {
     setSubjectData(values);
+    try {
+      await updateAgreement(Number(id), { field_data: values });
+    } catch {}
     nextStep();
     router.push(`/agreement/${id}/steps/evidence`);
   };

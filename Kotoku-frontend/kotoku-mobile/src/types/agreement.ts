@@ -32,5 +32,6 @@ export interface Agreement {
   status: AgreementStatus;
   createdAt: string;
   sealedAt: string | null;
+  fieldData: Record<string, unknown>;
   parties: Party[];
 }

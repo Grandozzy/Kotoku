@@ -117,6 +117,15 @@ class Command(BaseCommand):
                     "Payment via mobile money on or before 15 June 2026."
                 ),
                 "scenario_template": "used_vehicle_sale",
+                "field_data": {
+                    "vehicle_make": "Toyota",
+                    "vehicle_model": "Corolla",
+                    "vehicle_year": 2020,
+                    "vin_chassis": "JTDBR32E760062789",
+                    "sale_price": 85000,
+                    "odometer_reading": 45200,
+                    "payment_method": "mobile_money",
+                },
                 "created_by": alice_account,
             },
         )
@@ -154,6 +163,14 @@ class Command(BaseCommand):
                     "Lease period: 1 July 2026 to 30 June 2027."
                 ),
                 "scenario_template": "rental_agreement",
+                "field_data": {
+                    "item_description": "2-bedroom apartment at 14 Oxford Street, East Legon, Accra",
+                    "rental_period_start": "2026-07-01",
+                    "rental_period_end": "2027-06-30",
+                    "rental_amount": 3500,
+                    "payment_schedule": "monthly",
+                    "deposit_amount": 7000,
+                },
                 "created_by": carlos_account,
             },
         )
@@ -190,6 +207,15 @@ class Command(BaseCommand):
                     "Payment via bank transfer within 7 days of sealing."
                 ),
                 "scenario_template": "used_vehicle_sale",
+                "field_data": {
+                    "vehicle_make": "Honda",
+                    "vehicle_model": "Civic",
+                    "vehicle_year": 2019,
+                    "vin_chassis": "2HGFC2F59KH558321",
+                    "sale_price": 72000,
+                    "odometer_reading": 62100,
+                    "payment_method": "bank_transfer",
+                },
                 "created_by": diana_account,
             },
         )
@@ -226,6 +252,15 @@ class Command(BaseCommand):
                     "Payment via bank transfer. Odometer: 42,300 km."
                 ),
                 "scenario_template": "used_vehicle_sale",
+                "field_data": {
+                    "vehicle_make": "Nissan",
+                    "vehicle_model": "Patrol",
+                    "vehicle_year": 2021,
+                    "vin_chassis": "JN1TANT61Z0012345",
+                    "sale_price": 150000,
+                    "odometer_reading": 42300,
+                    "payment_method": "cash",
+                },
                 "created_by": carlos_account,
             },
         )

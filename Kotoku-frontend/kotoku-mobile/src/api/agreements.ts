@@ -8,6 +8,7 @@ interface RawAgreement {
   title: string;
   status: string;
   scenario_template: string;
+  field_data: Record<string, unknown>;
   sealed_at: string | null;
   created_at: string;
   parties: {
@@ -28,6 +29,7 @@ function mapAgreement(raw: RawAgreement): Agreement {
     status: raw.status as Agreement["status"],
     createdAt: raw.created_at,
     sealedAt: raw.sealed_at,
+    fieldData: raw.field_data ?? {},
     parties: raw.parties.map((p) => ({
       id: p.id,
       role: p.role as Agreement["parties"][number]["role"],
