@@ -15,7 +15,7 @@ def test_cleanup_deletes_old_drafts(db):
         created_by=account
     )
     Agreement.objects.filter(id=old_draft.id).update(
-        updated_at=timezone.now() - timedelta(days=31)
+        created_at=timezone.now() - timedelta(days=31)
     )
 
     recent_draft = Agreement.objects.create(
