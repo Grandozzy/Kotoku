@@ -45,11 +45,6 @@ export default function MainLayout() {
           ),
         }}
       />
-      {/* Hide the vault detail screen from the tab bar */}
-      <Tabs.Screen
-        name="vault/[agreementId]"
-        options={{ href: null }}
-      />
       <Tabs.Screen
         name="disputes"
         options={{
