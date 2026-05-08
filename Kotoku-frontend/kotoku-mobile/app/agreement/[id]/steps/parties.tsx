@@ -57,10 +57,7 @@ export default function PartiesStep() {
     prevScenarioId.current = scenarioId;
   }
 
-  if (!template) {
-    throw new Error("PARTIES: No template");
-  }
-  const [roleA, roleB] = template.partyRoles;
+  const [roleA, roleB] = template?.partyRoles ?? ["Buyer", "Seller"];
   const [saving, setSaving] = useState(false);
 
   const roleEnum = (label: string) => label.toLowerCase();
