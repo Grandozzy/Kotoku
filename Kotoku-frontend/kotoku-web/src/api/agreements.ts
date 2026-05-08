@@ -1,22 +1,16 @@
 import { api } from "@/lib/apiClient";
-import type { Agreement, AgreementCreate } from "@/types/agreement";
+import type { Agreement, AgreementCreate, AgreementUpdate } from "@/types/agreement";
 
 export const agreementsApi = {
-  list: () => api.get<{ results: Agreement[] }>("/api/agreements/"),
+  list: () => api.get<{ results: Agreement[]; count: number }>("/api/agreements/"),
 
-  get: (id: number) => api.get<Agreement>(`/api/agreements/${id}/`),
+  // Backend wraps detail in {agreement: ...}
+  get: (id: number) =>
+    api.get<{ agreement: Agreement }>(`/api/agreements/${id}/`).then((r) => r.agreement),
 
   create: (data: AgreementCreate) =>
-    api.post<Agreement>("/api/agreements/", data),
+    api.post<{ agreement: Agreement }>("/api/agreements/", data).then((r) => r.agreement),
 
-  update: (id: number, data: Partial<AgreementCreate>) =>
-    api.patch<Agreement>(`/api/agreements/${id}/`, data),
-
-  requestConsent: (id: number) =>
-    api.post<{ detail: string }>(`/api/agreements/${id}/consent/request/`),
-
-  confirmConsent: (id: number, otp_code: string) =>
-    api.post<{ detail: string }>(`/api/agreements/${id}/consent/confirm/`, {
-      otp_code,
-    }),
+  update: (id: number, data: AgreementUpdate) =>
+    api.patch<{ agreement: Agreement }>(`/api/agreements/${id}/`, data).then((r) => r.agreement),
 };

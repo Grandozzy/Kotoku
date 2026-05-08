@@ -27,11 +27,13 @@ export interface EvidenceItem {
 export interface Agreement {
   id: number;
   title: string;
+  description: string;
   status: AgreementStatus;
   scenario_template: string | null;
   field_data: Record<string, unknown>;
   seal_hash: string | null;
   sealed_at: string | null;
+  closed_at: string | null;
   created_at: string;
   updated_at: string;
   parties: Party[];
@@ -40,6 +42,13 @@ export interface Agreement {
 
 export interface AgreementCreate {
   title: string;
+  description?: string;
+  scenario_template?: string;
+}
+
+export interface AgreementUpdate {
+  title?: string;
+  description?: string;
   scenario_template?: string;
   field_data?: Record<string, unknown>;
 }
