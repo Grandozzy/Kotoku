@@ -81,7 +81,17 @@ export const useAgreementStore = create<AgreementDraftStore>((set) => ({
   isReopened: false,
 
   initDraft: (agreementId, scenarioId) =>
-    set({ agreementId, scenarioId, stepIndex: 0, isReopened: false }),
+    set({
+      agreementId,
+      scenarioId,
+      stepIndex: 0,
+      partyA: emptyParty,
+      partyB: emptyParty,
+      subjectData: {},
+      consentA: emptyConsent,
+      consentB: emptyConsent,
+      isReopened: false,
+    }),
 
   initReopened: (agreementId, scenarioId, partyA, partyB, subjectData) =>
     set({

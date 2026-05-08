@@ -4,9 +4,11 @@ import { Pressable, RefreshControl, ScrollView, Text, View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Button } from "@/components/ui";
-import { getAgreement } from "@/api/agreements";
+import { getAgreement, deleteAgreement } from "@/api/agreements";
 import { usePendingActions } from "@/features/agreements/usePendingActions";
 import { useAgreementStore, type PartyDraft } from "@/features/agreements/agreementStore";
+import { getDraftByAgreementId } from "@/db/drafts";
+import { Trash2 } from "lucide-react-native";
 import type { ScenarioId } from "@/constants/scenarios";
 import { SCENARIOS } from "@/constants/scenarios";
 import { colors } from "@/theme/tokens";
@@ -65,7 +67,20 @@ export default function HomeScreen() {
 
       {drafts.length > 0 && (
         <View className="gap-sm">
-          <Text className="text-md font-semibold text-ink-primary">Drafts</Text>
+          <View className="flex-row items-center justify-between">
+            <Text className="text-md font-semibold text-ink-primary">Drafts</Text>
+            <Pressable
+              onPress={async () => {
+                for (const d of drafts) {
+                  await deleteAgreement(d.id);
+                }
+                refetch();
+              }}
+              hitSlop={12}
+            >
+              <Trash2 size={20} color="#ef4444" />
+            </Pressable>
+          </View>
           {drafts.map((item) => (
             <DraftCard key={item.id} item={item} />
           ))}
@@ -139,10 +154,15 @@ function ActionCard({ item }: { item: { id: number; title: string; status: strin
 
 function DraftCard({ item }: { item: { id: number; title: string; updated_at: string; scenario_template: string; status: string; parties?: Array<{ role: string; full_name: string }> } }) {
   const router = useRouter();
-  const initDraft = useAgreementStore((s) => s.initDraft);
+  const initReopened = useAgreementStore((s) => s.initReopened);
 
-  const handlePress = () => {
-    initDraft(item.id, item.scenario_template as ScenarioId);
+  const handlePress = async () => {
+    const localDraft = await getDraftByAgreementId(item.id);
+    const partyA: PartyDraft = localDraft?.party_a ?? { fullName: "", phone: "", idType: "ghana_card", idNumber: "" };
+    const partyB: PartyDraft = localDraft?.party_b ?? { fullName: "", phone: "", idType: "ghana_card", idNumber: "" };
+    const subjectData = localDraft?.subject_data ?? {};
+
+    initReopened(item.id, item.scenario_template as ScenarioId, partyA, partyB, subjectData);
     router.push(`/agreement/${item.id}/steps/${item.status === "draft" ? "parties" : "review"}?scenarioId=${item.scenario_template}`);
   };
 

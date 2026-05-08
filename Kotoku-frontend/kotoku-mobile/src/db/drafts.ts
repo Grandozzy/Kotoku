@@ -101,6 +101,19 @@ export async function getDraft(localId: number): Promise<DraftRow | null> {
   return raw ? parseRow(raw) : null;
 }
 
+export async function getDraftByAgreementId(agreementId: number): Promise<DraftRow | null> {
+  try {
+    const db = await getDb();
+    const raw = await db.getFirstAsync<RawRow>(
+      "SELECT * FROM drafts WHERE agreement_id = ? ORDER BY updated_at DESC LIMIT 1",
+      [agreementId],
+    );
+    return raw ? parseRow(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function listDrafts(): Promise<DraftRow[]> {
   const db = await getDb();
   const rows = await db.getAllAsync<RawRow>(
@@ -112,4 +125,9 @@ export async function listDrafts(): Promise<DraftRow[]> {
 export async function deleteDraft(localId: number): Promise<void> {
   const db = await getDb();
   await db.runAsync("DELETE FROM drafts WHERE id = ?", [localId]);
+}
+
+export async function clearAllLocalDrafts(): Promise<void> {
+  const db = await getDb();
+  await db.runAsync("DELETE FROM drafts");
 }

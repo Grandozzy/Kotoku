@@ -70,6 +70,10 @@ export async function updateAgreement(
   return mapAgreement(res.data.data.agreement);
 }
 
+export async function deleteAgreement(id: number): Promise<void> {
+  await apiClient.delete(`/agreements/${id}/`);
+}
+
 export async function validateAgreement(id: number): Promise<{
   ready: boolean;
   missing: string[];

@@ -43,7 +43,7 @@ export default function DetailsStep() {
   const router = useRouter();
   const { id, scenarioId: urlScenarioId } = useLocalSearchParams<{ id: string; scenarioId?: string }>();
   const storeScenarioId = useAgreementStore((s) => s.scenarioId);
-  const scenarioId = storeScenarioId ?? urlScenarioId;
+  const scenarioId = storeScenarioId || urlScenarioId || null;
   const { subjectData, setSubjectData, nextStep, prevStep, stepIndex } =
     useAgreementStore();
   const template = useTemplate(scenarioId);

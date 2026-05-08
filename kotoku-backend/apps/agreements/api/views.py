@@ -99,6 +99,17 @@ class AgreementDetailView(APIView):
             raise DomainError("Cannot update agreement in this status")
         return ok({"agreement": AgreementDetailSerializer(agreement).data})
 
+    def delete(self, request, agreement_id: int):
+        agreement = self._get_agreement(
+            agreement_id,
+            account_id=request.user.account.pk,
+            account_phone=request.user.account.phone,
+        )
+        if agreement.status != AgreementStatus.DRAFT:
+            raise DomainError("Can only delete draft agreements")
+        agreement.delete()
+        return ok(None)
+
 
 class ValidateView(APIView):
     authentication_classes = [TokenAuthentication]

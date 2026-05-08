@@ -44,7 +44,7 @@ export default function PartiesStep() {
   const router = useRouter();
   const { id, scenarioId: urlScenarioId } = useLocalSearchParams<{ id: string; scenarioId?: string }>();
   const storeScenarioId = useAgreementStore((s) => s.scenarioId);
-  const scenarioId = storeScenarioId ?? urlScenarioId;
+  const scenarioId = storeScenarioId || urlScenarioId || null;
   const agreementId = Number(id);
   const { partyA, partyB, setPartyA, setPartyB, nextStep } =
     useAgreementStore();
