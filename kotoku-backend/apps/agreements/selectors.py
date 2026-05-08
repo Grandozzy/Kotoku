@@ -6,7 +6,7 @@ from apps.agreements.models import Agreement
 class AgreementSelector:
     @staticmethod
     def list_agreements(*, account_id=None, account_phone=None, status=None):
-        qs = Agreement.objects.select_related("created_by").order_by("-created_at")
+        qs = Agreement.objects.select_related("created_by").prefetch_related("parties").order_by("-created_at")
         if account_id is not None and account_phone is not None:
             qs = qs.filter(
                 Q(created_by_id=account_id) | Q(parties__phone=account_phone)

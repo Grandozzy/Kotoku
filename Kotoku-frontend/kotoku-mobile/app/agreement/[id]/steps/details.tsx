@@ -78,7 +78,7 @@ export default function DetailsStep() {
       await updateAgreement(Number(id), { field_data: values });
     } catch {}
     nextStep();
-    router.push(`/agreement/${id}/steps/evidence`);
+    router.push(`/agreement/${id}/steps/evidence?scenarioId=${scenarioId}`);
   };
 
   return (

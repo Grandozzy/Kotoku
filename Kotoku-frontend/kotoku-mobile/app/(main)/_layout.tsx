@@ -37,18 +37,13 @@ export default function MainLayout() {
         }}
       />
       <Tabs.Screen
-        name="vault/index"
+        name="vault"
         options={{
           title: "Vault",
           tabBarIcon: ({ color }) => (
             <Lock size={TAB_ICON_SIZE} color={color} strokeWidth={1.8} />
           ),
         }}
-      />
-      {/* Hide the vault detail screen from the tab bar */}
-      <Tabs.Screen
-        name="vault/[agreementId]"
-        options={{ href: null }}
       />
       <Tabs.Screen
         name="disputes"

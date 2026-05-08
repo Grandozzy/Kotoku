@@ -247,7 +247,9 @@ class PendingActionsView(APIView):
             Agreement.objects.filter(
                 created_by=account,
                 status=AgreementStatus.DRAFT,
-            ).order_by("-updated_at")
+            )
+            .prefetch_related("parties")
+            .order_by("-updated_at")
         )
 
         pending_consent_qs = (

@@ -17,7 +17,7 @@ export default function ReviewStep() {
 
   const handleNext = () => {
     nextStep();
-    router.push(`/agreement/${id}/steps/consent`);
+    router.push(`/agreement/${id}/steps/consent?scenarioId=${scenarioId}`);
   };
 
   return (
@@ -36,7 +36,7 @@ export default function ReviewStep() {
       {/* Parties */}
       <Section
         title="Parties"
-        onEdit={() => router.push(`/agreement/${id}/steps/parties`)}
+        onEdit={() => router.push(`/agreement/${id}/steps/parties?scenarioId=${scenarioId}`)}
       >
         <ReviewRow label={roleA} value={partyA.fullName} />
         <ReviewRow label="Phone" value={partyA.phone} />
@@ -64,7 +64,7 @@ export default function ReviewStep() {
           <Section
             key={section.title}
             title={section.title}
-            onEdit={() => router.push(`/agreement/${id}/steps/details`)}
+            onEdit={() => router.push(`/agreement/${id}/steps/details?scenarioId=${scenarioId}`)}
           >
             {rows.map((row) => (
               <ReviewRow key={row.label} label={row.label} value={row.value} />

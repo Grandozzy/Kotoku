@@ -9,5 +9,7 @@ export function usePendingActions() {
     queryKey: ["pending-actions"],
     queryFn: fetchPendingActions,
     enabled: isAuthenticated,
+    refetchOnWindowFocus: true,
+    staleTime: 30000,
   });
 }

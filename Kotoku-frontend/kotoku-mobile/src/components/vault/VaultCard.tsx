@@ -1,5 +1,5 @@
 import { useRouter } from "expo-router";
-import { ChevronRight, FileText, Lock } from "lucide-react-native";
+import { ChevronRight, Lock } from "lucide-react-native";
 import { Pressable, Text, View } from "react-native";
 
 import { Badge } from "@/components/ui";
@@ -88,12 +88,6 @@ export function VaultCard({
         )}
         <View className="flex-row items-center gap-sm mt-xs">
           <Badge label={badgeLabel} variant={badgeVariant} />
-          {record.pdfStatus === "ready" && (
-            <View className="flex-row items-center gap-xs">
-              <FileText size={12} color={colors.brandPrimary} />
-              <Text className="text-xs text-brand-primary">PDF ready</Text>
-            </View>
-          )}
           <Text className="text-xs text-ink-muted ml-auto">
             {retentionLabel(record.retentionExpiresAt)}
           </Text>

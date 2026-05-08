@@ -8,7 +8,13 @@ import { getAgreement } from "@/api/agreements";
 import { usePendingActions } from "@/features/agreements/usePendingActions";
 import { useAgreementStore, type PartyDraft } from "@/features/agreements/agreementStore";
 import type { ScenarioId } from "@/constants/scenarios";
+import { SCENARIOS } from "@/constants/scenarios";
 import { colors } from "@/theme/tokens";
+
+const SCENARIO_LABELS: Record<string, string> = {};
+for (const s of SCENARIOS) {
+  SCENARIO_LABELS[s.id] = s.label;
+}
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -95,7 +101,7 @@ function ActionCard({ item }: { item: { id: number; title: string; status: strin
           { fullName: pA.displayName, phone: pA.phone, idType: pA.idType ?? "ghana_card", idNumber: pA.idNumber ?? "" },
           { fullName: pB.displayName, phone: pB.phone, idType: pB.idType ?? "ghana_card", idNumber: pB.idNumber ?? "" },
         );
-        router.push(`/agreement/${agreement.id}/steps/consent`);
+        router.push(`/agreement/${agreement.id}/steps/consent?scenarioId=${agreement.scenarioId}`);
       } catch {
       } finally {
         setLoading(false);
@@ -103,7 +109,7 @@ function ActionCard({ item }: { item: { id: number; title: string; status: strin
     } else if (item.status === "reopen_requested") {
       router.push(`/(main)/vault/${item.id}`);
     } else {
-      router.push(`/agreement/${item.id}/steps/review`);
+      router.push(`/agreement/${item.id}/steps/review?scenarioId=${item.scenario_template}`);
     }
   };
 
@@ -131,16 +137,18 @@ function ActionCard({ item }: { item: { id: number; title: string; status: strin
   );
 }
 
-function DraftCard({ item }: { item: { id: number; title: string; updated_at: string; scenario_template: string; status: string } }) {
+function DraftCard({ item }: { item: { id: number; title: string; updated_at: string; scenario_template: string; status: string; parties?: Array<{ role: string; full_name: string }> } }) {
   const router = useRouter();
   const initDraft = useAgreementStore((s) => s.initDraft);
 
   const handlePress = () => {
     initDraft(item.id, item.scenario_template as ScenarioId);
-    router.push(`/agreement/${item.id}/steps/${item.status === "draft" ? "parties" : "review"}`);
+    router.push(`/agreement/${item.id}/steps/${item.status === "draft" ? "parties" : "review"}?scenarioId=${item.scenario_template}`);
   };
 
   const relativeTime = getRelativeTime(item.updated_at);
+  const scenarioLabel = SCENARIO_LABELS[item.scenario_template] ?? item.scenario_template;
+  const partyNames = item.parties?.map(p => p.full_name).join(", ");
 
   return (
     <Pressable
@@ -150,7 +158,8 @@ function DraftCard({ item }: { item: { id: number; title: string; updated_at: st
       <Text className="text-md font-semibold text-ink-primary" numberOfLines={1}>
         {item.title}
       </Text>
-      <Text className="text-xs text-ink-muted mt-xs">{relativeTime}</Text>
+      <Text className="text-xs text-ink-muted mt-xs">{scenarioLabel} · {relativeTime}</Text>
+      {partyNames && <Text className="text-xs text-ink-secondary mt-xs">{partyNames}</Text>}
       <Text className="text-xs text-brand-primary mt-xs">Continue →</Text>
     </Pressable>
   );

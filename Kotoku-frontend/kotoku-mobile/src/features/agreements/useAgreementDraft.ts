@@ -22,7 +22,7 @@ export function useCreateDraft() {
       }),
     onSuccess: (agreement, scenarioId) => {
       initDraft(agreement.id, scenarioId);
-      router.push(`/agreement/${agreement.id}/steps/parties`);
+      router.push(`/agreement/${agreement.id}/steps/parties?scenarioId=${scenarioId}`);
     },
   });
 }

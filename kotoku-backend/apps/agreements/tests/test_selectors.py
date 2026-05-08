@@ -78,7 +78,7 @@ class TestListAgreements:
         _agreement("T")
         with CaptureQueriesContext(connection) as ctx:
             list(AgreementSelector.list_agreements())
-        assert len(ctx.captured_queries) == 1
+        assert len(ctx.captured_queries) == 2  # main query + parties prefetch
 
 
 class TestGetAgreementDetail:

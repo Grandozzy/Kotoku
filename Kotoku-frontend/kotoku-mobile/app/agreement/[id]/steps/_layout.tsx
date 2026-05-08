@@ -61,7 +61,11 @@ export default function StepsLayout() {
 
   const handleExit = () => {
     reset();
-    router.replace("/(main)/vault");
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace("/(main)/home");
+    }
   };
 
   const header = () => (
