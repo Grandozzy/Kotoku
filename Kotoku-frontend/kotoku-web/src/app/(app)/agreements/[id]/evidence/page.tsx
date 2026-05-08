@@ -1,0 +1,192 @@
+"use client";
+
+import { useCallback, useState } from "react";
+import { useParams } from "next/navigation";
+import { useDropzone } from "react-dropzone";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { evidenceApi } from "@/api/evidence";
+
+const EVIDENCE_TYPES = [
+  { value: "vehicle_photo", label: "Vehicle photo" },
+  { value: "property_photo", label: "Property photo" },
+  { value: "buyer_id_photo", label: "Buyer ID photo" },
+  { value: "seller_id_photo", label: "Seller ID photo" },
+  { value: "landlord_id_photo", label: "Landlord ID photo" },
+  { value: "tenant_id_photo", label: "Tenant ID photo" },
+  { value: "condition_photo", label: "Condition / defect photo" },
+  { value: "signature", label: "Signature" },
+  { value: "document", label: "Supporting document" },
+];
+
+interface UploadItem {
+  file: File;
+  evidenceType: string;
+  status: "idle" | "uploading" | "done" | "error";
+  errorMsg?: string;
+}
+
+export default function EvidencePage() {
+  const { id } = useParams<{ id: string }>();
+  const agreementId = Number(id);
+  const queryClient = useQueryClient();
+
+  const [items, setItems] = useState<UploadItem[]>([]);
+  const [selectedType, setSelectedType] = useState(EVIDENCE_TYPES[0].value);
+
+  const onDrop = useCallback(
+    (accepted: File[]) => {
+      setItems((prev) => [
+        ...prev,
+        ...accepted.map((file) => ({
+          file,
+          evidenceType: selectedType,
+          status: "idle" as const,
+        })),
+      ]);
+    },
+    [selectedType]
+  );
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: { "image/*": [], "application/pdf": [] },
+    multiple: true,
+  });
+
+  const uploadMutation = useMutation({
+    mutationFn: async (item: UploadItem) => {
+      const init = await evidenceApi.initiate(agreementId, {
+        file_type: item.file.type.startsWith("image/") ? "photo" : "document",
+        evidence_type: item.evidenceType,
+        file_name: item.file.name,
+        file_size: item.file.size,
+      });
+      await evidenceApi.uploadToS3(init.upload_url, init.fields, item.file);
+      await evidenceApi.confirm(agreementId, init.evidence_id);
+      return init.evidence_id;
+    },
+    onMutate: (item) => {
+      setItems((prev) =>
+        prev.map((i) => (i === item ? { ...i, status: "uploading" } : i))
+      );
+    },
+    onSuccess: (_, item) => {
+      setItems((prev) =>
+        prev.map((i) => (i === item ? { ...i, status: "done" } : i))
+      );
+      queryClient.invalidateQueries({ queryKey: ["agreements", agreementId] });
+    },
+    onError: (err: Error, item) => {
+      setItems((prev) =>
+        prev.map((i) =>
+          i === item ? { ...i, status: "error", errorMsg: err.message } : i
+        )
+      );
+    },
+  });
+
+  function uploadAll() {
+    items
+      .filter((i) => i.status === "idle" || i.status === "error")
+      .forEach((i) => uploadMutation.mutate(i));
+  }
+
+  function remove(item: UploadItem) {
+    setItems((prev) => prev.filter((i) => i !== item));
+  }
+
+  return (
+    <div className="flex flex-col gap-6 max-w-2xl">
+      <h1 className="text-2xl font-bold tracking-tight">Evidence</h1>
+      <p className="text-sm text-neutral-500">
+        Upload photos, ID documents, and any supporting files. Drag and drop
+        multiple files at once.
+      </p>
+
+      {/* Type selector */}
+      <div>
+        <label className="text-sm font-medium text-neutral-700">
+          Evidence type for next upload
+        </label>
+        <select
+          value={selectedType}
+          onChange={(e) => setSelectedType(e.target.value)}
+          className="mt-1 block w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+        >
+          {EVIDENCE_TYPES.map(({ value, label }) => (
+            <option key={value} value={value}>
+              {label}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* Drop zone */}
+      <div
+        {...getRootProps()}
+        className={`rounded-2xl border-2 border-dashed px-6 py-12 text-center cursor-pointer transition-colors ${
+          isDragActive
+            ? "border-emerald-400 bg-emerald-50"
+            : "border-neutral-200 hover:border-neutral-300 bg-neutral-50"
+        }`}
+      >
+        <input {...getInputProps()} />
+        <p className="text-2xl mb-2">📎</p>
+        <p className="text-sm font-medium text-neutral-700">
+          {isDragActive ? "Drop files here" : "Drag photos or documents here"}
+        </p>
+        <p className="text-xs text-neutral-400 mt-1">
+          or click to browse · images and PDFs supported
+        </p>
+      </div>
+
+      {/* Queue */}
+      {items.length > 0 && (
+        <div className="flex flex-col gap-2">
+          {items.map((item, idx) => (
+            <div
+              key={idx}
+              className="flex items-center justify-between px-4 py-2.5 rounded-xl border border-neutral-100 bg-white"
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <span className="text-xl">
+                  {item.status === "done"
+                    ? "✅"
+                    : item.status === "error"
+                    ? "❌"
+                    : item.status === "uploading"
+                    ? "⏳"
+                    : "📄"}
+                </span>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium truncate">{item.file.name}</p>
+                  <p className="text-xs text-neutral-400">
+                    {EVIDENCE_TYPES.find((t) => t.value === item.evidenceType)?.label}
+                    {item.errorMsg && (
+                      <span className="text-red-500"> · {item.errorMsg}</span>
+                    )}
+                  </p>
+                </div>
+              </div>
+              {item.status === "idle" && (
+                <button
+                  onClick={() => remove(item)}
+                  className="text-xs text-neutral-400 hover:text-red-500 ml-2"
+                >
+                  Remove
+                </button>
+              )}
+            </div>
+          ))}
+          <button
+            onClick={uploadAll}
+            disabled={uploadMutation.isPending}
+            className="mt-2 px-5 py-2.5 rounded-full bg-neutral-900 text-white text-sm font-medium disabled:opacity-50 hover:bg-neutral-700 transition-colors w-fit"
+          >
+            {uploadMutation.isPending ? "Uploading…" : "Upload all"}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}

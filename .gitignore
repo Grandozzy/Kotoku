@@ -54,7 +54,6 @@ DOCKER_AND_DB.md
 pgadmin_*.png
 pgadmin_connected.png
 tree_expanded.yaml
-/docs
 pr_body.txt
 sprint1-remaining.md
 
@@ -79,4 +78,3 @@ logs/
 *.log
 makemigrations_*.txt
 pr_comment.txt
-docs/
