@@ -1,3 +1,4 @@
+import { AlertCircle } from "lucide-react-native";
 import { downloadAsync, deleteAsync, cacheDirectory } from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
 import { Loader } from "lucide-react-native";
@@ -12,14 +13,18 @@ interface ExportButtonProps {
   pdfStatus: PdfStatus;
   pdfUrl: string | null;
   onRequestExport: () => void;
+  onRetryExport: () => void;
   isRequesting: boolean;
+  isRetrying: boolean;
 }
 
 export function ExportButton({
   pdfStatus,
   pdfUrl,
   onRequestExport,
+  onRetryExport,
   isRequesting,
+  isRetrying,
 }: ExportButtonProps) {
   const [saving, setSaving] = useState(false);
   const [sharing, setSharing] = useState(false);
@@ -119,6 +124,27 @@ export function ExportButton({
       <View className="flex-row items-center justify-center gap-sm bg-surface-subtle rounded-lg p-md">
         <Loader size={16} color={colors.inkMuted} />
         <Text className="text-sm text-ink-secondary">Preparing PDF…</Text>
+      </View>
+    );
+  }
+
+  if (pdfStatus === "failed") {
+    return (
+      <View className="gap-xs">
+        <View className="flex-row items-center gap-sm bg-red-50 rounded-lg p-md">
+          <AlertCircle size={16} color={colors.error} />
+          <Text className="text-sm text-semantic-error flex-1">
+            PDF generation failed.
+          </Text>
+        </View>
+        <Button
+          title={isRetrying ? "Retrying…" : "Retry"}
+          variant="secondary"
+          size="md"
+          fullWidth
+          loading={isRetrying}
+          onPress={onRetryExport}
+        />
       </View>
     );
   }

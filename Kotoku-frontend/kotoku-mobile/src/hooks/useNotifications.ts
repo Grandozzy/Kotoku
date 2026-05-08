@@ -25,6 +25,9 @@ const INVALIDATION_MAP: Record<string, string[]> = {
   "agreement.reopen_confirmed": ["vault", "pending-actions"],
   "agreement.sealed": ["vault", "pending-actions"],
   "agreement.updated": ["vault", "pending-actions"],
+  "vault.pdf_generating": ["vault"],
+  "vault.pdf_ready": ["vault"],
+  "vault.pdf_failed": ["vault"],
 };
 
 function handleEvent(event: WsEvent) {

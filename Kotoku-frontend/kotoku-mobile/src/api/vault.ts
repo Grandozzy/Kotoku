@@ -79,6 +79,13 @@ export async function requestPdfExport(agreementId: number): Promise<VaultRecord
   return mapVaultRecord(res.data.data.vault_entry);
 }
 
+export async function retryPdfExport(agreementId: number): Promise<VaultRecord> {
+  const res = await apiClient.post<ApiResponse<{ vault_entry: RawVaultEntry }>>(
+    `/vault/${agreementId}/retry-export/`,
+  );
+  return mapVaultRecord(res.data.data.vault_entry);
+}
+
 export async function getAuditLog(agreementId: number): Promise<AuditEvent[]> {
   const res = await apiClient.get<ApiResponse<AuditEvent[]>>(
     `/vault/${agreementId}/audit-log/`,

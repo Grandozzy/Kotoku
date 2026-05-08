@@ -5,6 +5,7 @@ import {
   getVaultRecord,
   listVault,
   requestPdfExport,
+  retryPdfExport,
 } from "@/api/vault";
 import { useSessionStore } from "@/store/sessionStore";
 
@@ -25,7 +26,7 @@ export function useVaultRecord(agreementId: number) {
     refetchInterval: (query) => {
       const data = query.state.data;
       if (!data) return false;
-      if (data.pdfStatus === "pending") return 5000;
+      if (data.pdfStatus === "pending" || data.pdfStatus === "generating") return 5000;
       return false;
     },
   });
@@ -37,7 +38,17 @@ export function useRequestExport(agreementId: number) {
   return useMutation({
     mutationFn: () => requestPdfExport(agreementId),
     onSuccess: (updated) => {
-      // Update the cache immediately; polling will pick up the rest
+      queryClient.setQueryData(["vault", agreementId], updated);
+    },
+  });
+}
+
+export function useRetryExport(agreementId: number) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => retryPdfExport(agreementId),
+    onSuccess: (updated) => {
       queryClient.setQueryData(["vault", agreementId], updated);
     },
   });
