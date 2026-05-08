@@ -120,6 +120,17 @@ def _check_used_vehicle_sale(agreement, parties: list, result: ValidationResult)
             field_name="evidence",
         )
 
+    confirmed_types = _confirmed_evidence_types(agreement)
+    for party in parties:
+        if party.role == "witness":
+            continue
+        if f"{party.role}_id_photo" not in confirmed_types:
+            result.add(
+                code="MISSING_PARTY_ID_PHOTO",
+                message=f"An ID photo is required for the {party.role}.",
+                field_name="evidence",
+            )
+
 
 def _check_room_rental(agreement, parties: list, result: ValidationResult) -> None:
     property_photo_count = _count_confirmed_evidence(agreement, "property_photo")
@@ -129,6 +140,17 @@ def _check_room_rental(agreement, parties: list, result: ValidationResult) -> No
             message="Add at least 2 photos of the property.",
             field_name="evidence",
         )
+
+    confirmed_types = _confirmed_evidence_types(agreement)
+    for party in parties:
+        if party.role == "witness":
+            continue
+        if f"{party.role}_id_photo" not in confirmed_types:
+            result.add(
+                code="MISSING_PARTY_ID_PHOTO",
+                message=f"An ID photo is required for the {party.role}.",
+                field_name="evidence",
+            )
 
     # If a deposit amount is set, require at least one condition/defect photo.
     deposit = getattr(agreement, "deposit_amount", None)
