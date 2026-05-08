@@ -46,6 +46,10 @@ export default function MainLayout() {
         }}
       />
       <Tabs.Screen
+        name="vault/[agreementId]"
+        options={{ href: null }}
+      />
+      <Tabs.Screen
         name="disputes"
         options={{
           title: "Disputes",
