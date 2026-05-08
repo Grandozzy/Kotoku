@@ -37,7 +37,7 @@ export function AnnotationSection({ agreementId }: Props) {
             <View className="flex-row items-center gap-sm">
               <Clock size={14} color={colors.inkMuted} />
               <Text className="text-xs text-ink-muted">
-                {note.author.displayName} · {formatRelativeTime(note.createdAt)}
+                {note.authorDisplayName} · {formatRelativeTime(note.createdAt)}
               </Text>
             </View>
             <Text className="text-sm text-ink-primary">{note.body}</Text>

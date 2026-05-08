@@ -4,10 +4,7 @@ import type { ApiResponse } from "@/types/api";
 export interface Annotation {
   id: number;
   authorPartyId: number;
-  author: {
-    displayName: string;
-    role: string;
-  };
+  authorDisplayName: string;
   body: string;
   createdAt: string;
 }
