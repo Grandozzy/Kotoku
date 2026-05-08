@@ -20,6 +20,7 @@ from apps.agreements.models import Agreement
 from apps.consent.models import ConsentRecord
 from apps.evidence.models import EvidenceItem
 from apps.parties.services import PartyService
+from apps.vault.api.audit import build_audit_timeline
 from apps.vault.models import VaultEntry
 from apps.vault.services import VaultService
 
@@ -229,8 +230,6 @@ class TestVaultExport:
         resp = APIClient().post(_EXPORT_PATH.format(id=1))
         assert resp.status_code == 401
 
-
-from apps.vault.api.audit import build_audit_timeline
 
 _AUDIT_PATH = "/api/vault/{id}/audit-log/"
 
