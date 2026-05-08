@@ -110,6 +110,10 @@ CELERY_BEAT_SCHEDULE = {
         "task": "apps.vault.tasks.archive_expired_vault_entries",
         "schedule": 86400,  # once per day (seconds)
     },
+    "cleanup-stale-drafts": {
+        "task": "apps.agreements.tasks.cleanup_stale_drafts",
+        "schedule": 86400,  # once per day (seconds)
+    },
 }
 
 CACHES = {
