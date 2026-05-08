@@ -5,7 +5,6 @@ Endpoints under test:
   GET  /api/vault/{agreementId}/
   POST /api/vault/{agreementId}/export/
 """
-import apps.vault.pdf  # noqa: F401 — ensures submodule is loaded so patch() can resolve it
 from datetime import timedelta
 from unittest.mock import patch
 
@@ -14,18 +13,21 @@ from django.utils import timezone
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APIClient
 
+import apps.vault.pdf  # noqa: F401 — ensures submodule is loaded so patch() can resolve it
 from apps.accounts.models import Account, User
 from apps.agreements.domain.enums import AgreementStatus
 from apps.agreements.models import Agreement
 from apps.consent.models import ConsentRecord
 from apps.evidence.models import EvidenceItem
 from apps.parties.services import PartyService
+from apps.vault.api.audit import build_audit_timeline
 from apps.vault.models import VaultEntry
 from apps.vault.services import VaultService
 
 _LIST_PATH = "/api/vault/"
 _DETAIL_PATH = "/api/vault/{id}/"
 _EXPORT_PATH = "/api/vault/{id}/export/"
+_RETRY_PATH = "/api/vault/{id}/retry-export/"
 
 _seq = 0
 
@@ -42,7 +44,6 @@ def _make_client(phone):
 
 
 def _sealed_agreement_with_vault(account, initiator_phone, second_phone):
-    """Create a sealed agreement and its vault entry (mirrors the seal view flow)."""
     agreement = Agreement.objects.create(
         title="Vault Test",
         created_by=account,
@@ -66,7 +67,6 @@ def _sealed_agreement_with_vault(account, initiator_phone, second_phone):
         upload_status=EvidenceItem.UploadStatus.CONFIRMED,
         storage_url="https://storage.kotoku/fake/photo.jpg",
     )
-    # Grant consent for all parties and move to PENDING_CONSENT
     agreement.status = AgreementStatus.PENDING_CONSENT
     agreement.save()
     now = timezone.now()
@@ -82,10 +82,15 @@ def _sealed_agreement_with_vault(account, initiator_phone, second_phone):
         )
         for p in agreement.parties.all()
     ])
-    # Seal + create vault entry (mirrors SealView behaviour)
     from apps.agreements.services import AgreementService
     agreement = AgreementService.seal_agreement(agreement_id=agreement.pk)
-    entry = VaultService.create_for_agreement(agreement_id=agreement.pk)
+
+    fake_pdf = b"%PDF-fake"
+    fake_url = "https://storage.kotoku/exports/test.pdf"
+    with patch("apps.vault.pdf.render_vault_pdf", return_value=fake_pdf), \
+         patch("infrastructure.storage.s3.S3StorageClient.upload", return_value=fake_url):
+        entry = VaultService.create_for_agreement(agreement_id=agreement.pk)
+
     return agreement, entry
 
 
@@ -226,9 +231,6 @@ class TestVaultExport:
         assert resp.status_code == 401
 
 
-from apps.vault.api.audit import build_audit_timeline
-
-
 _AUDIT_PATH = "/api/vault/{id}/audit-log/"
 
 
@@ -278,3 +280,45 @@ class TestVaultAuditLog:
         events = build_audit_timeline(agreement)
         timestamps = [e["timestamp"] for e in events]
         assert timestamps == sorted(timestamps)
+
+
+@pytest.mark.django_db
+class TestVaultRetryExport:
+    def test_retry_failed_returns_202(self):
+        client, acct = _make_client("+233700500001")
+        agreement, entry = _sealed_agreement_with_vault(acct, acct.phone, "+233700500002")
+        entry.pdf_status = VaultEntry.PdfStatus.FAILED
+        entry.save()
+
+        fake_pdf = b"%PDF-fake"
+        fake_url = "https://storage.kotoku/exports/retry.pdf"
+        with patch("apps.vault.pdf.render_vault_pdf", return_value=fake_pdf), \
+             patch("infrastructure.storage.s3.S3StorageClient.upload", return_value=fake_url):
+            resp = client.post(_RETRY_PATH.format(id=agreement.pk))
+
+        assert resp.status_code == 202
+        data = resp.json()["data"]["vault_entry"]
+        assert data["pdf_status"] in (VaultEntry.PdfStatus.READY, VaultEntry.PdfStatus.PENDING)
+
+    def test_retry_non_failed_returns_400(self):
+        client, acct = _make_client("+233700500003")
+        agreement, entry = _sealed_agreement_with_vault(acct, acct.phone, "+233700500004")
+
+        resp = client.post(_RETRY_PATH.format(id=agreement.pk))
+        assert resp.status_code == 400
+
+    def test_retry_returns_404_for_other_users_agreement(self):
+        client, acct = _make_client("+233700500007")
+        _, other_acct = _make_client("+233700500008")
+        agreement, entry = _sealed_agreement_with_vault(
+            other_acct, other_acct.phone, "+233700500009"
+        )
+        entry.pdf_status = VaultEntry.PdfStatus.FAILED
+        entry.save()
+
+        resp = client.post(_RETRY_PATH.format(id=agreement.pk))
+        assert resp.status_code == 404
+
+    def test_unauthenticated_returns_401(self):
+        resp = APIClient().post(_RETRY_PATH.format(id=1))
+        assert resp.status_code == 401

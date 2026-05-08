@@ -1,11 +1,5 @@
 from rest_framework import serializers
 
-from apps.agreements.models import Annotation
-from apps.consent.models import ConsentRecord
-from apps.disputes.models import Dispute
-from apps.evidence.models import EvidenceItem
-from apps.parties.models import Party
-
 
 class AuditEventSerializer(serializers.Serializer):
     type = serializers.CharField()

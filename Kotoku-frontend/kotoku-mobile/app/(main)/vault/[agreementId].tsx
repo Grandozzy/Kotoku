@@ -9,7 +9,7 @@ import { ExportButton } from "@/components/vault/ExportButton";
 import { ReopenSection } from "@/components/vault/ReopenSection";
 import { getAgreement } from "@/api/agreements";
 import { useAgreementStore, type PartyDraft } from "@/features/agreements/agreementStore";
-import { useAuditLog, useRequestExport, useVaultRecord } from "@/features/vault/useVault";
+import { useAuditLog, useRequestExport, useRetryExport, useVaultRecord } from "@/features/vault/useVault";
 import type { ScenarioId } from "@/constants/scenarios";
 import { colors } from "@/theme/tokens";
 
@@ -31,6 +31,7 @@ export default function VaultDetailScreen() {
   const { data: record, isLoading } = useVaultRecord(id);
   const { data: auditLog } = useAuditLog(id);
   const exportMutation = useRequestExport(id);
+  const retryMutation = useRetryExport(id);
   const initReopened = useAgreementStore((s) => s.initReopened);
 
   const [editLoading, setEditLoading] = useState(false);
@@ -160,7 +161,9 @@ export default function VaultDetailScreen() {
             pdfStatus={record.pdfStatus}
             pdfUrl={record.pdfUrl}
             onRequestExport={() => exportMutation.mutate()}
+            onRetryExport={() => retryMutation.mutate()}
             isRequesting={exportMutation.isPending}
+            isRetrying={retryMutation.isPending}
           />
           {exportMutation.isError && (
             <Text className="text-xs text-semantic-error text-center">

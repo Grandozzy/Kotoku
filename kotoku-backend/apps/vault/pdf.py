@@ -11,7 +11,7 @@ from datetime import timezone as dt_timezone
 
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import cm
 from reportlab.platypus import (
     HRFlowable,
@@ -40,7 +40,7 @@ _SUBHEADING = ParagraphStyle(
 _BODY = ParagraphStyle(
     "KotokuBody",
     parent=_STYLES["Normal"],
-    fontSize=10,
+    fontSize=10.5,
     leading=14,
 )
 _SMALL = ParagraphStyle(
@@ -48,6 +48,22 @@ _SMALL = ParagraphStyle(
     parent=_STYLES["Normal"],
     fontSize=8,
     textColor=colors.grey,
+)
+_MONO = ParagraphStyle(
+    "KotokuMono",
+    parent=_STYLES["Normal"],
+    fontSize=8,
+    leading=11,
+    fontName="Courier",
+    textColor=colors.HexColor("#333333"),
+)
+_SECTION = ParagraphStyle(
+    "KotokuSection",
+    parent=_STYLES["Heading2"],
+    fontSize=11,
+    spaceBefore=14,
+    spaceAfter=4,
+    textColor=colors.HexColor("#1a1a2e"),
 )
 
 _TABLE_STYLE = TableStyle([
@@ -78,7 +94,12 @@ def render_vault_pdf(entry_id: int) -> bytes:
 
     entry = (
         VaultEntry.objects.select_related("agreement", "agreement__created_by")
-        .prefetch_related("agreement__parties", "agreement__evidence_items")
+        .prefetch_related(
+            "agreement__parties",
+            "agreement__evidence_items",
+            "agreement__revisions",
+            "agreement__annotations",
+        )
         .get(pk=entry_id)
     )
     agreement = entry.agreement
@@ -107,10 +128,10 @@ def render_vault_pdf(entry_id: int) -> bytes:
     story.append(Paragraph(f"<b>Sealed at:</b> {_fmt_dt(agreement.sealed_at)}", _BODY))
     if agreement.description:
         story.append(Paragraph(f"<b>Description:</b> {agreement.description}", _BODY))
-    story.append(Spacer(1, 0.3 * cm))
+    story.append(Spacer(1, 0.5 * cm))
 
     # ── Parties ──────────────────────────────────────────────────────────── #
-    story.append(Paragraph("Parties", _SUBHEADING))
+    story.append(Paragraph("Parties", _SECTION))
     parties = list(agreement.parties.order_by("role"))
     if parties:
         party_data = [["Role", "Name", "ID Type", "ID Number", "Phone"]]
@@ -129,7 +150,7 @@ def render_vault_pdf(entry_id: int) -> bytes:
         story.append(Paragraph("No parties recorded.", _BODY))
 
     # ── Evidence ─────────────────────────────────────────────────────────── #
-    story.append(Paragraph("Evidence", _SUBHEADING))
+    story.append(Paragraph("Evidence", _SECTION))
     evidence = list(
         agreement.evidence_items.filter(upload_status="confirmed").order_by("evidence_type")
     )
@@ -139,7 +160,7 @@ def render_vault_pdf(entry_id: int) -> bytes:
             ev_data.append([
                 e.evidence_type or "—",
                 e.file_type,
-                (e.file_hash[:16] + "…") if e.file_hash else "—",
+                e.file_hash if e.file_hash else "—",
             ])
         t = Table(ev_data, colWidths=[5 * cm, 3 * cm, 8 * cm])
         t.setStyle(_TABLE_STYLE)
@@ -147,13 +168,61 @@ def render_vault_pdf(entry_id: int) -> bytes:
     else:
         story.append(Paragraph("No confirmed evidence recorded.", _BODY))
 
+    # ── Agreement Details (field_data) ──────────────────────────────────── #
+    if agreement.field_data:
+        story.append(Spacer(1, 0.5 * cm))
+        story.append(Paragraph("Agreement Details", _SECTION))
+        fd_rows = [["Field", "Value"]]
+        for key, value in agreement.field_data.items():
+            label = key.replace("_", " ").title()
+            fd_rows.append([label, str(value)])
+        fd_table = Table(fd_rows, colWidths=[5 * cm, 11 * cm])
+        fd_table.setStyle(_TABLE_STYLE)
+        story.append(fd_table)
+
+    # ── Revision History ────────────────────────────────────────────────── #
+    revisions = list(agreement.revisions.all())
+    if revisions:
+        story.append(Spacer(1, 0.5 * cm))
+        story.append(Paragraph("Revision History", _SECTION))
+        rev_data = [["#", "Sealed At", "Seal Hash"]]
+        for rev in revisions:
+            rev_data.append([
+                str(rev.revision_number),
+                _fmt_dt(rev.sealed_at),
+                rev.seal_hash,
+            ])
+        rev_table = Table(rev_data, colWidths=[1.5 * cm, 4.5 * cm, 10 * cm])
+        rev_table.setStyle(_TABLE_STYLE)
+        story.append(rev_table)
+
+    # ── Annotations ─────────────────────────────────────────────────────── #
+    annotations = list(agreement.annotations.select_related("author_party").all())
+    if annotations:
+        story.append(Spacer(1, 0.5 * cm))
+        story.append(Paragraph("Notes", _SECTION))
+        ann_data = [["Author", "Note", "Date"]]
+        for ann in annotations:
+            ann_data.append([
+                ann.author_party.display_name,
+                ann.body[:200],
+                _fmt_dt(ann.created_at),
+            ])
+        ann_table = Table(ann_data, colWidths=[3.5 * cm, 9 * cm, 3.5 * cm])
+        ann_table.setStyle(_TABLE_STYLE)
+        story.append(ann_table)
+
     # ── Integrity ────────────────────────────────────────────────────────── #
     story.append(Spacer(1, 0.5 * cm))
     story.append(HRFlowable(width="100%", thickness=0.5, color=colors.lightgrey))
     story.append(Spacer(1, 0.2 * cm))
     story.append(Paragraph(
-        f"<b>Seal hash (SHA-256):</b> {agreement.seal_hash or '—'}",
+        "<b>Seal hash (SHA-256):</b>",
         _SMALL,
+    ))
+    story.append(Paragraph(
+        agreement.seal_hash or "—",
+        _MONO,
     ))
     story.append(Paragraph(
         "This document is a tamper-evident record generated by Kotoku. "

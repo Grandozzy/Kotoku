@@ -5,6 +5,8 @@ from django.db import transaction
 from apps.agreements.domain.enums import AgreementStatus
 from apps.agreements.models import Agreement
 from apps.audit.services import AuditService
+from apps.notifications.push import send_to_user
+from apps.parties.models import Party
 from apps.vault.models import VaultEntry
 from common.exceptions import DomainError
 
@@ -88,3 +90,35 @@ class VaultService:
             entity_id=str(entry.pk),
         )
         return entry
+
+    @staticmethod
+    @transaction.atomic
+    def retry_export(*, agreement_id: int) -> VaultEntry:
+        try:
+            entry = VaultEntry.objects.select_for_update().get(agreement_id=agreement_id)
+        except VaultEntry.DoesNotExist:
+            raise DomainError("No vault entry found for this agreement.") from None
+
+        if entry.pdf_status != VaultEntry.PdfStatus.FAILED:
+            raise DomainError("Can only retry failed PDF generation.")
+
+        entry.pdf_status = VaultEntry.PdfStatus.PENDING
+        entry.save(update_fields=["pdf_status", "updated_at"])
+
+        from apps.vault.tasks import generate_pdf_export  # noqa: PLC0415
+        generate_pdf_export.delay(entry.pk)
+
+        AuditService.record_event(
+            event_type="vault.export_retry_requested",
+            entity_type="vault_entry",
+            entity_id=str(entry.pk),
+            metadata={"agreement_id": agreement_id},
+        )
+        return entry
+
+    @staticmethod
+    def _push_vault_event(*, agreement_id: int, event_type: str, payload: dict | None = None):
+        parties = Party.objects.filter(agreement_id=agreement_id)
+        for p in parties:
+            if p.phone:
+                send_to_user(p.phone, event_type, payload or {"agreement_id": agreement_id})

@@ -3,13 +3,12 @@ from rest_framework.authentication import TokenAuthentication
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
+from apps.vault.api.audit import AuditEventSerializer, build_audit_timeline
 from apps.vault.api.serializers import VaultEntrySerializer
 from apps.vault.models import VaultEntry
 from apps.vault.selectors import VaultSelector
 from apps.vault.services import VaultService
-from common.exceptions import DomainError
 from common.pagination import DefaultPagination
-from apps.vault.api.audit import AuditEventSerializer, build_audit_timeline
 from common.responses import ok
 
 
@@ -73,6 +72,24 @@ class VaultExportView(APIView):
             raise Http404 from None
 
         entry = VaultService.request_export(agreement_id=agreement_id)
+        return ok({"vault_entry": VaultEntrySerializer(entry).data}, status_code=202)
+
+
+class VaultRetryExportView(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, agreement_id: int):
+        try:
+            VaultSelector.get_for_agreement(
+                agreement_id=agreement_id,
+                account_id=request.user.account.pk,
+                account_phone=request.user.account.phone,
+            )
+        except VaultEntry.DoesNotExist:
+            raise Http404 from None
+
+        entry = VaultService.retry_export(agreement_id=agreement_id)
         return ok({"vault_entry": VaultEntrySerializer(entry).data}, status_code=202)
 
 
