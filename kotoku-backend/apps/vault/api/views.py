@@ -3,13 +3,12 @@ from rest_framework.authentication import TokenAuthentication
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
+from apps.vault.api.audit import AuditEventSerializer, build_audit_timeline
 from apps.vault.api.serializers import VaultEntrySerializer
 from apps.vault.models import VaultEntry
 from apps.vault.selectors import VaultSelector
 from apps.vault.services import VaultService
-from common.exceptions import DomainError
 from common.pagination import DefaultPagination
-from apps.vault.api.audit import AuditEventSerializer, build_audit_timeline
 from common.responses import ok
 
 

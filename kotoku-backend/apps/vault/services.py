@@ -4,9 +4,9 @@ from django.db import transaction
 
 from apps.agreements.domain.enums import AgreementStatus
 from apps.agreements.models import Agreement
-from apps.parties.models import Party
 from apps.audit.services import AuditService
 from apps.notifications.push import send_to_user
+from apps.parties.models import Party
 from apps.vault.models import VaultEntry
 from common.exceptions import DomainError
 
