@@ -74,7 +74,7 @@ export default function VaultDetailScreen() {
     >
       {/* Top bar */}
       <View className="flex-row items-center px-lg pb-md gap-md" style={{ paddingTop: insets.top + 12 }}>
-        <Pressable onPress={() => router.replace("/(main)/vault/index")}>
+        <Pressable onPress={() => router.back()}>
           <ChevronLeft size={24} color={colors.inkPrimary} />
         </Pressable>
         <Text className="text-xl font-semibold text-ink-primary flex-1">
