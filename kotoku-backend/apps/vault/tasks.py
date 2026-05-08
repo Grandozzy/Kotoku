@@ -1,4 +1,5 @@
 import logging
+from datetime import timedelta
 
 from celery import shared_task
 from django.utils import timezone
@@ -79,7 +80,7 @@ def recover_stuck_pdf_generating() -> dict:
     from apps.vault.models import VaultEntry
     from apps.vault.services import VaultService
 
-    cutoff = timezone.now() - timezone.timedelta(minutes=5)
+    cutoff = timezone.now() - timedelta(minutes=5)
     stuck = VaultEntry.objects.filter(
         pdf_status=VaultEntry.PdfStatus.GENERATING,
         updated_at__lt=cutoff,
