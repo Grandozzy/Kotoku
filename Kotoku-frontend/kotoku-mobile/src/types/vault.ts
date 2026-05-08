@@ -11,6 +11,7 @@ export type AgreementStatus =
 export type PdfStatus = "pending" | "generating" | "ready" | "failed";
 
 export interface PartySummary {
+  id: number;
   role: string;
   displayName: string;
   phone: string;

@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { ChevronLeft, Clock, Loader2, Pencil } from "lucide-react-native";
+import { ChevronLeft, Clock, Loader2, Pencil, Plus } from "lucide-react-native";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Badge } from "@/components/ui";
+import { AnnotationSection } from "@/components/annotations/AnnotationSection";
+import { AddNoteSheet } from "@/components/annotations/AddNoteSheet";
 import { ExportButton } from "@/components/vault/ExportButton";
 import { ReopenSection } from "@/components/vault/ReopenSection";
 import { getAgreement } from "@/api/agreements";
@@ -36,6 +38,8 @@ export default function VaultDetailScreen() {
 
   const [editLoading, setEditLoading] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
+  const [noteSheetVisible, setNoteSheetVisible] = useState(false);
+  const canAddNote = ["sealed", "reopen_requested", "active"].includes(record.agreementStatus);
 
   const handleEdit = async () => {
     setEditLoading(true);
@@ -200,6 +204,25 @@ export default function VaultDetailScreen() {
               ))}
             </View>
           </View>
+        )}
+
+        {/* Annotations */}
+        {canAddNote && (
+          <>
+            <AnnotationSection agreementId={id} />
+            <Pressable
+              onPress={() => setNoteSheetVisible(true)}
+              className="absolute bottom-lg right-lg w-14 h-14 rounded-full bg-brand-primary items-center justify-center shadow-lg"
+            >
+              <Plus size={24} color="white" />
+            </Pressable>
+            <AddNoteSheet
+              agreementId={id}
+              authorPartyId={record.parties[0]?.id}
+              visible={noteSheetVisible}
+              onClose={() => setNoteSheetVisible(false)}
+            />
+          </>
         )}
       </View>
     </ScrollView>
