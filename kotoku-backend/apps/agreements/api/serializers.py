@@ -30,9 +30,11 @@ class PartySerializer(serializers.Serializer):
 
 
 class AgreementListSerializer(serializers.ModelSerializer):
+    parties = PartySerializer(many=True, read_only=True)
+
     class Meta:
         model = Agreement
-        fields = ("id", "title", "status", "scenario_template", "field_data", "created_at", "updated_at")
+        fields = ("id", "title", "status", "scenario_template", "field_data", "created_at", "updated_at", "parties")
 
 
 class AgreementDetailSerializer(serializers.ModelSerializer):

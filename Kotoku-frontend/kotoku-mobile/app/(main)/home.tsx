@@ -137,7 +137,7 @@ function ActionCard({ item }: { item: { id: number; title: string; status: strin
   );
 }
 
-function DraftCard({ item }: { item: { id: number; title: string; updated_at: string; scenario_template: string; status: string } }) {
+function DraftCard({ item }: { item: { id: number; title: string; updated_at: string; scenario_template: string; status: string; parties?: Array<{ role: string; full_name: string }> } }) {
   const router = useRouter();
   const initDraft = useAgreementStore((s) => s.initDraft);
 
@@ -148,6 +148,7 @@ function DraftCard({ item }: { item: { id: number; title: string; updated_at: st
 
   const relativeTime = getRelativeTime(item.updated_at);
   const scenarioLabel = SCENARIO_LABELS[item.scenario_template] ?? item.scenario_template;
+  const partyNames = item.parties?.map(p => p.full_name).join(", ");
 
   return (
     <Pressable
@@ -158,6 +159,7 @@ function DraftCard({ item }: { item: { id: number; title: string; updated_at: st
         {item.title}
       </Text>
       <Text className="text-xs text-ink-muted mt-xs">{scenarioLabel} · {relativeTime}</Text>
+      {partyNames && <Text className="text-xs text-ink-secondary mt-xs">{partyNames}</Text>}
       <Text className="text-xs text-brand-primary mt-xs">Continue →</Text>
     </Pressable>
   );
