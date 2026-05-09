@@ -9,6 +9,7 @@ logger = logging.getLogger(__name__)
 
 from apps.agreements.selectors import AgreementSelector
 from apps.agreements.models import Agreement
+from apps.parties.models import Party
 from apps.disputes.api.serializers import DisputeCreateSerializer, DisputeSerializer
 from apps.disputes.models import Dispute
 from apps.disputes.selectors import DisputeSelector
@@ -36,10 +37,30 @@ class DisputeCollectionView(APIView):
         print(f"[DISPUTE] POST agreement_id={agreement_id}")
         print(f"[DISPUTE] data={request.data}")
         try:
-            self._get_agreement(agreement_id, request.user.account.pk)
+            agreement = self._get_agreement(agreement_id, request.user.account.pk)
         except Http404:
             print("[DISPUTE] Agreement not found")
             return Response({"status": "error", "message": "Agreement not found"}, status=404)
+        
+        # Auto-detect party from logged-in user if not provided
+        party_id = request.data.get("raised_by_party_id")
+        if not party_id:
+            # Query parties directly from DB
+            parties = Party.objects.filter(agreement_id=agreement_id)
+            user_phone = getattr(request.user, 'username', None)
+            print(f"[DISPUTE] Looking for party with phone={user_phone}")
+            print(f"[DISPUTE] Available parties: {list(parties.values_list('id', 'phone'))}")
+            for party in parties:
+                if party.phone == user_phone:
+                    party_id = party.id
+                    print(f"[DISPUTE] Found matching party: {party_id}")
+                    break
+            if not party_id:
+                party_id = parties.first().id if parties else None
+                print(f"[DISPUTE] Using fallback party: {party_id}")
+        
+        request.data = request.data.copy()
+        request.data["raised_by_party_id"] = party_id
         
         serializer = DisputeCreateSerializer(data=request.data)
         if not serializer.is_valid():
