@@ -53,6 +53,31 @@ class DisputeRootView(APIView):
         return ok({"disputes": DisputeSerializer(disputes, many=True).data})
 
 
+class DisputeLookupView(APIView):
+    """Look up a single dispute by ID without needing agreement_id."""
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, dispute_id: int):
+        try:
+            dispute = Dispute.objects.select_related("raised_by", "agreement").get(
+                pk=dispute_id, agreement__created_by=request.user.account
+            )
+        except Dispute.DoesNotExist:
+            raise Http404 from None
+        return ok({"dispute": DisputeSerializer(dispute).data})
+
+    def post(self, request, dispute_id: int):
+        try:
+            dispute = Dispute.objects.select_related("raised_by", "agreement").get(
+                pk=dispute_id, agreement__created_by=request.user.account
+            )
+        except Dispute.DoesNotExist:
+            raise Http404 from None
+        case_pack = DisputeService.generate_case_pack(dispute=dispute)
+        return ok({"case_pack": case_pack})
+
+
 class DisputeDetailView(APIView):
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
