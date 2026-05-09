@@ -30,7 +30,8 @@ export default function DisputeDetailScreen() {
     async function fetchDetail() {
       try {
         const response = await apiClient.get(`/disputes/${id}/`);
-        setDispute(response.data.dispute);
+        // API returns {"status":"ok","data":{"dispute":{}}}
+        setDispute(response.data.data.dispute || response.data.dispute);
       } catch {
         Alert.alert("Error", "Failed to load dispute");
       } finally {
@@ -43,7 +44,7 @@ export default function DisputeDetailScreen() {
   const generateCasePack = async () => {
     try {
       const response = await apiClient.post(`/disputes/${id}/case_pack/`, {});
-      const casePack = response.data.case_pack;
+      const casePack = response.data.data.case_pack || response.data.case_pack;
       Alert.alert("Case Pack", JSON.stringify(casePack, null, 2));
     } catch {
       Alert.alert("Error", "Failed to generate case pack");
