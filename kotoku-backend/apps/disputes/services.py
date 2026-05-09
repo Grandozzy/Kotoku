@@ -50,6 +50,12 @@ class DisputeService:
             raised_by=party,
             reason=reason.strip(),
         )
+        logger.info(
+            "dispute_opened: agreement_id=%s dispute_id=%s party_id=%s",
+            agreement_id,
+            dispute.pk,
+            party.pk,
+        )
         AuditService.record_event(
             event_type="dispute.opened",
             entity_type="dispute",
