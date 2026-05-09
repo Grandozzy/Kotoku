@@ -1,7 +1,10 @@
 from django.http import Http404
+import logging
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
+
+logger = logging.getLogger(__name__)
 
 from apps.agreements.selectors import AgreementSelector
 from apps.agreements.models import Agreement
@@ -30,10 +33,13 @@ class DisputeCollectionView(APIView):
 
     def post(self, request, agreement_id: int):
         agreement = self._get_agreement(agreement_id, request.user.account.pk)
+        logger.error(f"DEBUG: agreement status = {agreement.status}")
         if agreement.status != Agreement.Status.SEALED:
             return ok({"error": "Disputes can only be raised on sealed agreements"}, status_code=400)
         serializer = DisputeCreateSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        if not serializer.is_valid():
+            logger.error(f"DEBUG: serializer errors = {serializer.errors}")
+            return ok({"error": serializer.errors}, status_code=400)
         dispute = DisputeService.open_dispute(
             agreement_id=agreement_id,
             raised_by_party_id=serializer.validated_data["raised_by_party_id"],
