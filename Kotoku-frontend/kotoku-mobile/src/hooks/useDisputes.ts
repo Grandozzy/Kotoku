@@ -27,7 +27,8 @@ export function useDisputes(agreementId?: number) {
           ? `/agreements/${agreementId}/disputes/`
           : '/disputes/';
         const response = await apiClient.get(url);
-        setDisputes(response.data.disputes || []);
+        // API returns {"status":"ok","data":{"disputes":[]}}
+        setDisputes(response.data.data.disputes || response.data.disputes || []);
       } catch (e: any) {
         setError(e.message || 'Failed to load disputes');
       } finally {
