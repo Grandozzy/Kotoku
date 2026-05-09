@@ -1,10 +1,13 @@
 import { useState } from "react";
+import { Alert } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ChevronLeft, Clock, Loader2, Pencil } from "lucide-react-native";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Badge } from "@/components/ui";
+import { useAuth } from "@/features/auth/useAuth";
+import { apiClient } from "@/api/client";
 import { ExportButton } from "@/components/vault/ExportButton";
 import { ReopenSection } from "@/components/vault/ReopenSection";
 import { getAgreement } from "@/api/agreements";
@@ -33,9 +36,13 @@ export default function VaultDetailScreen() {
   const exportMutation = useRequestExport(id);
   const retryMutation = useRetryExport(id);
   const initReopened = useAgreementStore((s) => s.initReopened);
+  const { phone: currentPhone } = useAuth();
 
   const [editLoading, setEditLoading] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
+
+  const isSealed = record && record.agreementStatus !== "active";
+  const userParty = record?.parties.find((p) => p.phone === currentPhone);
 
   const handleEdit = async () => {
     setEditLoading(true);
@@ -53,11 +60,37 @@ export default function VaultDetailScreen() {
       const scId = record!.scenarioId;
       initReopened(record!.agreementId, scId as ScenarioId, partyA, partyB, agreement.fieldData);
       router.push(`/agreement/${record!.agreementId}/steps/parties?scenarioId=${scId}`);
-    } catch (err) {
+    } catch {
       setEditError("Failed to load agreement data");
     } finally {
       setEditLoading(false);
     }
+  };
+
+  const handleRaiseDispute = async () => {
+    Alert.prompt(
+      "Raise Dispute",
+      "Enter the reason for this dispute (minimum 10 characters)",
+      async (reason) => {
+        if (!reason || reason.trim().length < 10) {
+          Alert.alert("Error", "Please provide at least 10 characters");
+          return;
+        }
+        try {
+          await apiClient.post(`/v1/agreements/${id}/disputes`, {
+            reason: reason.trim(),
+          });
+          Alert.alert("Success", "Dispute has been raised", [
+            { text: "OK", onPress: () => router.push("/disputes") },
+          ]);
+        } catch {
+          Alert.alert("Error", "Failed to raise dispute");
+        }
+      },
+      "plain-text",
+      "",
+      "default",
+    );
   };
 
   if (isLoading || !record) {
@@ -171,6 +204,18 @@ export default function VaultDetailScreen() {
             </Text>
           )}
         </View>
+
+        {/* Raise Dispute */}
+        {isSealed && userParty && (
+          <Pressable
+            onPress={handleRaiseDispute}
+            className="flex-row items-center justify-center gap-sm bg-semantic-warning/10 border border-semantic-warning/30 rounded-lg py-md active:opacity-80"
+          >
+            <Text className="text-md font-semibold text-semantic-warning">
+              Raise Dispute
+            </Text>
+          </Pressable>
+        )}
 
         {/* Audit log */}
         {auditLog && auditLog.length > 0 && (
