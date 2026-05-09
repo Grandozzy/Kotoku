@@ -44,6 +44,19 @@ class AnnotationService:
         )
         return annotation
 
+    @staticmethod
+    def delete(annotation_id: int, actor_party_id: int) -> None:
+        """Delete an annotation. Only the author can delete their own annotation."""
+        try:
+            annotation = Annotation.objects.select_related("author_party").get(pk=annotation_id)
+        except Annotation.DoesNotExist:
+            raise DomainError("Annotation not found.")
+
+        if annotation.author_party_id != actor_party_id:
+            raise DomainError("You can only delete your own annotations.")
+
+        annotation.delete()
+
 
 class AnnotationSelector:
     @staticmethod

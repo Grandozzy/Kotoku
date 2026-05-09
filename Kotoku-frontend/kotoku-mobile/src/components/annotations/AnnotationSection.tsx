@@ -1,14 +1,25 @@
-import { Clock } from "lucide-react-native";
-import { Text, View } from "react-native";
-import { useAnnotations } from "@/features/annotations/useAnnotations";
+import { Clock, Trash2 } from "lucide-react-native";
+import { Pressable, Text, View } from "react-native";
+import { useAnnotations, useDeleteAnnotation } from "@/features/annotations";
 import { colors } from "@/theme/tokens";
 
 interface Props {
   agreementId: number;
+  partyId: number;
 }
 
-export function AnnotationSection({ agreementId }: Props) {
+export function AnnotationSection({ agreementId, partyId }: Props) {
   const { data: annotations, isLoading } = useAnnotations(agreementId);
+  const deleteMutation = useDeleteAnnotation(agreementId);
+
+  const handleDelete = (annotationId: number) => {
+    console.log("Deleting annotation:", annotationId, "partyId:", partyId);
+    if (!partyId) {
+      console.error("No partyId available");
+      return;
+    }
+    deleteMutation.mutate({ annotationId, partyId });
+  };
 
   if (isLoading) {
     return (
@@ -34,11 +45,18 @@ export function AnnotationSection({ agreementId }: Props) {
               i < annotations.length - 1 ? "border-b border-border-subtle" : "",
             ].join(" ")}
           >
-            <View className="flex-row items-center gap-sm">
-              <Clock size={14} color={colors.inkMuted} />
-              <Text className="text-xs text-ink-muted">
-                {note.authorDisplayName} · {formatRelativeTime(note.createdAt)}
-              </Text>
+            <View className="flex-row items-center justify-between">
+              <View className="flex-row items-center gap-sm flex-1">
+                <Clock size={14} color={colors.inkMuted} />
+                <Text className="text-xs text-ink-muted">
+                  {note.authorDisplayName} · {formatRelativeTime(note.createdAt)}
+                </Text>
+              </View>
+              {note.authorPartyId === partyId && (
+                <Pressable onPressIn={() => handleDelete(note.id)} hitSlop={8}>
+                  <Trash2 size={16} color={colors.semanticError} />
+                </Pressable>
+              )}
             </View>
             <Text className="text-sm text-ink-primary">{note.body}</Text>
           </View>

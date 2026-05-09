@@ -38,3 +38,22 @@ class AnnotationCollectionView(APIView):
             body=serializer.validated_data["body"],
         )
         return ok({"annotation": AnnotationSerializer(annotation).data}, status_code=201)
+
+
+class AnnotationDetailView(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def _get_agreement(self, agreement_id: int, account_id: int):
+        try:
+            return AgreementSelector.get_agreement_detail(agreement_id, account_id=account_id)
+        except Agreement.DoesNotExist:
+            raise Http404 from None
+
+    def delete(self, request, agreement_id: int, annotation_id: int):
+        self._get_agreement(agreement_id, request.user.account.pk)
+        party_id = request.query_params.get("party_id")
+        if not party_id:
+            return ok({"error": "party_id required"}, status_code=400)
+        AnnotationService.delete(annotation_id, int(party_id))
+        return ok(None)

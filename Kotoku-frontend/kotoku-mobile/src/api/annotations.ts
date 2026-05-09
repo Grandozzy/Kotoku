@@ -36,3 +36,13 @@ export async function listAnnotations(
   );
   return res.data.data.annotations;
 }
+
+export async function deleteAnnotation(
+  agreementId: number,
+  annotationId: number,
+  partyId: number,
+): Promise<void> {
+  await apiClient.delete(
+    `/agreements/${agreementId}/annotations/${annotationId}?party_id=${partyId}`,
+  );
+}

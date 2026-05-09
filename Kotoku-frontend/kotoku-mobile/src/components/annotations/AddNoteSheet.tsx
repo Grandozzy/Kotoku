@@ -1,12 +1,13 @@
 import { useState } from "react";
-import { Modal, Pressable, Text, TextInput, View } from "react-native";
+import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { X } from "lucide-react-native";
 import { useAddAnnotation } from "@/features/annotations/useAddAnnotation";
 import { colors } from "@/theme/tokens";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 interface Props {
   agreementId: number;
-  authorPartyId: number;
+  authorPartyId: number | undefined;
   visible: boolean;
   onClose: () => void;
 }
@@ -16,6 +17,7 @@ const MAX_CHARS = 1000;
 export function AddNoteSheet({ agreementId, authorPartyId, visible, onClose }: Props) {
   const [body, setBody] = useState("");
   const mutation = useAddAnnotation(agreementId);
+  const insets = useSafeAreaInsets();
 
   const handleSave = async () => {
     if (!body.trim() || !authorPartyId) return;
@@ -38,9 +40,16 @@ export function AddNoteSheet({ agreementId, authorPartyId, visible, onClose }: P
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={handleClose}>
-      <View className="flex-1 justify-end bg-black/50">
-        <Pressable className="flex-1" onPress={handleClose} />
-        <View className="bg-surface-canvas rounded-t-2xl p-lg gap-md">
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        className="flex-1 justify-end"
+      >
+        <Pressable className="flex-1 bg-black/50" onPress={handleClose} />
+        <ScrollView 
+            className="bg-surface-canvas rounded-t-2xl p-lg gap-md" 
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="interactive"
+          >
           <View className="flex-row items-center justify-between">
             <Text className="text-lg font-semibold text-ink-primary">Add note</Text>
             <Pressable onPress={handleClose} hitSlop={8}>
@@ -65,14 +74,14 @@ export function AddNoteSheet({ agreementId, authorPartyId, visible, onClose }: P
 
           <View className="flex-row gap-md">
             <Pressable
-              onPress={handleClose}
+              onPressIn={handleClose}
               className="flex-1 py-md border border-border-subtle rounded-lg"
             >
               <Text className="text-center text-md text-ink-primary">Cancel</Text>
             </Pressable>
             <Pressable
-              onPress={handleSave}
-              disabled={!body.trim() || mutation.isPending}
+              onPressIn={handleSave}
+              disabled={!body.trim() || !authorPartyId || mutation.isPending}
               className="flex-1 py-md bg-brand-primary rounded-lg disabled:opacity-50"
             >
               <Text className="text-center text-md font-semibold text-white">
@@ -86,8 +95,10 @@ export function AddNoteSheet({ agreementId, authorPartyId, visible, onClose }: P
               Failed to save note. Try again.
             </Text>
           )}
-        </View>
-      </View>
+
+          <View style={{ height: insets.bottom }} />
+        </ScrollView>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

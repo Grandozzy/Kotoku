@@ -4,11 +4,12 @@ from apps.vault.models import VaultEntry
 
 
 class PartySummarySerializer(serializers.Serializer):
+    id = serializers.IntegerField()
     role = serializers.CharField()
     display_name = serializers.CharField()
     phone = serializers.CharField()
-    id_type = serializers.CharField()
-    id_number = serializers.CharField()
+    id_type = serializers.CharField(allow_null=True)
+    id_number = serializers.CharField(allow_null=True)
 
 
 class AgreementSummarySerializer(serializers.Serializer):

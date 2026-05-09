@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { ChevronLeft, Clock, Loader2, Pencil, Plus } from "lucide-react-native";
+import { ChevronLeft, Clock, Loader2, Pencil } from "lucide-react-native";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -39,7 +39,6 @@ export default function VaultDetailScreen() {
   const [editLoading, setEditLoading] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
   const [noteSheetVisible, setNoteSheetVisible] = useState(false);
-  const canAddNote = ["sealed", "reopen_requested", "active"].includes(record.agreementStatus);
 
   const handleEdit = async () => {
     setEditLoading(true);
@@ -72,10 +71,14 @@ export default function VaultDetailScreen() {
     );
   }
 
+  const canAddNote = ["sealed", "reopen_requested", "active"].includes(record.agreementStatus);
+
   return (
-    <ScrollView
+    <View className="flex-1">
+      <ScrollView
       className="flex-1 bg-surface-canvas"
       contentContainerClassName="pb-2xl"
+      keyboardShouldPersistTaps="handled"
     >
       {/* Top bar */}
       <View className="flex-row items-center px-lg pb-md gap-md" style={{ paddingTop: insets.top + 12 }}>
@@ -209,13 +212,7 @@ export default function VaultDetailScreen() {
         {/* Annotations */}
         {canAddNote && (
           <>
-            <AnnotationSection agreementId={id} />
-            <Pressable
-              onPress={() => setNoteSheetVisible(true)}
-              className="absolute bottom-lg right-lg w-14 h-14 rounded-full bg-brand-primary items-center justify-center shadow-lg"
-            >
-              <Plus size={24} color="white" />
-            </Pressable>
+            <AnnotationSection agreementId={id} partyId={record.parties[0]?.id} />
             <AddNoteSheet
               agreementId={id}
               authorPartyId={record.parties[0]?.id}
@@ -226,6 +223,16 @@ export default function VaultDetailScreen() {
         )}
       </View>
     </ScrollView>
+    {canAddNote && (
+      <Pressable
+        onPress={() => setNoteSheetVisible(true)}
+        className="absolute bottom-6 right-6 w-14 h-14 rounded-full bg-brand-primary items-center justify-center"
+        style={{ bottom: insets.bottom + 24 }}
+      >
+        <Pencil size={24} color="white" />
+      </Pressable>
+    )}
+  </View>
   );
 }
 
