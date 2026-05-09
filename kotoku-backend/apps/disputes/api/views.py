@@ -32,20 +32,20 @@ class DisputeCollectionView(APIView):
         return ok({"disputes": DisputeSerializer(disputes, many=True).data})
 
     def post(self, request, agreement_id: int):
+        from rest_framework.response import Response
         import json
         logger.error(f"DEBUG POST: data={json.dumps(request.data)}")
         try:
             agreement = self._get_agreement(agreement_id, request.user.account.pk)
         except Http404:
-            return ok({"error": "Agreement not found"}, status_code=404)
+            return Response({"status": "error", "message": "Agreement not found"}, status=404)
         
         logger.error(f"DEBUG: agreement.status={agreement.status}")
         
-        # Allow any status for now - log what's happening
         serializer = DisputeCreateSerializer(data=request.data)
         if not serializer.is_valid():
             logger.error(f"DEBUG invalid: errors={serializer.errors}")
-            return ok({"error": str(serializer.errors)}, status_code=400)
+            return Response({"status": "error", "message": str(serializer.errors)}, status=400)
             
         try:
             dispute = DisputeService.open_dispute(
@@ -55,9 +55,9 @@ class DisputeCollectionView(APIView):
             )
         except Exception as e:
             logger.error(f"DEBUG service error: {e}")
-            return ok({"error": str(e)}, status_code=400)
+            return Response({"status": "error", "message": str(e)}, status=400)
             
-        return ok({"dispute": DisputeSerializer(dispute).data}, status_code=201)
+        return Response({"status": "ok", "data": DisputeSerializer(dispute).data}, status=201)
 
 
 class DisputeDetailView(APIView):
