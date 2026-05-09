@@ -1,7 +1,8 @@
-import { Text, View, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from "react-native";
+import { Text, View, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Pressable } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useState, useEffect } from "react";
+import { ChevronLeft } from "lucide-react-native";
 
 import { Card, Button } from "@/components/ui";
 import { apiClient } from "@/api/client";
@@ -74,9 +75,9 @@ export default function DisputeDetailScreen() {
       style={{ paddingTop: insets.top + 12 }}
     >
       <View className="flex-row items-center mb-lg gap-md">
-        <TouchableOpacity onPress={() => router.back()} className="p-sm -ml-sm">
-          <Text style={{ color: colors.inkPrimary, fontSize: 20 }}>{"<"}</Text>
-        </TouchableOpacity>
+        <Pressable onPress={() => router.back()} className="p-sm -ml-sm">
+          <ChevronLeft size={24} color={colors.inkPrimary} />
+        </Pressable>
         <Text className="text-2xl font-semibold text-ink-primary">Dispute Details</Text>
       </View>
 
