@@ -24,8 +24,8 @@ export function useDisputes(agreementId?: number) {
       try {
         setLoading(true);
         const url = agreementId 
-          ? `/v1/agreements/${agreementId}/disputes`
-          : '/v1/disputes';
+          ? `/agreements/${agreementId}/disputes`
+          : '/disputes';
         const response = await apiClient.get(url);
         setDisputes(response.data.disputes || []);
       } catch (e: any) {

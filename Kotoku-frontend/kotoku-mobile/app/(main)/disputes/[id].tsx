@@ -29,7 +29,7 @@ export default function DisputeDetailScreen() {
   useEffect(() => {
     async function fetchDetail() {
       try {
-        const response = await apiClient.get(`/v1/disputes/${id}`);
+        const response = await apiClient.get(`/disputes/${id}`);
         setDispute(response.data.dispute);
       } catch {
         Alert.alert("Error", "Failed to load dispute");
@@ -42,7 +42,7 @@ export default function DisputeDetailScreen() {
 
   const generateCasePack = async () => {
     try {
-      const response = await apiClient.post(`/v1/disputes/${id}/case_pack`, {});
+      const response = await apiClient.post(`/disputes/${id}/case_pack`, {});
       const casePack = response.data.case_pack;
       Alert.alert("Case Pack", JSON.stringify(casePack, null, 2));
     } catch {

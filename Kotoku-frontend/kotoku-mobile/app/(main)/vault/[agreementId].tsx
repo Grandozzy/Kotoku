@@ -77,7 +77,7 @@ export default function VaultDetailScreen() {
           return;
         }
         try {
-          await apiClient.post(`/v1/agreements/${id}/disputes`, {
+          await apiClient.post(`/agreements/${id}/disputes`, {
             raised_by_party_id: userParty?.id,
             reason: reason.trim(),
           });
