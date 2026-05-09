@@ -52,3 +52,11 @@ class DisputeDetailView(APIView):
         except Dispute.DoesNotExist:
             raise Http404 from None
         return ok({"dispute": DisputeSerializer(dispute).data})
+
+    def post(self, request, dispute_id: int):
+        try:
+            dispute = DisputeSelector.get(dispute_id=dispute_id, agreement_id__created_by=request.user.account)
+        except Dispute.DoesNotExist:
+            raise Http404 from None
+        case_pack = DisputeService.generate_case_pack(dispute=dispute)
+        return ok({"case_pack": case_pack})

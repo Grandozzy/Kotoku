@@ -1,5 +1,7 @@
 import logging
 
+from django.utils import timezone
+
 from apps.agreements.domain.enums import AgreementStatus
 from apps.agreements.models import Agreement
 from apps.audit.services import AuditService
@@ -56,3 +58,25 @@ class DisputeService:
             metadata={"agreement_id": agreement_id, "reason_preview": reason[:80]},
         )
         return dispute
+
+    @staticmethod
+    def generate_case_pack(*, dispute: Dispute) -> dict:
+        agreement = dispute.agreement
+        case_pack = {
+            "dispute_id": dispute.pk,
+            "generated_at": timezone.now().isoformat(),
+            "agreement": {
+                "id": agreement.pk,
+                "title": agreement.title,
+                "scenario": agreement.scenario_template,
+                "sealed_at": agreement.sealed_at.isoformat() if agreement.sealed_at else None,
+                "seal_hash": agreement.seal_hash,
+            },
+            "dispute": {
+                "raised_by": dispute.raised_by.display_name,
+                "reason": dispute.reason,
+                "status": dispute.status,
+                "created_at": dispute.created_at.isoformat(),
+            },
+        }
+        return case_pack
