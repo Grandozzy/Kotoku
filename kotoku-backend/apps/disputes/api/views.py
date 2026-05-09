@@ -66,19 +66,10 @@ class DisputeCollectionView(APIView):
         return ok({"disputes": DisputeSerializer(disputes, many=True).data})
 
     def post(self, request, agreement_id: int):
-        print(f"[DISPUTE DEBUG] POST agreements/{agreement_id} data={dict(request.data)}")
-        print(f"[DISPUTE DEBUG] user={request.user}, account={getattr(request.user, 'account', None)}")
+        print(f"[DISPUTE] Reached view! agreement_id={agreement_id}")
+        print(f"[DISPUTE] data={dict(request.data)}")
         
-        try:
-            agreement = self._get_agreement(agreement_id, request.user.account.pk)
-            print(f"[DISPUTE DEBUG] agreement found, status={agreement.status}")
-        except Http404:
-            return Response({"status": "error", "message": "Agreement not found"}, status=404)
-        
-        serializer = DisputeCreateSerializer(data=request.data)
-        if not serializer.is_valid():
-            print(f"[DISPUTE DEBUG] serializer invalid: {serializer.errors}")
-            return Response({"status": "error", "message": serializer.errors}, status=400)
+        return Response({"status": "ok", "test": "reached"})
         
         try:
             dispute = DisputeService.open_dispute(
