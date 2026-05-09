@@ -3,41 +3,10 @@ import logging
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
-
-logger = logging.getLogger(__name__)
-
-from apps.agreements.selectors import AgreementSelector
-from apps.agreements.models import Agreement
-from apps.disputes.api.serializers import DisputeCreateSerializer, DisputeSerializer
-from apps.disputes.models import Dispute
-from apps.disputes.selectors import DisputeSelector
-from apps.disputes.services import DisputeService
-from common.exceptions import DomainError
-from common.responses import ok
-
-
-class DisputeCollectionView(APIView):
-    authentication_classes = [TokenAuthentication]
-    permission_classes = [IsAuthenticated]
-
-    def _get_agreement(self, agreement_id: int, account_id: int):
-        try:
-            return AgreementSelector.get_agreement_detail(agreement_id, account_id=account_id)
-        except Agreement.DoesNotExist:
-            raise Http404 from None
-
-    def get(self, request, agreement_id: int):
-        self._get_agreement(agreement_id, request.user.account.pk)
-        disputes = DisputeSelector.list_for_agreement(agreement_id=agreement_id)
-        return ok({"disputes": DisputeSerializer(disputes, many=True).data})
-
-    from django.http import Http404
-import logging
-from rest_framework.authentication import TokenAuthentication
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.views import APIView
 from rest_framework.response import Response
 
+logger = logging.getLogger(__name__)
+
 from apps.agreements.selectors import AgreementSelector
 from apps.agreements.models import Agreement
 from apps.disputes.api.serializers import DisputeCreateSerializer, DisputeSerializer
@@ -46,8 +15,6 @@ from apps.disputes.selectors import DisputeSelector
 from apps.disputes.services import DisputeService
 from common.exceptions import DomainError
 from common.responses import ok
-
-logger = logging.getLogger(__name__)
 
 
 class DisputeCollectionView(APIView):
@@ -70,6 +37,15 @@ class DisputeCollectionView(APIView):
         print(f"[DISPUTE] data={dict(request.data)}")
         
         return Response({"status": "ok", "test": "reached"})
+
+
+class DisputeRootView(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        disputes = DisputeSelector.list_for_account(account_id=request.user.account.pk)
+        return ok({"disputes": DisputeSerializer(disputes, many=True).data})
 
 
 class DisputeDetailView(APIView):
