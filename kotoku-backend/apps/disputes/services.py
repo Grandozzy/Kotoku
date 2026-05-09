@@ -77,12 +77,25 @@ class DisputeService:
                 "scenario": agreement.scenario_template,
                 "sealed_at": agreement.sealed_at.isoformat() if agreement.sealed_at else None,
                 "seal_hash": agreement.seal_hash,
+                "status": agreement.status,
             },
+            "parties": [
+                {
+                    "id": p.pk,
+                    "display_name": p.display_name,
+                    "phone": p.phone,
+                    "role": p.role,
+                }
+                for p in agreement.parties.all()
+            ],
             "dispute": {
                 "raised_by": dispute.raised_by.display_name,
+                "raised_by_party_id": dispute.raised_by.pk,
                 "reason": dispute.reason,
                 "status": dispute.status,
+                "resolution": dispute.resolution,
                 "created_at": dispute.created_at.isoformat(),
+                "resolved_at": dispute.resolved_at.isoformat() if dispute.resolved_at else None,
             },
         }
         return case_pack

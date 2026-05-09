@@ -115,7 +115,7 @@ export default function DisputeDetailScreen() {
       </Card>
 
       <Button
-        title="Generate Case Pack"
+        title="Export for Mediation"
         onPress={generateCasePack}
         variant="secondary"
       />
