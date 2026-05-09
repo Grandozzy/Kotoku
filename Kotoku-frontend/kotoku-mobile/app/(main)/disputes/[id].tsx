@@ -42,16 +42,6 @@ export default function DisputeDetailScreen() {
     fetchDetail();
   }, [id]);
 
-  const generateCasePack = async () => {
-    try {
-      const response = await apiClient.post(`/disputes/${id}/case_pack/`, {});
-      const casePack = response.data.data.case_pack || response.data.case_pack;
-      Alert.alert("Case Pack", JSON.stringify(casePack, null, 2));
-    } catch {
-      Alert.alert("Error", "Failed to generate case pack");
-    }
-  };
-
   if (loading) {
     return (
       <View className="flex-1 justify-center items-center bg-surface-canvas">
@@ -113,12 +103,6 @@ export default function DisputeDetailScreen() {
           )}
         </View>
       </Card>
-
-      <Button
-        title="Export for Mediation"
-        onPress={generateCasePack}
-        variant="secondary"
-      />
     </ScrollView>
   );
 }
