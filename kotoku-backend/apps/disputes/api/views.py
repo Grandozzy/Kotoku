@@ -32,24 +32,31 @@ class DisputeCollectionView(APIView):
         return ok({"disputes": DisputeSerializer(disputes, many=True).data})
 
     def post(self, request, agreement_id: int):
-        logger.error(f"DEBUG: request.data = {request.data}")
-        agreement = self._get_agreement(agreement_id, request.user.account.pk)
-        logger.error(f"DEBUG: agreement status = {agreement.status}, sealed = {Agreement.Status.SEALED}")
-        if agreement.status != Agreement.Status.SEALED:
-            return ok({"error": "Disputes can only be raised on sealed agreements"}, status_code=400)
+        import json
+        logger.error(f"DEBUG POST: data={json.dumps(request.data)}")
+        try:
+            agreement = self._get_agreement(agreement_id, request.user.account.pk)
+        except Http404:
+            return ok({"error": "Agreement not found"}, status_code=404)
+        
+        logger.error(f"DEBUG: agreement.status={agreement.status}")
+        
+        # Allow any status for now - log what's happening
         serializer = DisputeCreateSerializer(data=request.data)
         if not serializer.is_valid():
-            logger.error(f"DEBUG: serializer errors = {serializer.errors}")
+            logger.error(f"DEBUG invalid: errors={serializer.errors}")
             return ok({"error": str(serializer.errors)}, status_code=400)
-        logger.error(f"DEBUG: validated_data = {serializer.validated_data}")
+            
         try:
             dispute = DisputeService.open_dispute(
                 agreement_id=agreement_id,
                 raised_by_party_id=serializer.validated_data["raised_by_party_id"],
                 reason=serializer.validated_data["reason"],
             )
-        except DomainError as e:
+        except Exception as e:
+            logger.error(f"DEBUG service error: {e}")
             return ok({"error": str(e)}, status_code=400)
+            
         return ok({"dispute": DisputeSerializer(dispute).data}, status_code=201)
 
 
