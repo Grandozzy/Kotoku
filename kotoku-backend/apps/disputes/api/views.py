@@ -70,21 +70,6 @@ class DisputeCollectionView(APIView):
         print(f"[DISPUTE] data={dict(request.data)}")
         
         return Response({"status": "ok", "test": "reached"})
-        
-        try:
-            dispute = DisputeService.open_dispute(
-                agreement_id=agreement_id,
-                raised_by_party_id=serializer.validated_data["raised_by_party_id"],
-                reason=serializer.validated_data["reason"],
-            )
-        except DomainError as e:
-            logger.error(f"DomainError: {e}")
-            return Response({"status": "error", "message": str(e)}, status=400)
-        except Exception as e:
-            logger.error(f"Service error: {e}")
-            return Response({"status": "error", "message": str(e)}, status=500)
-        
-        return Response({"status": "ok", "data": DisputeSerializer(dispute).data}, status=201)
 
 
 class DisputeDetailView(APIView):
