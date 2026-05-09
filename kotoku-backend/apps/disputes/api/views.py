@@ -46,17 +46,21 @@ class DisputeDetailView(APIView):
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
 
-    def get(self, request, dispute_id: int):
+    def get(self, request, agreement_id: int, dispute_id: int):
         try:
-            dispute = DisputeSelector.get(dispute_id=dispute_id, agreement_id__created_by=request.user.account)
+            dispute = DisputeSelector.get(dispute_id=dispute_id, agreement_id=agreement_id)
         except Dispute.DoesNotExist:
+            raise Http404 from None
+        if dispute.agreement.created_by != request.user.account:
             raise Http404 from None
         return ok({"dispute": DisputeSerializer(dispute).data})
 
-    def post(self, request, dispute_id: int):
+    def post(self, request, agreement_id: int, dispute_id: int):
         try:
-            dispute = DisputeSelector.get(dispute_id=dispute_id, agreement_id__created_by=request.user.account)
+            dispute = DisputeSelector.get(dispute_id=dispute_id, agreement_id=agreement_id)
         except Dispute.DoesNotExist:
+            raise Http404 from None
+        if dispute.agreement.created_by != request.user.account:
             raise Http404 from None
         case_pack = DisputeService.generate_case_pack(dispute=dispute)
         return ok({"case_pack": case_pack})
