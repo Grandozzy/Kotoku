@@ -45,7 +45,6 @@ class DisputeCollectionView(APIView):
         # Auto-detect party from logged-in user if not provided
         party_id = request.data.get("raised_by_party_id")
         if not party_id:
-            # Query parties directly from DB
             parties = Party.objects.filter(agreement_id=agreement_id)
             user_phone = getattr(request.user, 'username', None)
             print(f"[DISPUTE] Looking for party with phone={user_phone}")
@@ -59,10 +58,13 @@ class DisputeCollectionView(APIView):
                 party_id = parties.first().id if parties else None
                 print(f"[DISPUTE] Using fallback party: {party_id}")
         
-        request.data = request.data.copy()
-        request.data["raised_by_party_id"] = party_id
+        # Create serializer data with detected party
+        serializer_data = {
+            "raised_by_party_id": party_id,
+            "reason": request.data.get("reason", ""),
+        }
         
-        serializer = DisputeCreateSerializer(data=request.data)
+        serializer = DisputeCreateSerializer(data=serializer_data)
         if not serializer.is_valid():
             print(f"[DISPUTE] Invalid: {serializer.errors}")
             return Response({"status": "error", "message": serializer.errors}, status=400)
