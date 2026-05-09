@@ -69,6 +69,6 @@ urlpatterns = [
     # Sprint 6: disputes
     path(
         "<int:agreement_id>/disputes/",
-        include("apps.disputes.api.urls"),
+        include("apps.disputes.api.urls_agreement"),
     ),
 ]
