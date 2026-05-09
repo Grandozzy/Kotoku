@@ -19,7 +19,7 @@ export default function DisputesIndexScreen() {
               {item.agreement_type || 'Agreement'}
             </Text>
             <Text className="text-sm text-ink-secondary">
-              vs {item.raised_by_display_name}
+              Raised by {item.raised_by_display_name}
             </Text>
           </View>
           <View className={`px-sm py-xs rounded ${
