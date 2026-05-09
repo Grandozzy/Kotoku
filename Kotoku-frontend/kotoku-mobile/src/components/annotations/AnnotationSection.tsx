@@ -1,7 +1,11 @@
-import { Clock, Trash2 } from "lucide-react-native";
-import { Pressable, Text, View } from "react-native";
+import { useState } from "react";
+import { Clock } from "lucide-react-native";
+import { Text, View } from "react-native";
 import { useAnnotations, useDeleteAnnotation } from "@/features/annotations";
 import { colors } from "@/theme/tokens";
+import { SwipeableRow } from "./SwipeableRow";
+import { EditNoteSheet, useEditNoteSheet } from "./EditNoteSheet";
+import type { Annotation } from "@/api/annotations";
 
 interface Props {
   agreementId: number;
@@ -11,14 +15,14 @@ interface Props {
 export function AnnotationSection({ agreementId, partyId }: Props) {
   const { data: annotations, isLoading } = useAnnotations(agreementId);
   const deleteMutation = useDeleteAnnotation(agreementId);
+  const { annotation, visible: editVisible, open: openEdit, close: closeEdit } = useEditNoteSheet(agreementId);
 
   const handleDelete = (annotationId: number) => {
-    console.log("Deleting annotation:", annotationId, "partyId:", partyId);
-    if (!partyId) {
-      console.error("No partyId available");
-      return;
-    }
     deleteMutation.mutate({ annotationId, partyId });
+  };
+
+  const handleEdit = (note: Annotation) => {
+    openEdit(note);
   };
 
   if (isLoading) {
@@ -36,32 +40,41 @@ export function AnnotationSection({ agreementId, partyId }: Props) {
   return (
     <View className="gap-sm">
       <Text className="text-md font-semibold text-ink-primary">Notes</Text>
-      <View className="bg-surface-card rounded-lg border border-border-subtle overflow-hidden">
-        {annotations.map((note, i) => (
-          <View
-            key={note.id}
-            className={[
-              "flex-1 px-lg py-md gap-xs",
-              i < annotations.length - 1 ? "border-b border-border-subtle" : "",
-            ].join(" ")}
-          >
-            <View className="flex-row items-center justify-between">
-              <View className="flex-row items-center gap-sm flex-1">
-                <Clock size={14} color={colors.inkMuted} />
-                <Text className="text-xs text-ink-muted">
-                  {note.authorDisplayName} · {formatRelativeTime(note.createdAt)}
-                </Text>
-              </View>
-              {note.authorPartyId === partyId && (
-                <Pressable onPressIn={() => handleDelete(note.id)} hitSlop={8}>
-                  <Trash2 size={16} color={colors.semanticError} />
-                </Pressable>
-              )}
+      <View className="rounded-lg overflow-hidden">
+        {annotations.map((note, i) => {
+          const canDelete = note.authorPartyId === partyId;
+          return (
+            <View
+              key={note.id}
+              className={i < annotations.length - 1 ? "border-b border-border-subtle" : ""}
+            >
+              <SwipeableRow
+                onDelete={() => handleDelete(note.id)}
+                onEdit={() => handleEdit(note)}
+                note={note}
+                disabled={!canDelete}
+              >
+                <View className="flex-1 px-lg py-md gap-xs bg-surface-card">
+                  <View className="flex-row items-center gap-sm">
+                    <Clock size={14} color={colors.inkMuted} />
+                    <Text className="text-xs text-ink-muted">
+                      {note.authorDisplayName} · {formatRelativeTime(note.createdAt)}
+                    </Text>
+                  </View>
+                  <Text className="text-sm text-ink-primary">{note.body}</Text>
+                </View>
+              </SwipeableRow>
             </View>
-            <Text className="text-sm text-ink-primary">{note.body}</Text>
-          </View>
-        ))}
+          );
+        })}
       </View>
+      <EditNoteSheet
+        agreementId={agreementId}
+        partyId={partyId}
+        annotation={annotation}
+        visible={editVisible}
+        onClose={closeEdit}
+      />
     </View>
   );
 }

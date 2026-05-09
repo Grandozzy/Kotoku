@@ -57,3 +57,18 @@ class AnnotationDetailView(APIView):
             return ok({"error": "party_id required"}, status_code=400)
         AnnotationService.delete(annotation_id, int(party_id))
         return ok(None)
+
+    def put(self, request, agreement_id: int, annotation_id: int):
+        self._get_agreement(agreement_id, request.user.account.pk)
+        party_id = request.query_params.get("party_id")
+        if not party_id:
+            return ok({"error": "party_id required"}, status_code=400)
+        body = request.data.get("body")
+        if not body:
+            return ok({"error": "body required"}, status_code=400)
+        annotation = AnnotationService.update(
+            annotation_id=annotation_id,
+            actor_party_id=int(party_id),
+            body=body,
+        )
+        return ok({"annotation": AnnotationSerializer(annotation).data})

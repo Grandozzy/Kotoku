@@ -57,6 +57,29 @@ class AnnotationService:
 
         annotation.delete()
 
+    @staticmethod
+    def update(*, annotation_id: int, actor_party_id: int, body: str) -> Annotation:
+        """Update an annotation. Only the author can edit their own annotation."""
+        try:
+            annotation = Annotation.objects.select_related("author_party").get(pk=annotation_id)
+        except Annotation.DoesNotExist:
+            raise DomainError("Annotation not found.")
+
+        if annotation.author_party_id != actor_party_id:
+            raise DomainError("You can only edit your own annotations.")
+
+        annotation.body = body
+        annotation.save()
+
+        AuditService.record_event(
+            event_type="agreement.annotation_updated",
+            entity_type="annotation",
+            entity_id=str(annotation.pk),
+            actor=str(actor_party_id),
+            metadata={"agreement_id": annotation.agreement_id},
+        )
+        return annotation
+
 
 class AnnotationSelector:
     @staticmethod

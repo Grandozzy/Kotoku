@@ -46,3 +46,16 @@ export async function deleteAnnotation(
     `/agreements/${agreementId}/annotations/${annotationId}?party_id=${partyId}`,
   );
 }
+
+export async function updateAnnotation(
+  agreementId: number,
+  annotationId: number,
+  partyId: number,
+  body: string,
+): Promise<Annotation> {
+  const res = await apiClient.put<ApiResponse<{ annotation: Annotation }>>(
+    `/agreements/${agreementId}/annotations/${annotationId}?party_id=${partyId}`,
+    { body },
+  );
+  return res.data.data.annotation;
+}
