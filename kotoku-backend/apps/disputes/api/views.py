@@ -29,7 +29,9 @@ class DisputeCollectionView(APIView):
         return ok({"disputes": DisputeSerializer(disputes, many=True).data})
 
     def post(self, request, agreement_id: int):
-        self._get_agreement(agreement_id, request.user.account.pk)
+        agreement = self._get_agreement(agreement_id, request.user.account.pk)
+        if agreement.status != Agreement.Status.SEALED:
+            return ok({"error": "Disputes can only be raised on sealed agreements"}, status_code=400)
         serializer = DisputeCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         dispute = DisputeService.open_dispute(
@@ -38,3 +40,15 @@ class DisputeCollectionView(APIView):
             reason=serializer.validated_data["reason"],
         )
         return ok({"dispute": DisputeSerializer(dispute).data}, status_code=201)
+
+
+class DisputeDetailView(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, dispute_id: int):
+        try:
+            dispute = DisputeSelector.get(dispute_id=dispute_id, agreement_id__created_by=request.user.account)
+        except Dispute.DoesNotExist:
+            raise Http404 from None
+        return ok({"dispute": DisputeSerializer(dispute).data})
