@@ -33,10 +33,15 @@ class DisputeCollectionView(APIView):
         return ok({"disputes": DisputeSerializer(disputes, many=True).data})
 
     def post(self, request, agreement_id: int):
-        print(f"[DISPUTE] Reached view! agreement_id={agreement_id}")
-        print(f"[DISPUTE] data={dict(request.data)}")
-        
-        return Response({"status": "ok", "test": "reached"})
+        self._get_agreement(agreement_id, request.user.account.pk)
+        serializer = DisputeCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        dispute = DisputeService.open_dispute(
+            agreement_id=agreement_id,
+            raised_by_party_id=serializer.validated_data["raised_by_party_id"],
+            reason=serializer.validated_data["reason"],
+        )
+        return Response({"status": "ok", "data": DisputeSerializer(dispute).data}, status=201)
 
 
 class DisputeRootView(APIView):
