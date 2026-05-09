@@ -1,21 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
-import { listAnnotations } from "@/api/annotations";
+import { listAnnotations, type Annotation } from "@/api/annotations";
 
-interface AnnotationItem {
-  id: number;
-  author_party_id: number;
-  author_display_name: string;
-  body: string;
-  created_at: string;
-}
-
-function mapAnnotation(raw: AnnotationItem) {
+function mapAnnotation(raw: Annotation) {
   return {
     id: raw.id,
-    authorPartyId: raw.author_party_id,
-    authorDisplayName: raw.author_display_name,
+    authorPartyId: raw.authorPartyId,
+    authorDisplayName: raw.authorDisplayName,
     body: raw.body,
-    createdAt: raw.created_at,
+    createdAt: raw.createdAt,
   };
 }
 

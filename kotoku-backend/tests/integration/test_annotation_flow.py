@@ -175,3 +175,86 @@ class TestPostSealAnnotationFlow:
         _, other_client = _make_account("00050003")
         resp = other_client.get(_ANNOTATIONS_PATH.format(id=agr.pk))
         assert resp.status_code == 404
+
+    def test_update_annotation(self):
+        acct, client = _make_account("00060001")
+        agr = _sealed_agreement(acct, acct.phone, "+233A00060002")
+        party = agr.parties.first()
+
+        create_resp = client.post(
+            _ANNOTATIONS_PATH.format(id=agr.pk),
+            data={"author_party_id": party.pk, "body": "Original body"},
+            format="json",
+        )
+        ann_id = create_resp.json()["data"]["annotation"]["id"]
+
+        update_resp = client.put(
+            f"/api/agreements/{agr.pk}/annotations/{ann_id}?party_id={party.pk}",
+            data={"body": "Updated body"},
+            format="json",
+        )
+        assert update_resp.status_code == 200
+        assert update_resp.json()["data"]["annotation"]["body"] == "Updated body"
+
+        get_resp = client.get(_ANNOTATIONS_PATH.format(id=agr.pk))
+        annotations = get_resp.json()["data"]["annotations"]
+        assert annotations[0]["body"] == "Updated body"
+
+    def test_non_author_cannot_update_annotation(self):
+        acct, client = _make_account("00070001")
+        agr = _sealed_agreement(acct, acct.phone, "+233A00070002")
+        party = agr.parties.first()
+
+        create_resp = client.post(
+            _ANNOTATIONS_PATH.format(id=agr.pk),
+            data={"author_party_id": party.pk, "body": "Original"},
+            format="json",
+        )
+        ann_id = create_resp.json()["data"]["annotation"]["id"]
+
+        other_party = agr.parties.last()
+        update_resp = client.put(
+            f"/api/agreements/{agr.pk}/annotations/{ann_id}?party_id={other_party.pk}",
+            data={"body": "Hacked"},
+            format="json",
+        )
+        assert update_resp.status_code == 400
+
+    def test_delete_annotation(self):
+        acct, client = _make_account("00080001")
+        agr = _sealed_agreement(acct, acct.phone, "+233A00080002")
+        party = agr.parties.first()
+
+        create_resp = client.post(
+            _ANNOTATIONS_PATH.format(id=agr.pk),
+            data={"author_party_id": party.pk, "body": "To be deleted"},
+            format="json",
+        )
+        ann_id = create_resp.json()["data"]["annotation"]["id"]
+
+        delete_resp = client.delete(
+            f"/api/agreements/{agr.pk}/annotations/{ann_id}?party_id={party.pk}"
+        )
+        assert delete_resp.status_code == 200
+
+        get_resp = client.get(_ANNOTATIONS_PATH.format(id=agr.pk))
+        annotations = get_resp.json()["data"]["annotations"]
+        assert len(annotations) == 0
+
+    def test_non_author_cannot_delete_annotation(self):
+        acct, client = _make_account("00090001")
+        agr = _sealed_agreement(acct, acct.phone, "+233A00090002")
+        party = agr.parties.first()
+
+        create_resp = client.post(
+            _ANNOTATIONS_PATH.format(id=agr.pk),
+            data={"author_party_id": party.pk, "body": "Not mine"},
+            format="json",
+        )
+        ann_id = create_resp.json()["data"]["annotation"]["id"]
+
+        other_party = agr.parties.last()
+        delete_resp = client.delete(
+            f"/api/agreements/{agr.pk}/annotations/{ann_id}?party_id={other_party.pk}"
+        )
+        assert delete_resp.status_code == 400
