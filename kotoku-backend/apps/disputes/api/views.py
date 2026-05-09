@@ -32,19 +32,24 @@ class DisputeCollectionView(APIView):
         return ok({"disputes": DisputeSerializer(disputes, many=True).data})
 
     def post(self, request, agreement_id: int):
+        logger.error(f"DEBUG: request.data = {request.data}")
         agreement = self._get_agreement(agreement_id, request.user.account.pk)
-        logger.error(f"DEBUG: agreement status = {agreement.status}")
+        logger.error(f"DEBUG: agreement status = {agreement.status}, sealed = {Agreement.Status.SEALED}")
         if agreement.status != Agreement.Status.SEALED:
             return ok({"error": "Disputes can only be raised on sealed agreements"}, status_code=400)
         serializer = DisputeCreateSerializer(data=request.data)
         if not serializer.is_valid():
             logger.error(f"DEBUG: serializer errors = {serializer.errors}")
-            return ok({"error": serializer.errors}, status_code=400)
-        dispute = DisputeService.open_dispute(
-            agreement_id=agreement_id,
-            raised_by_party_id=serializer.validated_data["raised_by_party_id"],
-            reason=serializer.validated_data["reason"],
-        )
+            return ok({"error": str(serializer.errors)}, status_code=400)
+        logger.error(f"DEBUG: validated_data = {serializer.validated_data}")
+        try:
+            dispute = DisputeService.open_dispute(
+                agreement_id=agreement_id,
+                raised_by_party_id=serializer.validated_data["raised_by_party_id"],
+                reason=serializer.validated_data["reason"],
+            )
+        except DomainError as e:
+            return ok({"error": str(e)}, status_code=400)
         return ok({"dispute": DisputeSerializer(dispute).data}, status_code=201)
 
 
