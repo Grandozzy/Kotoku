@@ -173,3 +173,75 @@ class TestDisputeOnSealedAgreement:
         _, other_client = _make_account("00050003")
         resp = other_client.get(_DISPUTES_PATH.format(id=agr.pk))
         assert resp.status_code == 404
+
+    def test_case_pack_returns_all_required_fields(self):
+        from apps.disputes.models import Dispute
+
+        acct, client = _make_account("00060001")
+        agr = _sealed_agreement(acct, acct.phone, "+233B00060002")
+        party = agr.parties.first()
+        dispute = Dispute.objects.create(
+            agreement=agr,
+            raised_by=party,
+            reason="Vehicle condition does not match agreed specification.",
+        )
+
+        resp = client.post(f"/api/agreements/{agr.pk}/disputes/{dispute.pk}/case_pack/")
+        assert resp.status_code == 200
+        pack = resp.json()["data"]["case_pack"]
+        assert pack["dispute"]["reason"] == "Vehicle condition does not match agreed specification."
+        assert pack["agreement"]["seal_hash"] is not None
+        assert pack["agreement"]["scenario"] == "used_vehicle_sale"
+        assert len(pack["parties"]) == 2
+        assert pack["dispute"]["status"] == "open"
+        assert pack["dispute"]["resolved_at"] is None
+
+    def test_case_pack_inaccessible_to_other_user(self):
+        from apps.disputes.models import Dispute
+
+        acct, client = _make_account("00070001")
+        agr = _sealed_agreement(acct, acct.phone, "+233B00070002")
+        party = agr.parties.first()
+        dispute = Dispute.objects.create(
+            agreement=agr, raised_by=party, reason="Test reason for access check."
+        )
+
+        _, other_client = _make_account("00070003")
+        resp = other_client.post(f"/api/agreements/{agr.pk}/disputes/{dispute.pk}/case_pack/")
+        assert resp.status_code == 404
+
+    def test_root_disputes_list_returns_only_own_agreements(self):
+        from apps.disputes.models import Dispute
+
+        acct, client = _make_account("00080001")
+        other_acct, _ = _make_account("00080002")
+        agr = _sealed_agreement(acct, acct.phone, "+233B00080003")
+        other_agr = _sealed_agreement(other_acct, other_acct.phone, "+233B00080004")
+        Dispute.objects.create(
+            agreement=agr, raised_by=agr.parties.first(), reason="My own dispute."
+        )
+        Dispute.objects.create(
+            agreement=other_agr, raised_by=other_agr.parties.first(), reason="Not my dispute."
+        )
+
+        resp = client.get("/api/disputes/")
+        assert resp.status_code == 200
+        disputes = resp.json()["data"]["disputes"]
+        assert len(disputes) == 1
+        assert disputes[0]["reason"] == "My own dispute."
+
+    def test_root_dispute_detail_returns_correct_dispute(self):
+        from apps.disputes.models import Dispute
+
+        acct, client = _make_account("00090001")
+        agr = _sealed_agreement(acct, acct.phone, "+233B00090002")
+        dispute = Dispute.objects.create(
+            agreement=agr, raised_by=agr.parties.first(), reason="Detail lookup test."
+        )
+
+        resp = client.get(f"/api/disputes/{dispute.pk}/")
+        assert resp.status_code == 200
+        data = resp.json()["data"]["dispute"]
+        assert data["id"] == dispute.pk
+        assert data["reason"] == "Detail lookup test."
+        assert data["agreement_id"] == agr.pk
