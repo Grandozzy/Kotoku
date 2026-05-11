@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Badge } from "@/components/ui";
 import { AnnotationSection } from "@/components/annotations/AnnotationSection";
 import { AddNoteSheet } from "@/components/annotations/AddNoteSheet";
+import { useAuth } from "@/features/auth/useAuth";
 import { ExportButton } from "@/components/vault/ExportButton";
 import { ReopenSection } from "@/components/vault/ReopenSection";
 import { getAgreement } from "@/api/agreements";
@@ -35,6 +36,7 @@ export default function VaultDetailScreen() {
   const exportMutation = useRequestExport(id);
   const retryMutation = useRetryExport(id);
   const initReopened = useAgreementStore((s) => s.initReopened);
+  const { phone: currentPhone } = useAuth();
 
   const [editLoading, setEditLoading] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
@@ -72,6 +74,7 @@ export default function VaultDetailScreen() {
   }
 
   const canAddNote = ["sealed", "reopen_requested", "active"].includes(record.agreementStatus);
+  const userParty = record.parties.find((p) => p.phone === currentPhone);
 
   return (
     <View className="flex-1">
@@ -210,12 +213,12 @@ export default function VaultDetailScreen() {
         )}
 
         {/* Annotations */}
-        {canAddNote && (
+        {canAddNote && userParty && (
           <>
-            <AnnotationSection agreementId={id} partyId={record.parties[0]?.id} />
+            <AnnotationSection agreementId={id} partyId={userParty.id} />
             <AddNoteSheet
               agreementId={id}
-              authorPartyId={record.parties[0]?.id}
+              authorPartyId={userParty.id}
               visible={noteSheetVisible}
               onClose={() => setNoteSheetVisible(false)}
             />
@@ -223,7 +226,7 @@ export default function VaultDetailScreen() {
         )}
       </View>
     </ScrollView>
-    {canAddNote && (
+    {canAddNote && userParty && (
       <Pressable
         onPress={() => setNoteSheetVisible(true)}
         className="absolute bottom-6 right-6 w-14 h-14 rounded-full bg-brand-primary items-center justify-center"

@@ -1,9 +1,11 @@
 from django.http import Http404
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.agreements.annotation_services import AnnotationSelector, AnnotationService
+from common.exceptions import DomainError
 from apps.agreements.api.annotations.serializers import (
     AnnotationCreateSerializer,
     AnnotationSerializer,
@@ -54,21 +56,27 @@ class AnnotationDetailView(APIView):
         self._get_agreement(agreement_id, request.user.account.pk)
         party_id = request.query_params.get("party_id")
         if not party_id:
-            return ok({"error": "party_id required"}, status_code=400)
-        AnnotationService.delete(annotation_id, int(party_id))
+            return Response({"status": "error", "message": "party_id required"}, status=400)
+        try:
+            AnnotationService.delete(annotation_id, int(party_id))
+        except DomainError as e:
+            return Response({"status": "error", "message": str(e)}, status=400)
         return ok(None)
 
     def put(self, request, agreement_id: int, annotation_id: int):
         self._get_agreement(agreement_id, request.user.account.pk)
         party_id = request.query_params.get("party_id")
         if not party_id:
-            return ok({"error": "party_id required"}, status_code=400)
+            return Response({"status": "error", "message": "party_id required"}, status=400)
         body = request.data.get("body")
         if not body:
-            return ok({"error": "body required"}, status_code=400)
-        annotation = AnnotationService.update(
-            annotation_id=annotation_id,
-            actor_party_id=int(party_id),
-            body=body,
-        )
+            return Response({"status": "error", "message": "body required"}, status=400)
+        try:
+            annotation = AnnotationService.update(
+                annotation_id=annotation_id,
+                actor_party_id=int(party_id),
+                body=body,
+            )
+        except DomainError as e:
+            return Response({"status": "error", "message": str(e)}, status=400)
         return ok({"annotation": AnnotationSerializer(annotation).data})
