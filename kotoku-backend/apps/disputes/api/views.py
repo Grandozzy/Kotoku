@@ -1,10 +1,15 @@
 from django.http import Http404
+import logging
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
+from rest_framework.response import Response
+
+logger = logging.getLogger(__name__)
 
 from apps.agreements.selectors import AgreementSelector
 from apps.agreements.models import Agreement
+from apps.parties.models import Party
 from apps.disputes.api.serializers import DisputeCreateSerializer, DisputeSerializer
 from apps.disputes.models import Dispute
 from apps.disputes.selectors import DisputeSelector
@@ -29,12 +34,101 @@ class DisputeCollectionView(APIView):
         return ok({"disputes": DisputeSerializer(disputes, many=True).data})
 
     def post(self, request, agreement_id: int):
-        self._get_agreement(agreement_id, request.user.account.pk)
-        serializer = DisputeCreateSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        dispute = DisputeService.open_dispute(
-            agreement_id=agreement_id,
-            raised_by_party_id=serializer.validated_data["raised_by_party_id"],
-            reason=serializer.validated_data["reason"],
-        )
+        try:
+            self._get_agreement(agreement_id, request.user.account.pk)
+        except Http404:
+            return Response({"status": "error", "message": "Agreement not found"}, status=404)
+
+        # Auto-detect party from logged-in user if not provided
+        party_id = request.data.get("raised_by_party_id")
+        if not party_id:
+            user_phone = getattr(request.user, "username", None)
+            parties = Party.objects.filter(agreement_id=agreement_id)
+            for party in parties:
+                if party.phone == user_phone:
+                    party_id = party.id
+                    break
+            if not party_id:
+                first = parties.first()
+                party_id = first.id if first else None
+                logger.debug(
+                    "dispute_post: no phone match, falling back to first party %s for agreement %s",
+                    party_id,
+                    agreement_id,
+                )
+
+        serializer = DisputeCreateSerializer(data={
+            "raised_by_party_id": party_id,
+            "reason": request.data.get("reason", ""),
+        })
+        if not serializer.is_valid():
+            return Response({"status": "error", "message": serializer.errors}, status=400)
+
+        try:
+            dispute = DisputeService.open_dispute(
+                agreement_id=agreement_id,
+                raised_by_party_id=serializer.validated_data["raised_by_party_id"],
+                reason=serializer.validated_data["reason"],
+            )
+        except DomainError as e:
+            return Response({"status": "error", "message": str(e)}, status=400)
+
         return ok({"dispute": DisputeSerializer(dispute).data}, status_code=201)
+
+
+class DisputeRootView(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        disputes = DisputeSelector.list_for_account(account_id=request.user.account.pk)
+        return ok({"disputes": DisputeSerializer(disputes, many=True).data})
+
+
+class DisputeLookupView(APIView):
+    """Look up a single dispute by ID without needing agreement_id."""
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, dispute_id: int):
+        try:
+            dispute = Dispute.objects.select_related("raised_by", "agreement").get(
+                pk=dispute_id, agreement__created_by=request.user.account
+            )
+        except Dispute.DoesNotExist:
+            raise Http404 from None
+        return ok({"dispute": DisputeSerializer(dispute).data})
+
+    def post(self, request, dispute_id: int):
+        try:
+            dispute = Dispute.objects.select_related("raised_by", "agreement").get(
+                pk=dispute_id, agreement__created_by=request.user.account
+            )
+        except Dispute.DoesNotExist:
+            raise Http404 from None
+        case_pack = DisputeService.generate_case_pack(dispute=dispute)
+        return ok({"case_pack": case_pack})
+
+
+class DisputeDetailView(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, agreement_id: int, dispute_id: int):
+        try:
+            dispute = DisputeSelector.get(dispute_id=dispute_id, agreement_id=agreement_id)
+        except Dispute.DoesNotExist:
+            raise Http404 from None
+        if dispute.agreement.created_by != request.user.account:
+            raise Http404 from None
+        return ok({"dispute": DisputeSerializer(dispute).data})
+
+    def post(self, request, agreement_id: int, dispute_id: int):
+        try:
+            dispute = DisputeSelector.get(dispute_id=dispute_id, agreement_id=agreement_id)
+        except Dispute.DoesNotExist:
+            raise Http404 from None
+        if dispute.agreement.created_by != request.user.account:
+            raise Http404 from None
+        case_pack = DisputeService.generate_case_pack(dispute=dispute)
+        return ok({"case_pack": case_pack})

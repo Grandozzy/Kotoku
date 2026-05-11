@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Alert, Modal, TextInput } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ChevronLeft, Clock, Loader2, Pencil } from "lucide-react-native";
 import { Pressable, ScrollView, Text, View } from "react-native";
@@ -8,6 +9,7 @@ import { Badge } from "@/components/ui";
 import { AnnotationSection } from "@/components/annotations/AnnotationSection";
 import { AddNoteSheet } from "@/components/annotations/AddNoteSheet";
 import { useAuth } from "@/features/auth/useAuth";
+import { apiClient } from "@/api/client";
 import { ExportButton } from "@/components/vault/ExportButton";
 import { ReopenSection } from "@/components/vault/ReopenSection";
 import { getAgreement } from "@/api/agreements";
@@ -41,6 +43,9 @@ export default function VaultDetailScreen() {
   const [editLoading, setEditLoading] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
   const [noteSheetVisible, setNoteSheetVisible] = useState(false);
+  const [disputeModalVisible, setDisputeModalVisible] = useState(false);
+  const [disputeReason, setDisputeReason] = useState("");
+  const [disputeSubmitting, setDisputeSubmitting] = useState(false);
 
   const handleEdit = async () => {
     setEditLoading(true);
@@ -58,10 +63,38 @@ export default function VaultDetailScreen() {
       const scId = record!.scenarioId;
       initReopened(record!.agreementId, scId as ScenarioId, partyA, partyB, agreement.fieldData);
       router.push(`/agreement/${record!.agreementId}/steps/parties?scenarioId=${scId}`);
-    } catch (err) {
+    } catch {
       setEditError("Failed to load agreement data");
     } finally {
       setEditLoading(false);
+    }
+  };
+
+  const handleSubmitDispute = async () => {
+    if (!record) return;
+    const userParty = record.parties.find((p) => p.phone === currentPhone);
+    if (!userParty) return;
+    const trimmed = disputeReason.trim();
+    if (trimmed.length < 10) {
+      Alert.alert("Error", "Please provide at least 10 characters");
+      return;
+    }
+    setDisputeSubmitting(true);
+    try {
+      await apiClient.post(`/agreements/${id}/disputes/`, {
+        raised_by_party_id: userParty.id,
+        reason: trimmed,
+      });
+      setDisputeModalVisible(false);
+      setDisputeReason("");
+      Alert.alert("Dispute raised", "Your dispute has been submitted.", [
+        { text: "View disputes", onPress: () => router.push("/disputes") },
+        { text: "Stay here" },
+      ]);
+    } catch {
+      Alert.alert("Error", "Failed to raise dispute. Please try again.");
+    } finally {
+      setDisputeSubmitting(false);
     }
   };
 
@@ -73,8 +106,9 @@ export default function VaultDetailScreen() {
     );
   }
 
-  const canAddNote = ["sealed", "reopen_requested", "active"].includes(record.agreementStatus);
   const userParty = record.parties.find((p) => p.phone === currentPhone);
+  const canAddNote = ["sealed", "reopen_requested", "active"].includes(record.agreementStatus);
+  const canRaiseDispute = record.agreementStatus === "sealed";
 
   return (
     <View className="flex-1">
@@ -181,6 +215,62 @@ export default function VaultDetailScreen() {
             </Text>
           )}
         </View>
+
+        {/* Raise Dispute */}
+        {canRaiseDispute && userParty && (
+          <Pressable
+            onPress={() => setDisputeModalVisible(true)}
+            className="flex-row items-center justify-center gap-sm bg-semantic-warning/10 border border-semantic-warning/30 rounded-lg py-md active:opacity-80"
+          >
+            <Text className="text-md font-semibold text-semantic-warning">
+              Raise Dispute
+            </Text>
+          </Pressable>
+        )}
+
+        {/* Raise Dispute modal */}
+        <Modal
+          visible={disputeModalVisible}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setDisputeModalVisible(false)}
+        >
+          <View className="flex-1 justify-end bg-black/50">
+            <View className="bg-surface-canvas rounded-t-2xl p-xl gap-lg" style={{ paddingBottom: insets.bottom + 24 }}>
+              <Text className="text-lg font-semibold text-ink-primary">Raise a Dispute</Text>
+              <Text className="text-sm text-ink-secondary">
+                Describe the issue with this agreement. Minimum 10 characters.
+              </Text>
+              <TextInput
+                className="bg-surface-card border border-border-subtle rounded-lg px-md py-sm text-base text-ink-primary min-h-[96px]"
+                placeholder="Enter reason…"
+                placeholderTextColor="#9CA3AF"
+                value={disputeReason}
+                onChangeText={setDisputeReason}
+                multiline
+                textAlignVertical="top"
+                autoFocus
+              />
+              <View className="flex-row gap-md">
+                <Pressable
+                  onPress={() => { setDisputeModalVisible(false); setDisputeReason(""); }}
+                  className="flex-1 items-center justify-center py-md rounded-lg border border-border-subtle active:opacity-70"
+                >
+                  <Text className="text-base font-medium text-ink-secondary">Cancel</Text>
+                </Pressable>
+                <Pressable
+                  onPress={handleSubmitDispute}
+                  disabled={disputeSubmitting}
+                  className="flex-1 items-center justify-center py-md rounded-lg bg-semantic-warning active:opacity-80"
+                >
+                  <Text className="text-base font-semibold text-white">
+                    {disputeSubmitting ? "Submitting…" : "Submit"}
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        </Modal>
 
         {/* Audit log */}
         {auditLog && auditLog.length > 0 && (

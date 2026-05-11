@@ -1,5 +1,7 @@
 import logging
 
+from django.utils import timezone
+
 from apps.agreements.domain.enums import AgreementStatus
 from apps.agreements.models import Agreement
 from apps.audit.services import AuditService
@@ -48,6 +50,12 @@ class DisputeService:
             raised_by=party,
             reason=reason.strip(),
         )
+        logger.info(
+            "dispute_opened: agreement_id=%s dispute_id=%s party_id=%s",
+            agreement_id,
+            dispute.pk,
+            party.pk,
+        )
         AuditService.record_event(
             event_type="dispute.opened",
             entity_type="dispute",
@@ -56,3 +64,38 @@ class DisputeService:
             metadata={"agreement_id": agreement_id, "reason_preview": reason[:80]},
         )
         return dispute
+
+    @staticmethod
+    def generate_case_pack(*, dispute: Dispute) -> dict:
+        agreement = dispute.agreement
+        case_pack = {
+            "dispute_id": dispute.pk,
+            "generated_at": timezone.now().isoformat(),
+            "agreement": {
+                "id": agreement.pk,
+                "title": agreement.title,
+                "scenario": agreement.scenario_template,
+                "sealed_at": agreement.sealed_at.isoformat() if agreement.sealed_at else None,
+                "seal_hash": agreement.seal_hash,
+                "status": agreement.status,
+            },
+            "parties": [
+                {
+                    "id": p.pk,
+                    "display_name": p.display_name,
+                    "phone": p.phone,
+                    "role": p.role,
+                }
+                for p in agreement.parties.all()
+            ],
+            "dispute": {
+                "raised_by": dispute.raised_by.display_name,
+                "raised_by_party_id": dispute.raised_by.pk,
+                "reason": dispute.reason,
+                "status": dispute.status,
+                "resolution": dispute.resolution,
+                "created_at": dispute.created_at.isoformat(),
+                "resolved_at": dispute.resolved_at.isoformat() if dispute.resolved_at else None,
+            },
+        }
+        return case_pack
