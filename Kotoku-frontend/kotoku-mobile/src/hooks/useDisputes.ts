@@ -1,42 +1,19 @@
-import { useState, useEffect } from 'react';
-import { apiClient } from '@/api/client';
+import { useQuery } from "@tanstack/react-query";
+import { getDispute, listDisputes, listDisputesForAgreement, type Dispute } from "@/api/disputes";
 
-export interface Dispute {
-  id: number;
-  agreement_id: number;
-  agreement_type: string;
-  agreement_sealed_at: string;
-  raised_by_party_id: number;
-  raised_by_display_name: string;
-  reason: string;
-  status: 'open' | 'investigating' | 'resolved' | 'dismissed';
-  resolution?: string;
-  created_at: string;
-}
+export type { Dispute };
 
 export function useDisputes(agreementId?: number) {
-  const [disputes, setDisputes] = useState<Dispute[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  return useQuery({
+    queryKey: agreementId ? ["disputes", "agreement", agreementId] : ["disputes"],
+    queryFn: () =>
+      agreementId ? listDisputesForAgreement(agreementId) : listDisputes(),
+  });
+}
 
-  useEffect(() => {
-    async function fetchDisputes() {
-      try {
-        setLoading(true);
-        const url = agreementId 
-          ? `/agreements/${agreementId}/disputes/`
-          : '/disputes/';
-        const response = await apiClient.get(url);
-        // API returns {"status":"ok","data":{"disputes":[]}}
-        setDisputes(response.data.data.disputes || response.data.disputes || []);
-      } catch (e: any) {
-        setError(e.message || 'Failed to load disputes');
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchDisputes();
-  }, [agreementId]);
-
-  return { disputes, loading, error };
+export function useDisputeDetail(disputeId: number) {
+  return useQuery({
+    queryKey: ["disputes", disputeId],
+    queryFn: () => getDispute(disputeId),
+  });
 }

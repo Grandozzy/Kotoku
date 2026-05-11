@@ -1,48 +1,19 @@
-import { Text, View, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Pressable } from "react-native";
+import { ActivityIndicator, ScrollView, Text, View, Pressable } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useState, useEffect } from "react";
 import { ChevronLeft } from "lucide-react-native";
 
-import { Card, Button } from "@/components/ui";
-import { apiClient } from "@/api/client";
+import { Card } from "@/components/ui";
+import { useDisputeDetail } from "@/hooks/useDisputes";
 import { colors } from "@/theme/tokens";
-
-interface DisputeDetail {
-  id: number;
-  agreement_id: number;
-  agreement_type: string;
-  agreement_sealed_at: string;
-  raised_by_display_name: string;
-  reason: string;
-  status: string;
-  resolution?: string;
-  created_at: string;
-}
 
 export default function DisputeDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const [dispute, setDispute] = useState<DisputeDetail | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { data: dispute, isLoading, isError } = useDisputeDetail(Number(id));
 
-  useEffect(() => {
-    async function fetchDetail() {
-      try {
-        const response = await apiClient.get(`/disputes/${id}/`);
-        // API returns {"status":"ok","data":{"dispute":{}}}
-        setDispute(response.data.data.dispute || response.data.dispute);
-      } catch {
-        Alert.alert("Error", "Failed to load dispute");
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchDetail();
-  }, [id]);
-
-  if (loading) {
+  if (isLoading) {
     return (
       <View className="flex-1 justify-center items-center bg-surface-canvas">
         <ActivityIndicator size="large" />
@@ -50,7 +21,7 @@ export default function DisputeDetailScreen() {
     );
   }
 
-  if (!dispute) {
+  if (isError || !dispute) {
     return (
       <View className="flex-1 justify-center items-center bg-surface-canvas">
         <Text className="text-sm text-ink-muted">Dispute not found</Text>
@@ -62,7 +33,7 @@ export default function DisputeDetailScreen() {
     <ScrollView
       className="flex-1 bg-surface-canvas"
       contentContainerClassName="px-lg pb-2xl"
-      style={{ paddingTop: insets.top + 12 }}
+      contentContainerStyle={{ paddingTop: insets.top + 12 }}
     >
       <View className="flex-row items-center mb-lg gap-md">
         <Pressable onPress={() => router.back()} className="p-sm -ml-sm">
@@ -80,7 +51,7 @@ export default function DisputeDetailScreen() {
           <View>
             <Text className="text-sm text-ink-muted">Sealed At</Text>
             <Text className="text-base text-ink-primary">
-              {new Date(dispute.agreement_sealed_at).toLocaleDateString()}
+              {new Date(dispute.agreement_sealed_at).toLocaleDateString("en-GH")}
             </Text>
           </View>
           <View>
