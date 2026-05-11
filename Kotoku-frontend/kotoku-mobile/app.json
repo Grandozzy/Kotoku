@@ -53,7 +53,8 @@
         }
       ],
       "expo-sqlite",
-      "expo-media-library"
+      "expo-media-library",
+      "@sentry/react-native"
     ],
     "experiments": {
       "typedRoutes": true

@@ -11,6 +11,7 @@
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
     "@react-native-community/netinfo": "11.4.1",
+    "@sentry/react-native": "~7.2.0",
     "@tanstack/react-query": "^5.99.2",
     "axios": "^1.15.2",
     "babel-preset-expo": "~54.0.10",
