@@ -34,53 +34,46 @@ class DisputeCollectionView(APIView):
         return ok({"disputes": DisputeSerializer(disputes, many=True).data})
 
     def post(self, request, agreement_id: int):
-        print(f"[DISPUTE] POST agreement_id={agreement_id}")
-        print(f"[DISPUTE] data={request.data}")
         try:
-            agreement = self._get_agreement(agreement_id, request.user.account.pk)
+            self._get_agreement(agreement_id, request.user.account.pk)
         except Http404:
-            print("[DISPUTE] Agreement not found")
             return Response({"status": "error", "message": "Agreement not found"}, status=404)
-        
+
         # Auto-detect party from logged-in user if not provided
         party_id = request.data.get("raised_by_party_id")
         if not party_id:
+            user_phone = getattr(request.user, "username", None)
             parties = Party.objects.filter(agreement_id=agreement_id)
-            user_phone = getattr(request.user, 'username', None)
-            print(f"[DISPUTE] Looking for party with phone={user_phone}")
-            print(f"[DISPUTE] Available parties: {list(parties.values_list('id', 'phone'))}")
             for party in parties:
                 if party.phone == user_phone:
                     party_id = party.id
-                    print(f"[DISPUTE] Found matching party: {party_id}")
                     break
             if not party_id:
-                party_id = parties.first().id if parties else None
-                print(f"[DISPUTE] Using fallback party: {party_id}")
-        
-        # Create serializer data with detected party
-        serializer_data = {
+                first = parties.first()
+                party_id = first.id if first else None
+                logger.debug(
+                    "dispute_post: no phone match, falling back to first party %s for agreement %s",
+                    party_id,
+                    agreement_id,
+                )
+
+        serializer = DisputeCreateSerializer(data={
             "raised_by_party_id": party_id,
             "reason": request.data.get("reason", ""),
-        }
-        
-        serializer = DisputeCreateSerializer(data=serializer_data)
+        })
         if not serializer.is_valid():
-            print(f"[DISPUTE] Invalid: {serializer.errors}")
             return Response({"status": "error", "message": serializer.errors}, status=400)
-        
+
         try:
             dispute = DisputeService.open_dispute(
                 agreement_id=agreement_id,
                 raised_by_party_id=serializer.validated_data["raised_by_party_id"],
                 reason=serializer.validated_data["reason"],
             )
-            print(f"[DISPUTE] Created dispute ID={dispute.id}")
-        except Exception as e:
-            print(f"[DISPUTE] Error: {e}")
+        except DomainError as e:
             return Response({"status": "error", "message": str(e)}, status=400)
-        
-        return Response({"status": "ok", "data": DisputeSerializer(dispute).data}, status=201)
+
+        return ok({"dispute": DisputeSerializer(dispute).data}, status_code=201)
 
 
 class DisputeRootView(APIView):

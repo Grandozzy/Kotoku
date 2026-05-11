@@ -83,7 +83,7 @@ class TestDisputeDetailAPI:
             raised_by=party,
             reason="Test reason",
         )
-        response = client.get(f"/api/agreements/{agreement.pk}/disputes/disputes/{dispute.pk}/")
+        response = client.get(f"/api/agreements/{agreement.pk}/disputes/{dispute.pk}/")
         assert response.status_code == 200
 
 
@@ -96,6 +96,6 @@ class TestDisputeCasePackAPI:
             raised_by=party,
             reason="Test reason",
         )
-        response = client.post(f"/api/agreements/{agreement.pk}/disputes/disputes/{dispute.pk}/case_pack/")
+        response = client.post(f"/api/agreements/{agreement.pk}/disputes/{dispute.pk}/case_pack/")
         assert response.status_code == 200
         assert "case_pack" in response.data["data"]

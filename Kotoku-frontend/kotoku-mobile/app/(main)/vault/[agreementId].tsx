@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Alert } from "react-native";
+import { Alert, Modal, TextInput } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ChevronLeft, Clock, Loader2, Pencil } from "lucide-react-native";
 import { Pressable, ScrollView, Text, View } from "react-native";
@@ -40,8 +40,11 @@ export default function VaultDetailScreen() {
 
   const [editLoading, setEditLoading] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
+  const [disputeModalVisible, setDisputeModalVisible] = useState(false);
+  const [disputeReason, setDisputeReason] = useState("");
+  const [disputeSubmitting, setDisputeSubmitting] = useState(false);
 
-  const isSealed = record && record.agreementStatus !== "active";
+  const canRaiseDispute = record?.agreementStatus === "sealed";
   const userParty = record?.parties.find((p) => p.phone === currentPhone);
 
   const handleEdit = async () => {
@@ -67,31 +70,30 @@ export default function VaultDetailScreen() {
     }
   };
 
-  const handleRaiseDispute = async () => {
-    Alert.prompt(
-      "Raise Dispute",
-      "Enter the reason for this dispute (minimum 10 characters)",
-      async (reason) => {
-        if (!reason || reason.trim().length < 10) {
-          Alert.alert("Error", "Please provide at least 10 characters");
-          return;
-        }
-        try {
-          await apiClient.post(`/agreements/${id}/disputes/`, {
-            raised_by_party_id: userParty?.id,
-            reason: reason.trim(),
-          });
-          Alert.alert("Success", "Dispute has been raised", [
-            { text: "OK", onPress: () => router.push("/disputes") },
-          ]);
-        } catch {
-          Alert.alert("Error", "Failed to raise dispute");
-        }
-      },
-      "plain-text",
-      "",
-      "default",
-    );
+  const handleSubmitDispute = async () => {
+    if (!userParty) return;
+    const trimmed = disputeReason.trim();
+    if (trimmed.length < 10) {
+      Alert.alert("Error", "Please provide at least 10 characters");
+      return;
+    }
+    setDisputeSubmitting(true);
+    try {
+      await apiClient.post(`/agreements/${id}/disputes/`, {
+        raised_by_party_id: userParty.id,
+        reason: trimmed,
+      });
+      setDisputeModalVisible(false);
+      setDisputeReason("");
+      Alert.alert("Dispute raised", "Your dispute has been submitted.", [
+        { text: "View disputes", onPress: () => router.push("/disputes") },
+        { text: "Stay here" },
+      ]);
+    } catch {
+      Alert.alert("Error", "Failed to raise dispute. Please try again.");
+    } finally {
+      setDisputeSubmitting(false);
+    }
   };
 
   if (isLoading || !record) {
@@ -207,9 +209,9 @@ export default function VaultDetailScreen() {
         </View>
 
         {/* Raise Dispute */}
-        {isSealed && userParty && (
+        {canRaiseDispute && userParty && (
           <Pressable
-            onPress={handleRaiseDispute}
+            onPress={() => setDisputeModalVisible(true)}
             className="flex-row items-center justify-center gap-sm bg-semantic-warning/10 border border-semantic-warning/30 rounded-lg py-md active:opacity-80"
           >
             <Text className="text-md font-semibold text-semantic-warning">
@@ -217,6 +219,50 @@ export default function VaultDetailScreen() {
             </Text>
           </Pressable>
         )}
+
+        {/* Raise Dispute modal */}
+        <Modal
+          visible={disputeModalVisible}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setDisputeModalVisible(false)}
+        >
+          <View className="flex-1 justify-end bg-black/50">
+            <View className="bg-surface-canvas rounded-t-2xl p-xl gap-lg" style={{ paddingBottom: insets.bottom + 24 }}>
+              <Text className="text-lg font-semibold text-ink-primary">Raise a Dispute</Text>
+              <Text className="text-sm text-ink-secondary">
+                Describe the issue with this agreement. Minimum 10 characters.
+              </Text>
+              <TextInput
+                className="bg-surface-card border border-border-subtle rounded-lg px-md py-sm text-base text-ink-primary min-h-[96px]"
+                placeholder="Enter reason…"
+                placeholderTextColor="#9CA3AF"
+                value={disputeReason}
+                onChangeText={setDisputeReason}
+                multiline
+                textAlignVertical="top"
+                autoFocus
+              />
+              <View className="flex-row gap-md">
+                <Pressable
+                  onPress={() => { setDisputeModalVisible(false); setDisputeReason(""); }}
+                  className="flex-1 items-center justify-center py-md rounded-lg border border-border-subtle active:opacity-70"
+                >
+                  <Text className="text-base font-medium text-ink-secondary">Cancel</Text>
+                </Pressable>
+                <Pressable
+                  onPress={handleSubmitDispute}
+                  disabled={disputeSubmitting}
+                  className="flex-1 items-center justify-center py-md rounded-lg bg-semantic-warning active:opacity-80"
+                >
+                  <Text className="text-base font-semibold text-white">
+                    {disputeSubmitting ? "Submitting…" : "Submit"}
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        </Modal>
 
         {/* Audit log */}
         {auditLog && auditLog.length > 0 && (

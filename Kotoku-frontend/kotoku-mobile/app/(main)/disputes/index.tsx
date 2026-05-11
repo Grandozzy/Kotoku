@@ -1,44 +1,27 @@
-import { Text, View, FlatList, TouchableOpacity, ActivityIndicator, ScrollView } from 'react-native';
-import { useRouter } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
+import { useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { Card } from '@/components/ui';
-import { useDisputes, Dispute } from '@/hooks/useDisputes';
+import { Card } from "@/components/ui";
+import { useDisputes, type Dispute } from "@/hooks/useDisputes";
+
+function statusStyle(status: Dispute["status"]) {
+  switch (status) {
+    case "open":
+      return { bg: "bg-warning/20", text: "text-warning" };
+    case "resolved":
+      return { bg: "bg-success/20", text: "text-success" };
+    default:
+      return { bg: "bg-ink-muted/20", text: "text-ink-muted" };
+  }
+}
 
 export default function DisputesIndexScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { disputes, loading } = useDisputes();
+  const { data: disputes = [], isLoading } = useDisputes();
 
-  const renderItem = ({ item }: { item: Dispute }) => (
-    <TouchableOpacity onPress={() => router.push(`/disputes/${item.id}`)}>
-      <Card elevation="sm" className="mb-sm">
-        <View className="flex-row justify-between items-center">
-          <View>
-            <Text className="text-base font-medium text-ink-primary">
-              {item.agreement_type || 'Agreement'}
-            </Text>
-            <Text className="text-sm text-ink-secondary">
-              Raised by {item.raised_by_display_name}
-            </Text>
-          </View>
-          <View className={`px-sm py-xs rounded ${
-            item.status === 'open' ? 'bg-warning/20' :
-            item.status === 'resolved' ? 'bg-success/20' : 'bg-ink-muted/20'
-          }`}>
-            <Text className={`text-xs font-medium ${
-              item.status === 'open' ? 'text-warning' :
-              item.status === 'resolved' ? 'text-success' : 'text-ink-muted'
-            }`}>
-              {item.status}
-            </Text>
-          </View>
-        </View>
-      </Card>
-    </TouchableOpacity>
-  );
-
-  if (loading) {
+  if (isLoading) {
     return (
       <View className="flex-1 justify-center items-center bg-surface-canvas">
         <ActivityIndicator size="large" />
@@ -61,17 +44,39 @@ export default function DisputesIndexScreen() {
 
       {disputes.length === 0 ? (
         <Card elevation="sm">
-          <Text className="text-sm text-ink-muted text-center py-lg">
-            No disputes yet.
-          </Text>
+          <Text className="text-sm text-ink-muted text-center py-lg">No disputes yet.</Text>
         </Card>
       ) : (
-        <FlatList
-          data={disputes}
-          renderItem={renderItem}
-          keyExtractor={(item) => String(item.id)}
-          scrollEnabled={false}
-        />
+        <View className="gap-sm">
+          {disputes.map((item) => {
+            const style = statusStyle(item.status);
+            return (
+              <Pressable
+                key={item.id}
+                onPress={() => router.push(`/disputes/${item.id}`)}
+                className="active:opacity-70"
+              >
+                <Card elevation="sm">
+                  <View className="flex-row justify-between items-center">
+                    <View className="flex-1 mr-md">
+                      <Text className="text-base font-medium text-ink-primary">
+                        {item.agreement_type || "Agreement"}
+                      </Text>
+                      <Text className="text-sm text-ink-secondary">
+                        Raised by {item.raised_by_display_name}
+                      </Text>
+                    </View>
+                    <View className={`px-sm py-xs rounded ${style.bg}`}>
+                      <Text className={`text-xs font-medium capitalize ${style.text}`}>
+                        {item.status}
+                      </Text>
+                    </View>
+                  </View>
+                </Card>
+              </Pressable>
+            );
+          })}
+        </View>
       )}
     </ScrollView>
   );
