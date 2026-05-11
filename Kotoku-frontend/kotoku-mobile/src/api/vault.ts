@@ -3,6 +3,7 @@ import type { ApiResponse } from "@/types/api";
 import type { VaultRecord } from "@/types/vault";
 
 interface RawPartySummary {
+  id: number;
   role: string;
   display_name: string;
   phone: string;
@@ -43,6 +44,7 @@ function mapVaultRecord(raw: RawVaultEntry): VaultRecord {
     retentionExpiresAt: raw.retain_until,
     createdByPhone: raw.agreement.created_by_phone,
     parties: (raw.agreement.parties ?? []).map((p) => ({
+      id: p.id,
       role: p.role,
       displayName: p.display_name,
       phone: p.phone,
