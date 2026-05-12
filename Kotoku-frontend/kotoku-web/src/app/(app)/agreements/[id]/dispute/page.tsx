@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useParams } from "next/navigation";
+import { Scale } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { agreementsApi } from "@/api/agreements";
 import { disputesApi } from "@/api/disputes";
@@ -215,13 +216,17 @@ export default function DisputePage() {
 
       {/* Existing disputes */}
       {disputes.length === 0 && !showForm && canRaiseDispute && (
-        <div className="rounded-2xl border border-dashed border-neutral-200 p-8 text-center text-neutral-400">
-          <p className="text-2xl mb-2">⚖️</p>
-          <p className="font-medium text-neutral-600">No disputes raised</p>
-          <p className="text-sm mt-1">
-            If you have a concern about this agreement, raise a dispute and it
-            will be stored permanently with the sealed record.
-          </p>
+        <div className="rounded-2xl border border-dashed border-neutral-200 p-8 flex flex-col items-center gap-3 text-center">
+          <div className="w-12 h-12 rounded-xl bg-neutral-100 flex items-center justify-center">
+            <Scale size={22} className="text-neutral-400" strokeWidth={1.6} />
+          </div>
+          <div>
+            <p className="font-medium text-neutral-700">No disputes raised</p>
+            <p className="text-sm text-neutral-400 mt-1">
+              If you have a concern about this agreement, raise a dispute and it
+              will be stored permanently with the sealed record.
+            </p>
+          </div>
         </div>
       )}
 

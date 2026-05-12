@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Handshake } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { agreementsApi } from "@/api/agreements";
 import type { Agreement } from "@/types/agreement";
@@ -101,15 +102,23 @@ export default function DashboardPage() {
       )}
 
       {!isLoading && agreements.length === 0 && (
-        <div className="text-center py-20 text-neutral-400">
-          <p className="text-4xl mb-4">🤝</p>
-          <p className="font-medium text-neutral-600">No agreements yet.</p>
-          <p className="text-sm mt-1">
-            Good agreements make good friends.{" "}
-            <Link href="/agreements/new" className="text-emerald-600 underline">
-              Seal your first one.
-            </Link>
-          </p>
+        <div className="flex flex-col items-center justify-center py-24 gap-4">
+          <div className="w-14 h-14 rounded-2xl bg-blue-50 flex items-center justify-center">
+            <Handshake size={26} className="text-blue-600" strokeWidth={1.6} />
+          </div>
+          <div className="text-center">
+            <p className="font-semibold text-neutral-800">Your first agreement is one tap away</p>
+            <p className="text-sm text-neutral-500 mt-1 max-w-sm">
+              Seal a deal with anyone — record evidence, collect consent via SMS,
+              and create a tamper-proof vault entry in under five minutes.
+            </p>
+          </div>
+          <Link
+            href="/agreements/new"
+            className="px-5 py-2.5 rounded-full bg-neutral-900 text-white text-sm font-medium hover:bg-neutral-700 transition-colors"
+          >
+            New agreement →
+          </Link>
         </div>
       )}
     </div>

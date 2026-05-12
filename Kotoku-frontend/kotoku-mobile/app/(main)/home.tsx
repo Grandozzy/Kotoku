@@ -1,12 +1,13 @@
 import { useRouter } from "expo-router";
+import { FileText, Handshake } from "lucide-react-native";
 import { useState } from "react";
 import { Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { Button } from "@/components/ui";
+import { Button, CardSkeleton, EmptyState } from "@/components/ui";
 import { getAgreement } from "@/api/agreements";
 import { usePendingActions } from "@/features/agreements/usePendingActions";
-import { useAgreementStore, type PartyDraft } from "@/features/agreements/agreementStore";
+import { useAgreementStore } from "@/features/agreements/agreementStore";
 import type { ScenarioId } from "@/constants/scenarios";
 import { SCENARIOS } from "@/constants/scenarios";
 import { colors } from "@/theme/tokens";
@@ -23,6 +24,7 @@ export default function HomeScreen() {
 
   const actionRequired = data?.action_required ?? [];
   const drafts = data?.drafts ?? [];
+  const isEmpty = !isLoading && actionRequired.length === 0 && drafts.length === 0;
 
   return (
     <ScrollView
@@ -37,24 +39,32 @@ export default function HomeScreen() {
         />
       }
     >
-      <View>
-        <Text className="text-2xl font-semibold text-ink-primary">Home</Text>
-        <Text className="text-sm text-ink-secondary mt-xs">
-          Start or resume an agreement
-        </Text>
+      <View className="flex-row items-center justify-between">
+        <View>
+          <Text className="text-2xl font-semibold text-ink-primary">Home</Text>
+          <Text className="text-sm text-ink-secondary mt-xs">
+            Start or resume an agreement
+          </Text>
+        </View>
+        <Button
+          title="New"
+          variant="primary"
+          size="sm"
+          onPress={() => router.push("/agreement/new")}
+        />
       </View>
 
-      <Button
-        title="New agreement"
-        variant="primary"
-        size="lg"
-        fullWidth
-        onPress={() => router.push("/agreement/new")}
-      />
-
-      {actionRequired.length > 0 && (
+      {isLoading && (
         <View className="gap-sm">
-          <Text className="text-md font-semibold text-amber-600">
+          <CardSkeleton />
+          <CardSkeleton />
+          <CardSkeleton />
+        </View>
+      )}
+
+      {!isLoading && actionRequired.length > 0 && (
+        <View className="gap-sm">
+          <Text className="text-xs font-semibold text-amber-600 uppercase tracking-widest">
             Action required
           </Text>
           {actionRequired.map((item) => (
@@ -63,21 +73,27 @@ export default function HomeScreen() {
         </View>
       )}
 
-      {drafts.length > 0 && (
+      {!isLoading && drafts.length > 0 && (
         <View className="gap-sm">
-          <Text className="text-md font-semibold text-ink-primary">Drafts</Text>
+          <Text className="text-xs font-semibold text-ink-muted uppercase tracking-widest">
+            Drafts
+          </Text>
           {drafts.map((item) => (
             <DraftCard key={item.id} item={item} />
           ))}
         </View>
       )}
 
-      {actionRequired.length === 0 && drafts.length === 0 && !isLoading && (
-        <View className="items-center py-xl">
-          <Text className="text-sm text-ink-muted">
-            No pending actions. Tap &quot;New agreement&quot; to start.
-          </Text>
-        </View>
+      {isEmpty && (
+        <EmptyState
+          icon={Handshake}
+          title="Your first agreement is one tap away"
+          body="Seal a deal with anyone — record evidence, collect consent via SMS, and create a tamper-proof vault entry in under five minutes."
+          action={{
+            label: "New agreement",
+            onPress: () => router.push("/agreement/new"),
+          }}
+        />
       )}
     </ScrollView>
   );
@@ -124,7 +140,7 @@ function ActionCard({ item }: { item: { id: number; title: string; status: strin
     <Pressable
       onPress={handlePress}
       disabled={loading}
-      className="bg-surface-card rounded-lg border border-border-subtle p-lg active:opacity-70"
+      className="bg-surface-card rounded-xl border border-amber-200 p-lg active:opacity-70"
     >
       <Text className="text-md font-semibold text-ink-primary" numberOfLines={1}>
         {item.title}
@@ -153,14 +169,21 @@ function DraftCard({ item }: { item: { id: number; title: string; updated_at: st
   return (
     <Pressable
       onPress={handlePress}
-      className="bg-surface-card rounded-lg border border-border-subtle p-lg active:opacity-70"
+      className="bg-surface-card rounded-xl border border-border-subtle p-lg active:opacity-70"
     >
-      <Text className="text-md font-semibold text-ink-primary" numberOfLines={1}>
-        {item.title}
-      </Text>
-      <Text className="text-xs text-ink-muted mt-xs">{scenarioLabel} · {relativeTime}</Text>
-      {partyNames && <Text className="text-xs text-ink-secondary mt-xs">{partyNames}</Text>}
-      <Text className="text-xs text-brand-primary mt-xs">Continue →</Text>
+      <View className="flex-row items-start gap-md">
+        <View className="w-9 h-9 rounded-lg bg-surface-canvas items-center justify-center mt-xs">
+          <FileText size={16} color={colors.inkSecondary} strokeWidth={1.8} />
+        </View>
+        <View className="flex-1">
+          <Text className="text-md font-semibold text-ink-primary" numberOfLines={1}>
+            {item.title}
+          </Text>
+          <Text className="text-xs text-ink-muted mt-xs">{scenarioLabel} · {relativeTime}</Text>
+          {partyNames && <Text className="text-xs text-ink-secondary mt-xs">{partyNames}</Text>}
+          <Text className="text-xs text-brand-primary mt-xs">Continue →</Text>
+        </View>
+      </View>
     </Pressable>
   );
 }

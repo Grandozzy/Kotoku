@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Lock } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { vaultApi } from "@/api/vault";
 
@@ -17,19 +18,28 @@ export default function VaultPage() {
       <h1 className="text-2xl font-bold tracking-tight">Vault</h1>
 
       {isLoading && (
-        <p className="text-sm text-neutral-400">Loading vault…</p>
+        <div className="flex flex-col gap-3">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-14 rounded-xl bg-neutral-100 animate-pulse" />
+          ))}
+        </div>
       )}
 
       {!isLoading && entries.length === 0 && (
-        <div className="text-center py-20 text-neutral-400">
-          <p className="text-4xl mb-4">🔒</p>
-          <p className="font-medium text-neutral-600">No sealed agreements yet.</p>
-          <p className="text-sm mt-1">
-            Sealed records will appear here.{" "}
-            <Link href="/agreements/new" className="text-emerald-600 underline">
-              Create one.
-            </Link>
-          </p>
+        <div className="flex flex-col items-center justify-center py-24 gap-4">
+          <div className="w-14 h-14 rounded-2xl bg-blue-50 flex items-center justify-center">
+            <Lock size={26} className="text-blue-600" strokeWidth={1.6} />
+          </div>
+          <div className="text-center">
+            <p className="font-semibold text-neutral-800">Your vault is empty</p>
+            <p className="text-sm text-neutral-500 mt-1 max-w-sm">
+              Sealed agreements are stored here — tamper-proof, hashed, and
+              retrievable any time.{" "}
+              <Link href="/agreements/new" className="text-blue-600 hover:underline">
+                Seal your first agreement.
+              </Link>
+            </p>
+          </div>
         </div>
       )}
 
