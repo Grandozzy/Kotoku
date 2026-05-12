@@ -1,15 +1,73 @@
 import Link from "next/link";
+import {
+  Briefcase,
+  Building2,
+  Camera,
+  Car,
+  MessageSquare,
+  ShieldCheck,
+  Users,
+} from "lucide-react";
+
+const STEPS = [
+  {
+    Icon: Camera,
+    step: "01",
+    title: "Capture",
+    body: "Photograph the asset, upload ID documents, and record the agreed terms. Every item is timestamped the moment it arrives.",
+  },
+  {
+    Icon: MessageSquare,
+    step: "02",
+    title: "Confirm",
+    body: "Both parties receive an SMS OTP. No one can seal the agreement alone. Both confirmations are recorded and linked to verified phone numbers.",
+  },
+  {
+    Icon: ShieldCheck,
+    step: "03",
+    title: "Seal",
+    body: "A tamper-evident vault entry is created — hashed, timestamped, and retrievable any time. Download the PDF or share the link.",
+  },
+];
+
+const USE_CASES = [
+  {
+    Icon: Car,
+    title: "Used vehicle sale",
+    body: "Capture the car's condition before cash changes hands. No disputes about that dent six months later.",
+  },
+  {
+    Icon: Building2,
+    title: "Room rental",
+    body: "Know exactly what was scratched before you moved in. Your deposit photos, your condition record, sealed.",
+  },
+  {
+    Icon: Users,
+    title: "Any informal deal",
+    body: "A verbal agreement is only as good as the relationship. Kotoku is what you fall back on when the relationship changes.",
+  },
+  {
+    Icon: Briefcase,
+    title: "Small business",
+    body: "Frequent transactions — goods, services, labour. Reusable templates and repeatable evidence capture.",
+  },
+];
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-white">
       {/* Nav */}
-      <nav className="flex items-center justify-between px-6 py-4 border-b border-neutral-100">
-        <span className="text-xl font-bold tracking-tight">Kotoku</span>
+      <nav className="flex items-center justify-between px-6 py-4 border-b border-neutral-100 sticky top-0 bg-white/80 backdrop-blur-sm z-10">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center">
+            <ShieldCheck size={16} className="text-white" strokeWidth={2} />
+          </div>
+          <span className="text-xl font-bold tracking-tight">Kotoku</span>
+        </div>
         <div className="flex items-center gap-4">
           <Link
             href="/how-it-works"
-            className="text-sm text-neutral-600 hover:text-neutral-900"
+            className="text-sm text-neutral-600 hover:text-neutral-900 transition-colors"
           >
             How it works
           </Link>
@@ -24,25 +82,26 @@ export default function LandingPage() {
 
       {/* Hero */}
       <section className="flex-1 flex flex-col items-center justify-center text-center px-6 py-24">
-        <p className="text-sm font-medium text-emerald-600 tracking-wide uppercase mb-4">
+        <div className="inline-flex items-center gap-2 bg-blue-50 text-blue-600 text-xs font-semibold px-4 py-2 rounded-full mb-6 tracking-wide uppercase">
+          <ShieldCheck size={12} strokeWidth={2.5} />
           Agreement Evidence Platform
-        </p>
+        </div>
         <h1 className="text-5xl md:text-6xl font-bold tracking-tight leading-tight max-w-3xl">
           Don&apos;t take their word for it.
           <br />
-          <span className="text-emerald-600">Take evidence for it.</span>
+          <span className="text-blue-600">Take evidence for it.</span>
         </h1>
         <p className="mt-6 text-lg text-neutral-500 max-w-xl leading-relaxed">
           Capture photos, agree on terms, and seal the deal — with bilateral SMS
-          confirmation and a tamper-proof vault. In under five minutes, on any
-          device.
+          confirmation and a tamper-proof vault. In under five minutes, on any device.
         </p>
         <div className="mt-10 flex flex-col sm:flex-row gap-3 items-center">
           <Link
             href="/login"
-            className="px-6 py-3 rounded-full bg-neutral-900 text-white font-medium hover:bg-neutral-700 transition-colors"
+            className="px-6 py-3 rounded-full bg-neutral-900 text-white font-medium hover:bg-neutral-700 transition-colors inline-flex items-center gap-2"
           >
-            Seal your first agreement →
+            Seal your first agreement
+            <span aria-hidden>→</span>
           </Link>
           <Link
             href="/how-it-works"
@@ -51,7 +110,8 @@ export default function LandingPage() {
             See how it works
           </Link>
         </div>
-        <p className="mt-6 text-xs text-neutral-400">
+        <p className="mt-6 text-xs text-neutral-400 inline-flex items-center gap-1.5">
+          <ShieldCheck size={12} className="text-neutral-400" />
           Legally recognised under Ghana&apos;s Electronic Transactions Act (Act 772)
         </p>
       </section>
@@ -62,27 +122,14 @@ export default function LandingPage() {
           <h2 className="text-center text-3xl font-bold tracking-tight mb-12">
             The handshake, with receipts.
           </h2>
-          <div className="grid md:grid-cols-3 gap-8">
-            {[
-              {
-                step: "01",
-                title: "Capture",
-                body: "Photograph the asset, upload ID documents, and record the agreed terms. Every item is timestamped the moment it arrives.",
-              },
-              {
-                step: "02",
-                title: "Confirm",
-                body: "Both parties receive an SMS OTP. No one can seal the agreement alone. Both confirmations are recorded and linked to verified phone numbers.",
-              },
-              {
-                step: "03",
-                title: "Seal",
-                body: "A tamper-evident vault entry is created — hashed, timestamped, and retrievable any time. Download the PDF or share the link.",
-              },
-            ].map(({ step, title, body }) => (
-              <div key={step} className="bg-white rounded-2xl p-6 shadow-sm">
-                <span className="text-4xl font-bold text-emerald-100">{step}</span>
-                <h3 className="mt-2 text-lg font-semibold">{title}</h3>
+          <div className="grid md:grid-cols-3 gap-6">
+            {STEPS.map(({ Icon, step, title, body }) => (
+              <div key={step} className="bg-white rounded-2xl p-6 shadow-sm border border-neutral-100">
+                <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center mb-4">
+                  <Icon size={20} className="text-blue-600" strokeWidth={1.8} />
+                </div>
+                <span className="text-xs font-bold text-neutral-300 tracking-widest">{step}</span>
+                <h3 className="mt-1 text-lg font-semibold">{title}</h3>
                 <p className="mt-2 text-sm text-neutral-500 leading-relaxed">{body}</p>
               </div>
             ))}
@@ -97,33 +144,14 @@ export default function LandingPage() {
             Good agreements make good friends.
           </h2>
           <div className="grid md:grid-cols-2 gap-6">
-            {[
-              {
-                icon: "🚗",
-                title: "Used vehicle sale",
-                body: "Capture the car's condition before cash changes hands. No disputes about that dent six months later.",
-              },
-              {
-                icon: "🏠",
-                title: "Room rental",
-                body: "Know exactly what was scratched before you moved in. Your deposit photos, your condition record, sealed.",
-              },
-              {
-                icon: "🤝",
-                title: "Any informal deal",
-                body: "A verbal agreement is only as good as the relationship. Kotoku is what you fall back on when the relationship changes.",
-              },
-              {
-                icon: "📋",
-                title: "Small business",
-                body: "Frequent transactions — goods, services, labour. Reusable templates and repeatable evidence capture.",
-              },
-            ].map(({ icon, title, body }) => (
+            {USE_CASES.map(({ Icon, title, body }) => (
               <div
                 key={title}
-                className="flex gap-4 p-6 rounded-2xl border border-neutral-100 hover:border-emerald-100 transition-colors"
+                className="flex gap-4 p-6 rounded-2xl border border-neutral-100 hover:border-blue-100 hover:bg-blue-50/30 transition-colors"
               >
-                <span className="text-3xl">{icon}</span>
+                <div className="w-10 h-10 rounded-xl bg-neutral-100 flex items-center justify-center shrink-0">
+                  <Icon size={18} className="text-neutral-600" strokeWidth={1.8} />
+                </div>
                 <div>
                   <h3 className="font-semibold">{title}</h3>
                   <p className="mt-1 text-sm text-neutral-500 leading-relaxed">{body}</p>
@@ -135,30 +163,38 @@ export default function LandingPage() {
       </section>
 
       {/* Legal trust bar */}
-      <section className="bg-neutral-900 text-white px-6 py-14 text-center">
-        <p className="text-sm uppercase tracking-widest text-neutral-400 mb-3">
-          Legal standing
-        </p>
-        <h2 className="text-2xl font-bold max-w-2xl mx-auto leading-snug">
-          Your sealed record is admissible evidence — not just a screenshot.
-        </h2>
-        <p className="mt-4 text-neutral-400 text-sm max-w-xl mx-auto leading-relaxed">
-          Kotoku&apos;s seal hash, OTP consent records, and immutable vault satisfy the
-          admissibility requirements of Ghana&apos;s Electronic Transactions Act (Act 772),
-          Section 12. Every sealed agreement includes originator identification, an
-          integrity hash, and a full audit trail.
-        </p>
-        <Link
-          href="/legal"
-          className="mt-6 inline-block text-sm text-emerald-400 hover:text-emerald-300 underline"
-        >
-          Read the legal reference →
-        </Link>
+      <section className="bg-neutral-900 text-white px-6 py-14">
+        <div className="max-w-2xl mx-auto text-center">
+          <div className="inline-flex items-center gap-2 bg-white/10 text-white/60 text-xs font-semibold px-4 py-2 rounded-full mb-4 tracking-widest uppercase">
+            <ShieldCheck size={12} strokeWidth={2.5} />
+            Legal standing
+          </div>
+          <h2 className="text-2xl font-bold leading-snug">
+            Your sealed record is admissible evidence — not just a screenshot.
+          </h2>
+          <p className="mt-4 text-neutral-400 text-sm leading-relaxed">
+            Kotoku&apos;s seal hash, OTP consent records, and immutable vault satisfy the
+            admissibility requirements of Ghana&apos;s Electronic Transactions Act (Act 772),
+            Section 12. Every sealed agreement includes originator identification, an
+            integrity hash, and a full audit trail.
+          </p>
+          <Link
+            href="/legal"
+            className="mt-6 inline-flex items-center gap-1.5 text-sm text-blue-400 hover:text-blue-300 underline"
+          >
+            Read the legal reference →
+          </Link>
+        </div>
       </section>
 
       {/* Footer */}
       <footer className="px-6 py-8 border-t border-neutral-100 flex flex-col sm:flex-row justify-between items-center gap-4 text-sm text-neutral-400">
-        <span>© {new Date().getFullYear()} Kotoku. All rights reserved.</span>
+        <div className="flex items-center gap-2">
+          <div className="w-5 h-5 rounded bg-blue-600 flex items-center justify-center">
+            <ShieldCheck size={10} className="text-white" strokeWidth={2.5} />
+          </div>
+          <span>© {new Date().getFullYear()} Kotoku. All rights reserved.</span>
+        </div>
         <span className="italic">
           &ldquo;Keep all your agreements in Kotoku. Take them out tomorrow if you need to.&rdquo;
         </span>

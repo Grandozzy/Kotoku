@@ -1,24 +1,119 @@
 import { useRouter } from "expo-router";
-import { Image, Text, View } from "react-native";
+import {
+  Briefcase,
+  Building2,
+  Camera,
+  Car,
+  MessageSquare,
+  ShieldCheck,
+  Users,
+} from "lucide-react-native";
+import { ScrollView, Text, View } from "react-native";
 
 import { Button } from "@/components/ui";
+import { colors } from "@/theme/tokens";
+
+const STEPS = [
+  {
+    Icon: Camera,
+    title: "Capture",
+    body: "Photograph the asset, upload IDs, and record the agreed terms. Everything is timestamped on arrival.",
+  },
+  {
+    Icon: MessageSquare,
+    title: "Confirm",
+    body: "Both parties receive an SMS OTP. No one can seal alone — each confirmation is linked to a verified phone number.",
+  },
+  {
+    Icon: ShieldCheck,
+    title: "Seal",
+    body: "A tamper-evident vault entry is created — hashed, timestamped, and retrievable any time.",
+  },
+];
+
+const USE_CASES = [
+  { Icon: Car,       label: "Vehicle sale" },
+  { Icon: Building2, label: "Room rental" },
+  { Icon: Users,     label: "Informal deals" },
+  { Icon: Briefcase, label: "Small business" },
+];
 
 export default function WelcomeScreen() {
   const router = useRouter();
 
   return (
-    <View className="flex-1 bg-surface-canvas px-lg justify-between py-3xl">
-      {/* Logo / hero area */}
-      <View className="flex-1 items-center justify-center gap-xl">
-        <View className="w-20 h-20 rounded-lg bg-brand-primary items-center justify-center">
-          <Text className="text-white text-2xl font-semibold">K</Text>
+    <ScrollView
+      className="flex-1 bg-surface-canvas"
+      contentContainerClassName="px-lg pb-3xl"
+      showsVerticalScrollIndicator={false}
+    >
+      {/* Hero */}
+      <View className="items-center gap-md pt-3xl pb-xl">
+        <View className="w-16 h-16 rounded-2xl bg-brand-primary items-center justify-center">
+          <ShieldCheck size={32} color="#ffffff" strokeWidth={1.8} />
         </View>
-        <View className="items-center gap-sm">
-          <Text className="text-2xl font-semibold text-ink-primary">
-            Kotoku
+        <View className="items-center gap-xs">
+          <Text className="text-xs font-semibold text-brand-primary tracking-widest uppercase">
+            Agreement Evidence Platform
           </Text>
-          <Text className="text-md text-ink-secondary text-center px-lg">
-            A simple way to record and seal agreements between two people.
+          <Text className="text-3xl font-bold text-ink-primary text-center leading-tight">
+            Don't take their word for it.
+          </Text>
+          <Text className="text-3xl font-bold text-brand-primary text-center leading-tight">
+            Take evidence for it.
+          </Text>
+        </View>
+        <Text className="text-md text-ink-secondary text-center leading-relaxed px-md mt-xs">
+          Capture photos, agree on terms, and seal the deal — with bilateral SMS
+          confirmation and a tamper-proof vault. In under five minutes.
+        </Text>
+      </View>
+
+      {/* How it works */}
+      <View className="gap-sm mb-xl">
+        {STEPS.map(({ Icon, title, body }) => (
+          <View
+            key={title}
+            className="bg-surface-card rounded-2xl p-lg flex-row gap-md items-start border border-border-subtle"
+          >
+            <View className="w-10 h-10 rounded-xl bg-brand-primary/10 items-center justify-center">
+              <Icon size={20} color={colors.brandPrimary} strokeWidth={1.8} />
+            </View>
+            <View className="flex-1 gap-xs">
+              <Text className="text-md font-semibold text-ink-primary">{title}</Text>
+              <Text className="text-sm text-ink-secondary leading-relaxed">{body}</Text>
+            </View>
+          </View>
+        ))}
+      </View>
+
+      {/* Use cases — icon pill row */}
+      <View className="flex-row flex-wrap gap-sm mb-xl justify-center">
+        {USE_CASES.map(({ Icon, label }) => (
+          <View
+            key={label}
+            className="flex-row items-center gap-xs bg-surface-card border border-border-subtle rounded-full px-md py-sm"
+          >
+            <Icon size={14} color={colors.inkSecondary} strokeWidth={1.8} />
+            <Text className="text-xs font-medium text-ink-secondary">{label}</Text>
+          </View>
+        ))}
+      </View>
+
+      {/* Legal trust bar */}
+      <View className="bg-ink-primary rounded-2xl px-lg py-lg gap-sm mb-xl flex-row items-start">
+        <View className="w-9 h-9 rounded-lg bg-white/10 items-center justify-center mt-xs">
+          <ShieldCheck size={18} color="#ffffff" strokeWidth={1.8} />
+        </View>
+        <View className="flex-1 gap-xs">
+          <Text className="text-xs uppercase tracking-widest text-white/50 font-semibold">
+            Legal standing
+          </Text>
+          <Text className="text-sm font-semibold text-white leading-snug">
+            Your sealed record is admissible evidence — not just a screenshot.
+          </Text>
+          <Text className="text-xs text-white/60 leading-relaxed">
+            Recognised under Ghana's Electronic Transactions Act (Act 772), Section 12.
           </Text>
         </View>
       </View>
@@ -36,6 +131,6 @@ export default function WelcomeScreen() {
           By continuing you agree to our Terms of Service and Privacy Policy.
         </Text>
       </View>
-    </View>
+    </ScrollView>
   );
 }
