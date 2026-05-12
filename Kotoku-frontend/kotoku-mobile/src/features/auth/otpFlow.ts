@@ -1,8 +1,8 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { z } from "zod";
 
-import { fetchMe, sendOtp, verifyOtp } from "@/api/auth";
+import { fetchMe, sendOtp, updateProfile, verifyOtp } from "@/api/auth";
 import { getApiErrorMessage } from "@/lib/errorHandler";
 import { saveSession } from "@/lib/secureStore";
 import { useSessionStore } from "@/store/sessionStore";
@@ -75,6 +75,18 @@ export function useMe() {
     queryFn: fetchMe,
     enabled: isAuthenticated,
     staleTime: 1000 * 60 * 10, // 10 minutes
+  });
+}
+
+// ---------- Profile update ----------
+
+export function useUpdateProfile() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: updateProfile,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["me"] });
+    },
   });
 }
 

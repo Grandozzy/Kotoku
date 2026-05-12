@@ -63,6 +63,11 @@ export default function MainLayout() {
           ),
         }}
       />
+      {/* Hidden from tab bar — navigated to from Profile */}
+      <Tabs.Screen
+        name="about"
+        options={{ href: null }}
+      />
     </Tabs>
   );
 }

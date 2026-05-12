@@ -25,6 +25,13 @@ export interface MeResult {
   id: number;
   phone: string;
   email: string | null;
+  full_name: string | null;
+  member_since: string | null;
+}
+
+export interface UpdateProfilePayload {
+  full_name?: string;
+  email?: string;
 }
 
 // ---------- API functions ----------
@@ -49,5 +56,10 @@ export async function verifyOtp(
 
 export async function fetchMe(): Promise<MeResult> {
   const res = await apiClient.get<ApiResponse<MeResult>>("/me/");
+  return res.data.data;
+}
+
+export async function updateProfile(payload: UpdateProfilePayload): Promise<MeResult> {
+  const res = await apiClient.patch<ApiResponse<MeResult>>("/me/", payload);
   return res.data.data;
 }

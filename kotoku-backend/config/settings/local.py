@@ -18,4 +18,6 @@ ALLOWED_HOSTS = [
     "127.0.0.1",
     "0.0.0.0",
     "192.168.100.19",
+    "192.168.129.102",
+    "superjet-spirits-snooper.ngrok-free.dev",
 ]
