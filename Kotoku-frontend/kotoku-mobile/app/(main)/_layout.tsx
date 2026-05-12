@@ -1,10 +1,10 @@
 import { Tabs } from "expo-router";
-import { AlertTriangle, Home, Lock, User } from "lucide-react-native";
+import { Home, Lock, Scale, User } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { colors } from "@/theme/tokens";
 
-const TAB_ICON_SIZE = 22;
+const SIZE = 22;
 
 export default function MainLayout() {
   const insets = useSafeAreaInsets();
@@ -31,8 +31,8 @@ export default function MainLayout() {
         name="home"
         options={{
           title: "Home",
-          tabBarIcon: ({ color }) => (
-            <Home size={TAB_ICON_SIZE} color={color} strokeWidth={1.8} />
+          tabBarIcon: ({ color, focused }) => (
+            <Home size={SIZE} color={color} strokeWidth={focused ? 2.2 : 1.8} />
           ),
         }}
       />
@@ -40,8 +40,8 @@ export default function MainLayout() {
         name="vault"
         options={{
           title: "Vault",
-          tabBarIcon: ({ color }) => (
-            <Lock size={TAB_ICON_SIZE} color={color} strokeWidth={1.8} />
+          tabBarIcon: ({ color, focused }) => (
+            <Lock size={SIZE} color={color} strokeWidth={focused ? 2.2 : 1.8} />
           ),
         }}
       />
@@ -49,8 +49,8 @@ export default function MainLayout() {
         name="disputes"
         options={{
           title: "Disputes",
-          tabBarIcon: ({ color }) => (
-            <AlertTriangle size={TAB_ICON_SIZE} color={color} strokeWidth={1.8} />
+          tabBarIcon: ({ color, focused }) => (
+            <Scale size={SIZE} color={color} strokeWidth={focused ? 2.2 : 1.8} />
           ),
         }}
       />
@@ -58,8 +58,8 @@ export default function MainLayout() {
         name="profile"
         options={{
           title: "Profile",
-          tabBarIcon: ({ color }) => (
-            <User size={TAB_ICON_SIZE} color={color} strokeWidth={1.8} />
+          tabBarIcon: ({ color, focused }) => (
+            <User size={SIZE} color={color} strokeWidth={focused ? 2.2 : 1.8} />
           ),
         }}
       />

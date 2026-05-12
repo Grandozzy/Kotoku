@@ -11,6 +11,7 @@ export interface Dispute {
   reason: string;
   status: "open" | "investigating" | "resolved" | "dismissed";
   resolution?: string;
+  resolved_at?: string;
   created_at: string;
 }
 

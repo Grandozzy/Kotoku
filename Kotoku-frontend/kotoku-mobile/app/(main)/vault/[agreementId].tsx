@@ -5,7 +5,7 @@ import { ChevronLeft, Clock, Loader2, Pencil } from "lucide-react-native";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { Badge } from "@/components/ui";
+import { Badge, ScreenLoader } from "@/components/ui";
 import { AnnotationSection } from "@/components/annotations/AnnotationSection";
 import { AddNoteSheet } from "@/components/annotations/AddNoteSheet";
 import { useAuth } from "@/features/auth/useAuth";
@@ -98,13 +98,7 @@ export default function VaultDetailScreen() {
     }
   };
 
-  if (isLoading || !record) {
-    return (
-      <View className="flex-1 bg-surface-canvas items-center justify-center">
-        <Text className="text-sm text-ink-muted">Loading…</Text>
-      </View>
-    );
-  }
+  if (isLoading || !record) return <ScreenLoader rows={4} />;
 
   const userParty = record.parties.find((p) => p.phone === currentPhone);
   const canAddNote = ["sealed", "reopen_requested", "active"].includes(record.agreementStatus);
