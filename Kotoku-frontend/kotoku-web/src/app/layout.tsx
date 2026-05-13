@@ -13,6 +13,11 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+};
+
 export const metadata: Metadata = {
   title: "Kotoku — Agreement Evidence",
   description:
@@ -34,6 +39,10 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
+      <head>
+        {/* Disable the Vercel toolbar to prevent it from rendering debug JSON on-page */}
+        <meta name="vercel-toolbar" content="disabled" />
+      </head>
       <body className="min-h-full flex flex-col bg-white text-neutral-900">
         <Providers>{children}</Providers>
       </body>

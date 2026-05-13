@@ -11,6 +11,7 @@ import {
   Users,
   Zap,
 } from "lucide-react";
+import { PublicNav } from "@/components/layout/PublicNav";
 
 // ── Plan data ────────────────────────────────────────────────────────────────
 
@@ -218,26 +219,7 @@ export default function PricingPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-white">
-      {/* Nav */}
-      <nav className="flex items-center justify-between px-6 py-4 border-b border-neutral-100 sticky top-0 bg-white/80 backdrop-blur-sm z-10">
-        <Link href="/" className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center">
-            <ShieldCheck size={16} className="text-white" strokeWidth={2} />
-          </div>
-          <span className="text-xl font-bold tracking-tight">Kotoku</span>
-        </Link>
-        <div className="flex items-center gap-4">
-          <Link href="/how-it-works" className="text-sm text-neutral-600 hover:text-neutral-900 transition-colors">
-            How it works
-          </Link>
-          <Link
-            href="/login"
-            className="text-sm font-medium px-4 py-2 rounded-full bg-neutral-900 text-white hover:bg-neutral-700 transition-colors"
-          >
-            Sign in
-          </Link>
-        </div>
-      </nav>
+      <PublicNav />
 
       <main className="flex-1">
         {/* Header */}
@@ -343,6 +325,27 @@ export default function PricingPage() {
             <strong className="text-neutral-500">Fair use and business usage</strong>{" "}
             — Personal plans are for individual use only. If you regularly seal more agreements than your Personal plan allows, or run your day-to-day business on Kotoku, we may ask you to switch to an Enterprise plan so we can keep SMS, storage, and support sustainable for everyone.
           </p>
+        </section>
+
+        {/* Closing CTA */}
+        <section className="px-6 py-20 text-center">
+          <div className="max-w-xl mx-auto">
+            <h2 className="text-3xl font-bold text-slate-900 tracking-tight leading-snug">
+              Ready to protect your first agreement?
+            </h2>
+            <p className="mt-4 text-base text-slate-700 leading-relaxed">
+              Join Kotoku and seal your deal in under five minutes.
+            </p>
+            <div className="mt-8">
+              <Link
+                href="/login"
+                className="px-8 py-3 rounded-full bg-blue-600 text-white font-semibold hover:bg-blue-700 transition-colors inline-flex items-center gap-2"
+              >
+                Get started free
+                <span aria-hidden>→</span>
+              </Link>
+            </div>
+          </div>
         </section>
       </main>
 

@@ -3,6 +3,23 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+
+  /* Kotoku brand tokens */
+  --color-brand-primary:  #2563EB;
+  --color-brand-black:    #0F172A;
+  --color-brand-ink:      #334155;
+  --color-brand-mist:     #94A3B8;
+  --color-brand-white:    #FFFFFF;
+
+  --color-surface-subtle: #F8FAFC;
+  --color-surface-card:   #FFFFFF;
+  --color-border-light:   #E2E8F0;
+  --color-border-medium:  #CBD5E1;
+  --color-blue-soft:      #DBEAFE;
+
+  --color-semantic-success: #16A34A;
+  --color-semantic-warning: #D97706;
+  --color-semantic-error:   #DC2626;
 }
 
 @theme inline {
@@ -10,13 +27,12 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  /* Brand tokens available as Tailwind utilities */
+  --color-brand-primary:  var(--color-brand-primary);
+  --color-brand-black:    var(--color-brand-black);
+  --color-brand-ink:      var(--color-brand-ink);
+  --color-brand-mist:     var(--color-brand-mist);
 }
 
 body {

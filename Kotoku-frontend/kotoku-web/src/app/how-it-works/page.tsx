@@ -1,19 +1,10 @@
 import Link from "next/link";
+import { PublicNav } from "@/components/layout/PublicNav";
 
 export default function HowItWorksPage() {
   return (
     <div className="min-h-screen flex flex-col">
-      <nav className="flex items-center justify-between px-6 py-4 border-b border-neutral-100">
-        <Link href="/" className="text-xl font-bold tracking-tight">
-          Kotoku
-        </Link>
-        <Link
-          href="/login"
-          className="text-sm font-medium px-4 py-2 rounded-full bg-neutral-900 text-white hover:bg-neutral-700 transition-colors"
-        >
-          Sign in
-        </Link>
-      </nav>
+      <PublicNav />
 
       <main className="max-w-3xl mx-auto px-6 py-16 flex flex-col gap-16">
         <div>

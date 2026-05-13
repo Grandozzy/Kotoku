@@ -8,6 +8,7 @@ import {
   ShieldCheck,
   Users,
 } from "lucide-react";
+import { PublicNav } from "@/components/layout/PublicNav";
 
 const STEPS = [
   {
@@ -56,35 +57,7 @@ const USE_CASES = [
 export default function LandingPage() {
   return (
     <div className="min-h-screen flex flex-col bg-white">
-      {/* Nav */}
-      <nav className="flex items-center justify-between px-6 py-4 border-b border-neutral-100 sticky top-0 bg-white/80 backdrop-blur-sm z-10">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center">
-            <ShieldCheck size={16} className="text-white" strokeWidth={2} />
-          </div>
-          <span className="text-xl font-bold tracking-tight">Kotoku</span>
-        </div>
-        <div className="flex items-center gap-4">
-          <Link
-            href="/how-it-works"
-            className="text-sm text-neutral-600 hover:text-neutral-900 transition-colors"
-          >
-            How it works
-          </Link>
-          <Link
-            href="/pricing"
-            className="text-sm text-neutral-600 hover:text-neutral-900 transition-colors"
-          >
-            Pricing
-          </Link>
-          <Link
-            href="/login"
-            className="text-sm font-medium px-4 py-2 rounded-full bg-neutral-900 text-white hover:bg-neutral-700 transition-colors"
-          >
-            Sign in
-          </Link>
-        </div>
-      </nav>
+      <PublicNav />
 
       {/* Hero */}
       <section className="flex-1 flex flex-col items-center justify-center text-center px-6 py-24">
@@ -92,8 +65,8 @@ export default function LandingPage() {
           <ShieldCheck size={12} strokeWidth={2.5} />
           Agreement Evidence Platform
         </div>
-        <h1 className="text-5xl md:text-6xl font-bold tracking-tight leading-tight max-w-3xl">
-          Don&apos;t take their word for it.
+        <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight leading-tight max-w-3xl">
+          <span className="text-slate-400">Don&apos;t take their word for it.</span>
           <br />
           <span className="text-blue-600">Take evidence for it.</span>
         </h1>
@@ -190,6 +163,27 @@ export default function LandingPage() {
           >
             Read the legal reference →
           </Link>
+        </div>
+      </section>
+
+      {/* Closing CTA */}
+      <section className="px-6 py-20 text-center bg-white">
+        <div className="max-w-xl mx-auto">
+          <h2 className="text-3xl font-bold text-slate-900 tracking-tight leading-snug">
+            Ready to protect your first agreement?
+          </h2>
+          <p className="mt-4 text-base text-slate-700 leading-relaxed">
+            Join Kotoku and seal your deal in under five minutes.
+          </p>
+          <div className="mt-8">
+            <Link
+              href="/login"
+              className="px-8 py-3 rounded-full bg-blue-600 text-white font-semibold hover:bg-blue-700 transition-colors inline-flex items-center gap-2"
+            >
+              Get started free
+              <span aria-hidden>→</span>
+            </Link>
+          </div>
         </div>
       </section>
 
