@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     "apps.audit",
     "apps.health",
     "apps.templates",
+    "apps.billing",
 ]
 
 MIDDLEWARE = [

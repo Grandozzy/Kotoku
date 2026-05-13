@@ -1,5 +1,5 @@
 import { useRouter } from "expo-router";
-import { FileText, Handshake } from "lucide-react-native";
+import { AlertTriangle, FileText, Handshake, TrendingUp } from "lucide-react-native";
 import { useState } from "react";
 import { Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -8,6 +8,7 @@ import { Button, CardSkeleton, EmptyState } from "@/components/ui";
 import { getAgreement } from "@/api/agreements";
 import { usePendingActions } from "@/features/agreements/usePendingActions";
 import { useAgreementStore } from "@/features/agreements/agreementStore";
+import { usePlan } from "@/features/billing/usePlan";
 import type { ScenarioId } from "@/constants/scenarios";
 import { SCENARIOS } from "@/constants/scenarios";
 import { colors } from "@/theme/tokens";
@@ -21,10 +22,20 @@ export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { data, isLoading, refetch } = usePendingActions();
+  const { data: plan } = usePlan();
 
   const actionRequired = data?.action_required ?? [];
   const drafts = data?.drafts ?? [];
   const isEmpty = !isLoading && actionRequired.length === 0 && drafts.length === 0;
+
+  const usage = plan?.usage;
+  const flags = plan?.flags;
+  const showUsagePill =
+    plan && flags?.is_personal && usage !== undefined;
+  const capReached = usage?.is_cap_reached ?? false;
+  const nearCap = usage?.is_near_cap ?? false;
+  const showUpgradeBanner =
+    !!plan && flags?.show_upgrade_recommendation && plan.recommended_upgrades.length > 0;
 
   return (
     <ScrollView
@@ -42,9 +53,27 @@ export default function HomeScreen() {
       <View className="flex-row items-center justify-between">
         <View>
           <Text className="text-2xl font-semibold text-ink-primary">Home</Text>
-          <Text className="text-sm text-ink-secondary mt-xs">
-            Start or resume an agreement
-          </Text>
+          {showUsagePill ? (
+            <Text
+              className={`text-sm mt-xs font-medium ${
+                capReached
+                  ? "text-semantic-error"
+                  : nearCap
+                  ? "text-amber-600"
+                  : "text-ink-secondary"
+              }`}
+            >
+              {capReached
+                ? `Monthly limit reached (${plan.plan.name})`
+                : `${usage!.remaining_agreements_this_period} agreement${
+                    usage!.remaining_agreements_this_period === 1 ? "" : "s"
+                  } left this month`}
+            </Text>
+          ) : (
+            <Text className="text-sm text-ink-secondary mt-xs">
+              Start or resume an agreement
+            </Text>
+          )}
         </View>
         <Button
           title="New"
@@ -53,6 +82,30 @@ export default function HomeScreen() {
           onPress={() => router.push("/agreement/new")}
         />
       </View>
+
+      {/* Upgrade banner — shown when cap reached or business misuse suspected */}
+      {showUpgradeBanner && (
+        <View className="bg-amber-50 border border-amber-200 rounded-xl px-lg py-md flex-row items-start gap-sm">
+          <TrendingUp size={16} color="#d97706" strokeWidth={2} style={{ marginTop: 2 }} />
+          <View className="flex-1">
+            <Text className="text-sm font-semibold text-amber-800">
+              {capReached
+                ? `You've reached your ${plan!.plan.max_agreements_per_month} agreement limit for ${plan!.plan.name}`
+                : "You're using Kotoku like a business"}
+            </Text>
+            <Text className="text-xs text-amber-700 mt-xs">
+              {capReached
+                ? "Upgrade to seal more agreements this month, or wait until next month."
+                : "Switch to an Enterprise plan for higher volume, team access, and longer retention."}
+            </Text>
+            {plan!.recommended_upgrades[0] && (
+              <Text className="text-xs font-semibold text-amber-800 mt-sm">
+                Next: {plan!.recommended_upgrades[0].name} — {plan!.recommended_upgrades[0].price_amount_monthly} GHS/mo
+              </Text>
+            )}
+          </View>
+        </View>
+      )}
 
       {isLoading && (
         <View className="gap-sm">

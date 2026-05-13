@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 
 import { createDraft, getAgreement, listAgreements, sealAgreement, validateAgreement } from "@/api/agreements";
@@ -56,6 +56,7 @@ export function useValidateAgreement(id: number) {
 
 export function useSealAgreement(id: number) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const reset = useAgreementStore((s) => s.reset);
   const isReopened = useAgreementStore((s) => s.isReopened);
 
@@ -63,6 +64,8 @@ export function useSealAgreement(id: number) {
     mutationFn: () => sealAgreement(id),
     onSuccess: () => {
       const wasReopened = isReopened;
+      // Refresh billing usage so the home screen reflects the new count
+      queryClient.invalidateQueries({ queryKey: ["billing", "current-plan"] });
       router.replace(`/agreement/${id}/sealed?reopened=${wasReopened}`);
       setTimeout(() => reset(), 0);
     },

@@ -210,7 +210,21 @@ class AgreementService:
     @staticmethod
     @transaction.atomic
     def seal_agreement(*, agreement_id: int) -> Agreement:
+        from apps.billing.services import BillingService  # avoid circular at module load
+
         agreement = Agreement.objects.select_for_update().get(pk=agreement_id)
+
+        # Check plan cap before any state mutation
+        try:
+            creator_account = agreement.created_by
+            BillingService.check_seal_allowed(creator_account)
+        except Exception as exc:
+            from common.exceptions import DomainError as _DE
+            if isinstance(exc, _DE):
+                raise
+            # If billing check itself errors, fail open (don't block sealing)
+            pass
+
         if not can_seal(agreement):
             raise DomainError(
                 "Cannot seal: all parties must have consented and at least one "

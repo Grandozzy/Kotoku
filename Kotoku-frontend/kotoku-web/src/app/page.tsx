@@ -72,6 +72,12 @@ export default function LandingPage() {
             How it works
           </Link>
           <Link
+            href="/pricing"
+            className="text-sm text-neutral-600 hover:text-neutral-900 transition-colors"
+          >
+            Pricing
+          </Link>
+          <Link
             href="/login"
             className="text-sm font-medium px-4 py-2 rounded-full bg-neutral-900 text-white hover:bg-neutral-700 transition-colors"
           >
