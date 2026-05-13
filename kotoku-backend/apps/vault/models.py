@@ -20,7 +20,9 @@ class VaultEntry(models.Model):
         on_delete=models.CASCADE,
         related_name="vault_entry",
     )
-    pdf_url = models.URLField(blank=True)
+    # Stores the S3 object key (e.g. "exports/agreement-1-vault-1.pdf").
+    # Never a full URL — presigned URLs are generated at response time.
+    pdf_key = models.CharField(max_length=512, blank=True)
     pdf_status = models.CharField(
         max_length=12,
         choices=PdfStatus.choices,

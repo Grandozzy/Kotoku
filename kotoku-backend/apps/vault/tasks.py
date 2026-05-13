@@ -31,15 +31,15 @@ def generate_pdf_export(self, vault_entry_id: int) -> None:
 
         pdf_bytes = render_vault_pdf(vault_entry_id)
         key = f"exports/agreement-{entry.agreement_id}-vault-{vault_entry_id}.pdf"
-        pdf_url = S3StorageClient().upload(key, pdf_bytes, content_type="application/pdf")
+        S3StorageClient().upload(key, pdf_bytes, content_type="application/pdf")
 
-        VaultService.mark_pdf_ready(vault_entry_id=vault_entry_id, pdf_url=pdf_url)
+        VaultService.mark_pdf_ready(vault_entry_id=vault_entry_id, pdf_key=key)
         VaultService._push_vault_event(
             agreement_id=agreement_id,
             event_type="vault.pdf_ready",
-            payload={"agreement_id": agreement_id, "pdf_url": pdf_url},
+            payload={"agreement_id": agreement_id},
         )
-        logger.info("PDF generated for vault_entry=%s -> %s", vault_entry_id, pdf_url)
+        logger.info("PDF generated for vault_entry=%s key=%s", vault_entry_id, key)
     except Exception as exc:
         logger.exception("PDF generation failed for vault_entry=%s", vault_entry_id)
         try:

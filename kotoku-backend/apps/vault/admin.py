@@ -5,6 +5,7 @@ from django.utils.html import format_html
 
 from apps.vault.services import VaultService
 from common.exceptions import DomainError
+from infrastructure.storage.s3 import S3StorageClient
 
 from .models import VaultEntry
 
@@ -73,7 +74,8 @@ class VaultEntryAdmin(admin.ModelAdmin):
         "agreement_link",
         "seal_hash_display",
         coloured_pdf_status,
-        "pdf_url",
+        "pdf_key",
+        "pdf_download_link",
         "retain_until",
         "archived",
         "created_at",
@@ -84,7 +86,7 @@ class VaultEntryAdmin(admin.ModelAdmin):
             "fields": ("agreement_link", "seal_hash_display"),
         }),
         ("PDF export", {
-            "fields": (coloured_pdf_status, "pdf_url"),
+            "fields": (coloured_pdf_status, "pdf_key", "pdf_download_link"),
         }),
         ("Retention", {
             "fields": ("retain_until", "archived", "created_at", "updated_at"),
@@ -102,3 +104,13 @@ class VaultEntryAdmin(admin.ModelAdmin):
             return format_html('<code style="font-size:12px;">{}</code>', h)
         return "—"
     seal_hash_display.short_description = "Seal hash"  # type: ignore[attr-defined]
+
+    def pdf_download_link(self, obj: VaultEntry) -> str:
+        if obj.pdf_status != VaultEntry.PdfStatus.READY or not obj.pdf_key:
+            return "—"
+        try:
+            url = S3StorageClient().generate_presigned_url(obj.pdf_key, expires_in=3600)
+            return format_html('<a href="{}" target="_blank">Download PDF (1 hr link)</a>', url)
+        except Exception:
+            return "Could not generate link"
+    pdf_download_link.short_description = "Download"  # type: ignore[attr-defined]
