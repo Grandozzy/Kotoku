@@ -6,6 +6,8 @@ import {
   Info,
   LogOut,
   Pencil,
+  ShieldCheck,
+  TrendingUp,
   X,
 } from "lucide-react-native";
 import { useState } from "react";
@@ -16,6 +18,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Card, ScreenLoader } from "@/components/ui";
 import { useAuth } from "@/features/auth/useAuth";
 import { useMe, useUpdateProfile } from "@/features/auth/otpFlow";
+import { usePlan } from "@/features/billing/usePlan";
 import { clearSession as clearStoredSession } from "@/lib/secureStore";
 import { colors } from "@/theme/tokens";
 
@@ -97,6 +100,7 @@ function EditableRow({
 export default function ProfileScreen() {
   const { phone, profileLoading, clearSession } = useAuth();
   const { data: me } = useMe();
+  const { data: plan } = usePlan();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const updateMutation = useUpdateProfile();
@@ -104,6 +108,15 @@ export default function ProfileScreen() {
   const fullName: string = me?.full_name ?? "";
   const email: string = me?.email?.endsWith("@kotoku.app") ? "" : (me?.email ?? "");
   const memberSince: string = me?.member_since ?? "";
+
+  // Plan display
+  const planName = plan?.plan.name ?? "Personal Basic";
+  const usage = plan?.usage;
+  const showUsage = plan && plan.flags.is_personal && usage;
+  const usagePct = showUsage
+    ? Math.min((usage!.sealed_agreements_this_period / plan!.plan.max_agreements_per_month) * 100, 100)
+    : 0;
+  const upgradeOption = plan?.recommended_upgrades[0];
 
   const handleSaveName = (val: string) => {
     updateMutation.mutate({ full_name: val });
@@ -189,6 +202,65 @@ export default function ProfileScreen() {
         )}
       </Card>
 
+      {/* Plan card */}
+      <Card elevation="sm" padded={false}>
+        <View className="px-lg py-md flex-row items-center justify-between border-b border-border-subtle">
+          <View className="flex-row items-center gap-sm">
+            <View className="w-8 h-8 rounded-lg bg-brand-primary/10 items-center justify-center">
+              <ShieldCheck size={ICON_SIZE} color={colors.brandPrimary} strokeWidth={ICON_STROKE} />
+            </View>
+            <Text className="text-md font-medium text-ink-primary">{planName}</Text>
+          </View>
+          <ChevronRight size={16} color={colors.inkMuted} strokeWidth={ICON_STROKE} />
+        </View>
+
+        {showUsage && (
+          <View className="px-lg py-md gap-xs border-b border-border-subtle">
+            <View className="flex-row items-center justify-between">
+              <Text className="text-xs text-ink-muted">Seals this month</Text>
+              <Text
+                className={`text-xs font-semibold ${
+                  usage!.is_cap_reached
+                    ? "text-semantic-error"
+                    : usage!.is_near_cap
+                    ? "text-amber-600"
+                    : "text-ink-secondary"
+                }`}
+              >
+                {usage!.sealed_agreements_this_period} / {plan!.plan.max_agreements_per_month}
+              </Text>
+            </View>
+            {/* Progress bar */}
+            <View className="h-1.5 bg-surface-canvas rounded-full overflow-hidden">
+              <View
+                className={`h-full rounded-full ${
+                  usage!.is_cap_reached
+                    ? "bg-semantic-error"
+                    : usage!.is_near_cap
+                    ? "bg-amber-400"
+                    : "bg-brand-primary"
+                }`}
+                style={{ width: `${usagePct}%` }}
+              />
+            </View>
+          </View>
+        )}
+
+        {upgradeOption && plan?.flags.show_upgrade_recommendation && (
+          <View className="px-lg py-md flex-row items-center gap-sm bg-amber-50">
+            <TrendingUp size={14} color="#d97706" strokeWidth={2} />
+            <View className="flex-1">
+              <Text className="text-xs text-amber-800 font-medium">
+                Upgrade to {upgradeOption.name} — {upgradeOption.price_amount_monthly} GHS/mo
+              </Text>
+              <Text className="text-xs text-amber-600 mt-xs">
+                Up to {upgradeOption.max_agreements_per_month} seals / month
+              </Text>
+            </View>
+          </View>
+        )}
+      </Card>
+
       {/* Settings */}
       <Card elevation="sm" padded={false}>
         <Pressable className="px-lg py-md flex-row items-center gap-md border-b border-border-subtle active:bg-surface-canvas">
@@ -200,7 +272,7 @@ export default function ProfileScreen() {
         </Pressable>
 
         <Pressable
-          onPress={() => Linking.openURL("https://wa.me/233000000000?text=Hi%2C%20I%20need%20help%20with%20Kotoku")}
+          onPress={() => Linking.openURL("https://wa.me/233597110983?text=Hi%2C%20I%20need%20help%20with%20Kotoku")}
           className="px-lg py-md flex-row items-center gap-md border-b border-border-subtle active:bg-surface-canvas"
         >
           <View className="w-8 h-8 rounded-lg bg-surface-canvas items-center justify-center">

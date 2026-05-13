@@ -1,5 +1,5 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { CheckCircle, Clock } from "lucide-react-native";
+import { CheckCircle, Clock, TrendingUp } from "lucide-react-native";
 import { useState } from "react";
 import { ScrollView, Text, View } from "react-native";
 
@@ -11,6 +11,8 @@ import {
   getApiErrorMessage,
 } from "@/features/consent/useConsentFlow";
 import { useSealAgreement, useTemplate } from "@/features/agreements/useAgreementDraft";
+import { usePlan } from "@/features/billing/usePlan";
+import { isCapReachedError } from "@/lib/errorHandler";
 import { colors } from "@/theme/tokens";
 
 export default function ConsentStep() {
@@ -26,12 +28,19 @@ export default function ConsentStep() {
   const [codeA, setCodeA] = useState("");
   const [codeB, setCodeB] = useState("");
 
+  const { data: plan } = usePlan();
   const requestOtp = useRequestOtp(agreementId);
   const confirmOtp = useConfirmOtp(agreementId);
   const sealMutation = useSealAgreement(agreementId);
 
   const bothConfirmed = consentA.confirmed && consentB.confirmed;
   const otpsSent = consentA.otpSent && consentB.otpSent;
+
+  // Cap state — either proactive (from plan hook) or reactive (from seal error)
+  const proactiveCapReached = plan?.flags.is_personal && plan?.usage.is_cap_reached;
+  const reactiveCapReached = sealMutation.isError && isCapReachedError(sealMutation.error);
+  const capReached = proactiveCapReached || reactiveCapReached;
+  const upgradeOption = plan?.recommended_upgrades[0];
 
   const handleRequestCodes = () => {
     requestOtp.mutate();
@@ -123,31 +132,52 @@ export default function ConsentStep() {
               Both parties have confirmed
             </Text>
           </View>
-          <View className="flex-row gap-sm">
-            {stepIndex > 0 && (
-              <View style={{ flex: 1 }}>
+
+          {/* Cap-reached blocker */}
+          {capReached ? (
+            <View className="bg-amber-50 border border-amber-200 rounded-xl p-lg gap-sm">
+              <View className="flex-row items-center gap-sm">
+                <TrendingUp size={16} color="#d97706" strokeWidth={2} />
+                <Text className="text-sm font-semibold text-amber-900 flex-1">
+                  Monthly sealing limit reached
+                </Text>
+              </View>
+              <Text className="text-xs text-amber-700 leading-relaxed">
+                You&apos;ve used all {plan?.plan.max_agreements_per_month} seals for this
+                month on {plan?.plan.name ?? "your plan"}.
+                {upgradeOption
+                  ? ` Upgrade to ${upgradeOption.name} (${upgradeOption.price_amount_monthly} GHS/mo) for up to ${upgradeOption.max_agreements_per_month} seals.`
+                  : " Wait until next month or upgrade your plan."}
+              </Text>
+            </View>
+          ) : (
+            <View className="flex-row gap-sm">
+              {stepIndex > 0 && (
+                <View style={{ flex: 1 }}>
+                  <Button
+                    title="Back"
+                    variant="secondary"
+                    size="lg"
+                    onPress={() => {
+                      prevStep();
+                      router.replace(`/agreement/${id}/steps/${STEPS[stepIndex - 1]}`);
+                    }}
+                  />
+                </View>
+              )}
+              <View style={{ flex: 2 }}>
                 <Button
-                  title="Back"
-                  variant="secondary"
+                  title="Seal agreement"
+                  variant="primary"
                   size="lg"
-                  onPress={() => {
-                    prevStep();
-                    router.replace(`/agreement/${id}/steps/${STEPS[stepIndex - 1]}`);
-                  }}
+                  loading={sealMutation.isPending}
+                  onPress={() => sealMutation.mutate()}
                 />
               </View>
-            )}
-            <View style={{ flex: 2 }}>
-              <Button
-                title="Seal agreement"
-                variant="primary"
-                size="lg"
-                loading={sealMutation.isPending}
-                onPress={() => sealMutation.mutate()}
-              />
             </View>
-          </View>
-          {sealMutation.isError && (
+          )}
+
+          {sealMutation.isError && !capReached && (
             <Text className="text-sm text-semantic-error text-center">
               {getApiErrorMessage(sealMutation.error)}
             </Text>

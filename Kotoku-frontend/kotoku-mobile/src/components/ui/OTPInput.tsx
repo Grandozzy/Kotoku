@@ -2,6 +2,7 @@
 import React, { useRef } from "react";
 import {
   NativeSyntheticEvent,
+  Platform,
   Text,
   TextInput,
   View,
@@ -77,6 +78,9 @@ export const OTPInput: React.FC<OTPInputProps> = ({
                 onChangeText={(t) => handleChange(t, idx)}
                 onKeyPress={(e) => handleKeyPress(e, idx)}
                 className="w-full text-center text-lg font-semibold text-ink-primary"
+                style={{ height: "100%", paddingTop: 0, paddingBottom: 0 }}
+                textAlignVertical="center"
+                includeFontPadding={Platform.OS === "android" ? false : undefined}
                 accessibilityLabel={`OTP digit ${idx + 1}`}
               />
             </View>

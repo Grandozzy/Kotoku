@@ -7,6 +7,15 @@ import { AxiosError } from "axios";
  * Backend returns: { status: "error", message: "..." }
  * DRF validation returns: { detail: "..." } or { field: ["msg"] }
  */
+/** Returns true when the backend rejected because the account is at its monthly seal cap. */
+export function isCapReachedError(error: unknown): boolean {
+  if (error instanceof AxiosError) {
+    const msg: string = error.response?.data?.message ?? "";
+    return msg.startsWith("PLAN_CAP_REACHED");
+  }
+  return false;
+}
+
 export function getApiErrorMessage(
   error: unknown,
   fallback = "Something went wrong. Please try again.",
