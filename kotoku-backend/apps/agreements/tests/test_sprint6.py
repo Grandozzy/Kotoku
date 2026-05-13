@@ -14,7 +14,7 @@ from unittest.mock import patch
 
 import pytest
 from django.utils import timezone
-from rest_framework.authtoken.models import Token
+from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.test import APIClient
 
 from apps.accounts.models import Account, User
@@ -45,9 +45,9 @@ def _make_account(phone_suffix: str) -> tuple[Account, APIClient]:
     phone = f"+2337{phone_suffix}"
     user = User.objects.create_user(phone=phone)
     account = Account.objects.create(user=user, email=f"u{_seq}@test.com", phone=phone)
-    token, _ = Token.objects.get_or_create(user=user)
+    refresh = RefreshToken.for_user(user)
     client = APIClient()
-    client.credentials(HTTP_AUTHORIZATION=f"Token {token.key}")
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {str(refresh.access_token)}")
     return account, client
 
 

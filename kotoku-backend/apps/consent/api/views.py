@@ -1,5 +1,5 @@
 from django.http import Http404
-from rest_framework.authentication import TokenAuthentication
+from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
@@ -24,7 +24,7 @@ def _get_agreement_or_404(agreement_id: int, account_id: int) -> Agreement:
 
 
 class RequestOtpView(APIView):
-    authentication_classes = [TokenAuthentication]
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
     def post(self, request, agreement_id: int):
@@ -40,7 +40,7 @@ class RequestOtpView(APIView):
 
 
 class ConfirmConsentView(APIView):
-    authentication_classes = [TokenAuthentication]
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
     def post(self, request, agreement_id: int):
@@ -59,7 +59,7 @@ class ConfirmConsentView(APIView):
 
 
 class ConsentStatusView(APIView):
-    authentication_classes = [TokenAuthentication]
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
     def get(self, request, agreement_id: int):

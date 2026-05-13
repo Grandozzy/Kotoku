@@ -52,8 +52,8 @@ export function useVerifyOtp(phone: string) {
   return useMutation({
     mutationFn: (code: string) => verifyOtp({ phone, code }),
     onSuccess: async (data) => {
-      await saveSession(data.token, phone, data.account_id);
-      setSession(data.token, phone, data.account_id);
+      await saveSession(data.access, data.refresh, phone, data.account_id);
+      setSession(data.access, phone, data.account_id);
       router.replace("/(main)/home");
     },
   });

@@ -1,5 +1,5 @@
 from django.core.management.base import BaseCommand
-from rest_framework.authtoken.models import Token
+from rest_framework_simplejwt.tokens import RefreshToken
 
 from apps.accounts.models import Account, User
 from apps.agreements.models import Agreement
@@ -94,10 +94,10 @@ class Command(BaseCommand):
             },
         )
 
-        alice_token, _ = Token.objects.get_or_create(user=alice_user)
-        bob_token, _ = Token.objects.get_or_create(user=bob_user)
-        carlos_token, _ = Token.objects.get_or_create(user=carlos_user)
-        diana_token, _ = Token.objects.get_or_create(user=diana_user)
+        alice_token = str(RefreshToken.for_user(alice_user).access_token)
+        bob_token = str(RefreshToken.for_user(bob_user).access_token)
+        carlos_token = str(RefreshToken.for_user(carlos_user).access_token)
+        diana_token = str(RefreshToken.for_user(diana_user).access_token)
 
         agreements = []
 
@@ -320,19 +320,19 @@ class Command(BaseCommand):
 
         self.stdout.write("")
         self.stdout.write(f"Alice ({alice_phone})")
-        self.stdout.write(f"  Token: {alice_token.key}")
+        self.stdout.write(f"  Access token: {alice_token}")
         self.stdout.write(f"  Identity: {alice_identity.reference}")
         self.stdout.write("")
         self.stdout.write(f"Bob ({bob_phone})")
-        self.stdout.write(f"  Token: {bob_token.key}")
+        self.stdout.write(f"  Access token: {bob_token}")
         self.stdout.write(f"  Identity: {bob_identity.reference}")
         self.stdout.write("")
         self.stdout.write(f"Carlos ({carlos_phone})")
-        self.stdout.write(f"  Token: {carlos_token.key}")
+        self.stdout.write(f"  Access token: {carlos_token}")
         self.stdout.write(f"  Identity: {carlos_identity.reference}")
         self.stdout.write("")
         self.stdout.write(f"Diana ({diana_phone})")
-        self.stdout.write(f"  Token: {diana_token.key}")
+        self.stdout.write(f"  Access token: {diana_token}")
         self.stdout.write(f"  Identity: {diana_identity.reference}")
 
         self.stdout.write("")

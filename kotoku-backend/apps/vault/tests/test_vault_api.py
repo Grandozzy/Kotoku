@@ -10,7 +10,7 @@ from unittest.mock import patch
 
 import pytest
 from django.utils import timezone
-from rest_framework.authtoken.models import Token
+from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.test import APIClient
 
 import apps.vault.pdf  # noqa: F401 — ensures submodule is loaded so patch() can resolve it
@@ -37,9 +37,9 @@ def _make_client(phone):
     _seq += 1
     user = User.objects.create_user(phone=phone)
     account = Account.objects.create(user=user, email=f"vault{_seq}@api.com", phone=phone)
-    token, _ = Token.objects.get_or_create(user=user)
+    refresh = RefreshToken.for_user(user)
     client = APIClient()
-    client.credentials(HTTP_AUTHORIZATION=f"Token {token.key}")
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {str(refresh.access_token)}")
     return client, account
 
 

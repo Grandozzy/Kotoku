@@ -5,7 +5,7 @@ export const authApi = {
     api.post<{ detail: string }>("/api/auth/otp/request/", { phone }),
 
   verifyOtp: (phone: string, code: string) =>
-    api.post<{ token: string; account_id: number }>(
+    api.post<{ access: string; refresh: string; account_id: number }>(
       "/api/auth/otp/verify/",
       { phone, code }
     ),

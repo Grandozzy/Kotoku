@@ -1,6 +1,6 @@
 from django.http import Http404
 import logging
-from rest_framework.authentication import TokenAuthentication
+from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -19,7 +19,7 @@ from common.responses import ok
 
 
 class DisputeCollectionView(APIView):
-    authentication_classes = [TokenAuthentication]
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
     def _get_agreement(self, agreement_id: int, account_id: int):
@@ -77,7 +77,7 @@ class DisputeCollectionView(APIView):
 
 
 class DisputeRootView(APIView):
-    authentication_classes = [TokenAuthentication]
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
@@ -87,7 +87,7 @@ class DisputeRootView(APIView):
 
 class DisputeLookupView(APIView):
     """Look up a single dispute by ID without needing agreement_id."""
-    authentication_classes = [TokenAuthentication]
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
     def get(self, request, dispute_id: int):
@@ -111,7 +111,7 @@ class DisputeLookupView(APIView):
 
 
 class DisputeDetailView(APIView):
-    authentication_classes = [TokenAuthentication]
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
     def get(self, request, agreement_id: int, dispute_id: int):

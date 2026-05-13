@@ -1,5 +1,5 @@
-from rest_framework.authtoken.models import Token
 from rest_framework.views import APIView
+from rest_framework_simplejwt.tokens import RefreshToken
 
 from apps.auth.api.serializers import SendOtpSerializer, VerifyOtpSerializer
 from apps.auth.services import AuthService
@@ -23,6 +23,10 @@ class VerifyOtpView(APIView):
             otp_code=serializer.validated_data["otp_code"],
         )
         user = result["user"]
-        token, _ = Token.objects.get_or_create(user=user)
-        account_id = user.account.pk
-        return ok({"token": token.key, "is_new_user": result["is_new"], "account_id": account_id})
+        refresh = RefreshToken.for_user(user)
+        return ok({
+            "access": str(refresh.access_token),
+            "refresh": str(refresh),
+            "is_new_user": result["is_new"],
+            "account_id": user.account.pk,
+        })

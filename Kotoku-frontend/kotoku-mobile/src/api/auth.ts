@@ -17,7 +17,8 @@ export interface VerifyOtpPayload {
 }
 
 export interface VerifyOtpResult {
-  token: string;
+  access: string;
+  refresh: string;
   account_id: number;
 }
 

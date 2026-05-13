@@ -1,5 +1,5 @@
 import pytest
-from rest_framework.authtoken.models import Token
+from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.test import APIClient
 
 from apps.accounts.models import Account, User
@@ -11,9 +11,9 @@ def authenticated_client():
     account = Account.objects.create(
         user=user, email="test@kotoku.app", phone=user.phone
     )
-    token, _ = Token.objects.get_or_create(user=user)
+    refresh = RefreshToken.for_user(user)
     client = APIClient()
-    client.credentials(HTTP_AUTHORIZATION=f"Token {token.key}")
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {str(refresh.access_token)}")
     return client, account
 
 
@@ -23,9 +23,9 @@ def second_authenticated_client():
     account = Account.objects.create(
         user=user, email="other@kotoku.app", phone=user.phone
     )
-    token, _ = Token.objects.get_or_create(user=user)
+    refresh = RefreshToken.for_user(user)
     client = APIClient()
-    client.credentials(HTTP_AUTHORIZATION=f"Token {token.key}")
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {str(refresh.access_token)}")
     return client, account
 
 

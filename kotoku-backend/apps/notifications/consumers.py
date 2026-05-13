@@ -2,25 +2,35 @@ import json
 import logging
 
 from channels.generic.websocket import AsyncWebsocketConsumer
-from rest_framework.authtoken.models import Token
+from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
+from rest_framework_simplejwt.tokens import AccessToken
+
+from apps.accounts.models import User
 
 logger = logging.getLogger(__name__)
 
 
 class NotificationConsumer(AsyncWebsocketConsumer):
     async def connect(self):
-        token_key = self.scope.get("query_string", b"").decode()
-        if token_key.startswith("token="):
-            token_key = token_key[6:]
-        if not token_key:
+        # Expect: ws://...?token=<access_jwt>
+        qs = self.scope.get("query_string", b"").decode()
+        token_str = ""
+        for part in qs.split("&"):
+            if part.startswith("token="):
+                token_str = part[6:]
+                break
+
+        if not token_str:
             await self.close(code=4001)
             return
+
         try:
-            token = await Token.objects.select_related("user").aget(key=token_key)
-        except Token.DoesNotExist:
+            access_token = AccessToken(token_str)
+            self.user = await User.objects.aget(pk=access_token["user_id"])
+        except (InvalidToken, TokenError, User.DoesNotExist):
             await self.close(code=4001)
             return
-        self.user = token.user
+
         phone = getattr(self.user, "phone", None) or self.user.username
         self.group_name = f"user.{phone.replace('+', '')}"
         await self.channel_layer.group_add(self.group_name, self.channel_name)

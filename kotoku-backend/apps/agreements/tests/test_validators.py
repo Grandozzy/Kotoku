@@ -3,7 +3,7 @@
 Unit tests drive the pure validator logic; API tests drive the HTTP layer.
 """
 import pytest
-from rest_framework.authtoken.models import Token
+from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.test import APIClient
 
 from apps.accounts.models import Account, User
@@ -60,9 +60,9 @@ def _evidence(agreement, evidence_type, status=EvidenceItem.UploadStatus.CONFIRM
 
 def _api_client(phone):
     user, account = _user_and_account(phone)
-    token, _ = Token.objects.get_or_create(user=user)
+    refresh = RefreshToken.for_user(user)
     client = APIClient()
-    client.credentials(HTTP_AUTHORIZATION=f"Token {token.key}")
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {str(refresh.access_token)}")
     return client, account
 
 

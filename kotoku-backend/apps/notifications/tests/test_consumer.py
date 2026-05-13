@@ -2,7 +2,7 @@ import asyncio
 
 import pytest
 from channels.testing import WebsocketCommunicator
-from rest_framework.authtoken.models import Token
+from rest_framework_simplejwt.tokens import RefreshToken
 
 from apps.notifications.push import send_to_user
 from config.asgi import application
@@ -11,7 +11,7 @@ from config.asgi import application
 @pytest.fixture
 def user_with_token(db, django_user_model):
     user = django_user_model.objects.create_user(phone="+233500000001")
-    token = Token.objects.create(user=user)
+    refresh = RefreshToken.for_user(user)
     return user, token
 
 

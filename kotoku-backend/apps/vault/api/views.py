@@ -1,5 +1,5 @@
 from django.http import Http404
-from rest_framework.authentication import TokenAuthentication
+from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
@@ -13,7 +13,7 @@ from common.responses import ok
 
 
 class VaultCollectionView(APIView):
-    authentication_classes = [TokenAuthentication]
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
@@ -33,7 +33,7 @@ class VaultCollectionView(APIView):
 
 
 class VaultDetailView(APIView):
-    authentication_classes = [TokenAuthentication]
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
     def _get_entry(
@@ -58,7 +58,7 @@ class VaultDetailView(APIView):
 
 
 class VaultExportView(APIView):
-    authentication_classes = [TokenAuthentication]
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
     def post(self, request, agreement_id: int):
@@ -76,7 +76,7 @@ class VaultExportView(APIView):
 
 
 class VaultRetryExportView(APIView):
-    authentication_classes = [TokenAuthentication]
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
     def post(self, request, agreement_id: int):
@@ -94,7 +94,7 @@ class VaultRetryExportView(APIView):
 
 
 class VaultAuditLogView(APIView):
-    authentication_classes = [TokenAuthentication]
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
     def get(self, request, agreement_id: int):

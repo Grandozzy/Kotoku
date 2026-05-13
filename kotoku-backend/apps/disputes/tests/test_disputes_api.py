@@ -1,7 +1,7 @@
 import pytest
 from django.utils import timezone
 from django.contrib.auth import get_user_model
-from rest_framework.authtoken.models import Token
+from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.test import APIClient
 
 from apps.accounts.models import Account
@@ -16,9 +16,9 @@ def authenticated_client():
     user.set_password("test")
     user.save()
     account = Account.objects.create(user=user, phone=user.phone)
-    token, _ = Token.objects.get_or_create(user=user)
+    refresh = RefreshToken.for_user(user)
     client = APIClient()
-    client.credentials(HTTP_AUTHORIZATION=f"Token {token.key}")
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {str(refresh.access_token)}")
     return client, account
 
 

@@ -1,5 +1,5 @@
 from django.http import Http404
-from rest_framework.authentication import TokenAuthentication
+from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
@@ -23,7 +23,7 @@ from common.responses import ok
 
 
 class AgreementCollectionView(APIView):
-    authentication_classes = [TokenAuthentication]
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
@@ -58,7 +58,7 @@ class AgreementCollectionView(APIView):
 
 
 class AgreementDetailView(APIView):
-    authentication_classes = [TokenAuthentication]
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
     def _get_agreement(self, agreement_id: int, account_id: int, account_phone: str):
@@ -101,7 +101,7 @@ class AgreementDetailView(APIView):
 
 
 class ValidateView(APIView):
-    authentication_classes = [TokenAuthentication]
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
     def post(self, request, agreement_id: int):
@@ -126,7 +126,7 @@ class ValidateView(APIView):
 
 
 class SealView(APIView):
-    authentication_classes = [TokenAuthentication]
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
     def post(self, request, agreement_id: int):
@@ -151,7 +151,7 @@ class ReopenRequestView(APIView):
     Transitions a SEALED agreement to REOPEN_REQUESTED and immediately
     issues reopen-consent OTPs to all parties.
     """
-    authentication_classes = [TokenAuthentication]
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
     def post(self, request, agreement_id: int):
@@ -175,7 +175,7 @@ class ReopenOtpRequestView(APIView):
     Re-issues reopen OTPs to all parties (e.g. after expiry).
     Agreement must already be in REOPEN_REQUESTED status.
     """
-    authentication_classes = [TokenAuthentication]
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
     def post(self, request, agreement_id: int):
@@ -200,7 +200,7 @@ class ReopenOtpConfirmView(APIView):
     A party confirms their reopen OTP. When the last party confirms, the
     agreement automatically transitions REOPEN_REQUESTED → ACTIVE.
     """
-    authentication_classes = [TokenAuthentication]
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
     def post(self, request, agreement_id: int):
@@ -236,7 +236,7 @@ class ReopenOtpConfirmView(APIView):
 
 
 class PendingActionsView(APIView):
-    authentication_classes = [TokenAuthentication]
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
     def get(self, request):

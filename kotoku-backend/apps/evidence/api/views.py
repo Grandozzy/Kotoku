@@ -1,7 +1,7 @@
 import logging
 
 from django.http import Http404
-from rest_framework.authentication import TokenAuthentication
+from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
@@ -25,7 +25,7 @@ class EvidenceUploadUrlView(APIView):
 
     Issue a presigned PUT URL so the client can upload directly to object storage.
     """
-    authentication_classes = [TokenAuthentication]
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
     def _get_agreement(self, agreement_id: int, account_id: int):
@@ -62,7 +62,7 @@ class EvidenceCollectionView(APIView):
     """POST   /api/agreements/{id}/evidence  — confirm upload and record metadata
        GET    /api/agreements/{id}/evidence  — list confirmed evidence items
     """
-    authentication_classes = [TokenAuthentication]
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
     def _get_agreement(self, agreement_id: int, account_id: int):
