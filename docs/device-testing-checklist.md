@@ -39,15 +39,15 @@ For each item that fails, note:
 ## 1. Auth Flow
 
 ### Mobile
-- [ ] Cold launch → lands on **Welcome** screen (no blank flash or crash)
-- [ ] Welcome screen scrolls smoothly — all 3 step cards and legal bar visible
-- [ ] Tap **Get started** → goes to phone number screen
-- [ ] Enter number without country code (e.g. `0241234567`) → shows validation error, does not submit
-- [ ] Enter valid number with country code (e.g. `+233241234567`) → **Send code** button enables
-- [ ] Tap **Send code** → OTP SMS arrives on the phone within 30 seconds
-- [ ] Enter wrong 8-digit code → shows error message, does not log in
-- [ ] Enter correct 8-digit code → lands on **Home** screen
-- [ ] Kill the app completely, relaunch → stays logged in (does **not** show Welcome again)
+- [x] Cold launch → lands on **Welcome** screen (no blank flash or crash)
+- [x] Welcome screen scrolls smoothly — all 3 step cards and legal bar visible
+- [x] Tap **Get started** → goes to phone number screen
+- [x] Enter number without country code (e.g. `0241234567`) → shows validation error, does not submit
+- [x] Enter valid number with country code (e.g. `+233241234567`) → **Send code** button enables
+- [x] Tap **Send code** → OTP SMS arrives on the phone within 30 seconds
+- [x] Enter wrong 8-digit code → shows error message, does not log in
+- [x] Enter correct 8-digit code → lands on **Home** screen
+- [x] Kill the app completely, relaunch → stays logged in (does **not** show Welcome again)
 
 ### Web
 - [ ] Open the web app → lands on **Landing page** (not dashboard)
