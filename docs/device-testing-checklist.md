@@ -63,17 +63,18 @@ For each item that fails, note:
 ## 2. Agreement Creation
 
 ### Mobile
-- [ ] From Home, tap **New** (top right) → goes to scenario selection
-- [ ] Select a scenario (e.g. Used Vehicle Sale)
-- [ ] Fill in agreement title and description → tap Next
-- [ ] Add Party A details (full name, phone, ID type, ID number) → tap Next
-- [ ] Add Party B details → tap Next
+- [x] From Home, tap **New** (top right) → goes to scenario selection
+- [x] Select a scenario (e.g. Used Vehicle Sale)
+- [x] Fill in agreement title and description → tap Next
+- [x] Add Party A details (full name, phone, ID type, ID number) → tap Next
+- [x] Add Party B details → tap Next
 - [ ] Upload at least **one evidence photo** using the camera
-- [ ] Upload at least **one evidence photo** from the photo gallery
-- [ ] Tap Next → reaches Review screen — all details show correctly
+- [x] Upload at least **one evidence photo** from the photo gallery
+- [x] Tap Next → reaches Review screen — all details show correctly
 - [ ] Submit → agreement created, appears in **Home** under Drafts
 - [ ] Tap the draft → can reopen and continue editing
 - [ ] Resume draft → all previously entered data still intact (title, parties, photos)
+
 
 ### Web
 - [ ] From Dashboard, tap **+ New** → goes to new agreement form
