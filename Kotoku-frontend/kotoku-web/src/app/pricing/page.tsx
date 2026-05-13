@@ -179,7 +179,7 @@ function PlanCard({ plan, family }: { plan: PlanDef; family: PlanFamily }) {
               className="text-blue-600 mt-0.5 shrink-0"
               strokeWidth={2.5}
             />
-            <span dangerouslySetInnerHTML={{ __html: h.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>") }} />
+            <span>{h}</span>
           </li>
         ))}
       </ul>

@@ -1,5 +1,5 @@
 from rest_framework.authentication import TokenAuthentication
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.views import APIView
 
 from apps.accounts.api.serializers import AccountSerializer, UpdateProfileSerializer
@@ -52,6 +52,9 @@ class MeView(APIView):
 
 
 class AccountListView(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAdminUser]
+
     def get(self, request):  # type: ignore[override]
         serializer = AccountSerializer(AccountSelector.list_accounts(), many=True)
         return ok({"results": serializer.data})

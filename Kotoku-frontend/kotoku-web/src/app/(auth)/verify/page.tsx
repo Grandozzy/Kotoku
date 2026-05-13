@@ -23,7 +23,7 @@ function VerifyForm() {
     setLoading(true);
     try {
       const res = await authApi.verifyOtp(phone, code);
-      setSession(res.account_id, phone);
+      setSession(res.token, res.account_id, phone);
       router.replace("/dashboard");
     } catch {
       setError("Invalid or expired code. Try again.");

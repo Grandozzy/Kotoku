@@ -4,8 +4,9 @@ import { persist } from "zustand/middleware";
 interface SessionState {
   accountId: number | null;
   phone: string | null;
+  token: string | null;
   isAuthenticated: boolean;
-  setSession: (accountId: number, phone: string) => void;
+  setSession: (token: string, accountId: number, phone: string) => void;
   clearSession: () => void;
 }
 
@@ -14,11 +15,12 @@ export const useSessionStore = create<SessionState>()(
     (set) => ({
       accountId: null,
       phone: null,
+      token: null,
       isAuthenticated: false,
-      setSession: (accountId, phone) =>
-        set({ accountId, phone, isAuthenticated: true }),
+      setSession: (token, accountId, phone) =>
+        set({ token, accountId, phone, isAuthenticated: true }),
       clearSession: () =>
-        set({ accountId: null, phone: null, isAuthenticated: false }),
+        set({ token: null, accountId: null, phone: null, isAuthenticated: false }),
     }),
     { name: "kotoku-session" }
   )

@@ -1,16 +1,21 @@
+import { useSessionStore } from "@/store/sessionStore";
+
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 async function request<T>(
   path: string,
   options: RequestInit = {}
 ): Promise<T> {
+  const token = useSessionStore.getState().token;
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...(options.headers as Record<string, string> ?? {}),
+  };
+  if (token) headers["Authorization"] = `Token ${token}`;
+
   const res = await fetch(`${BASE_URL}${path}`, {
     ...options,
-    credentials: "include", // sends httpOnly cookie automatically
-    headers: {
-      "Content-Type": "application/json",
-      ...(options.headers ?? {}),
-    },
+    headers,
   });
 
   if (!res.ok) {
