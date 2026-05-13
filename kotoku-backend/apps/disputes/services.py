@@ -66,6 +66,59 @@ class DisputeService:
         return dispute
 
     @staticmethod
+    def resolve_dispute(*, dispute: Dispute, resolution: str, actor: str = "admin") -> Dispute:
+        """Mark a dispute as resolved with a resolution note."""
+        if not resolution or not resolution.strip():
+            raise DomainError("A resolution note is required.")
+        if dispute.status == Dispute.Status.RESOLVED:
+            raise DomainError("This dispute is already resolved.")
+        dispute.status = Dispute.Status.RESOLVED
+        dispute.resolution = resolution.strip()
+        dispute.resolved_at = timezone.now()
+        dispute.save(update_fields=["status", "resolution", "resolved_at", "updated_at"])
+        AuditService.record_event(
+            event_type="dispute.resolved",
+            entity_type="dispute",
+            entity_id=str(dispute.pk),
+            actor=actor,
+            metadata={"resolution_preview": resolution[:80]},
+        )
+        return dispute
+
+    @staticmethod
+    def dismiss_dispute(*, dispute: Dispute, resolution: str, actor: str = "admin") -> Dispute:
+        """Dismiss a dispute — no action warranted."""
+        if dispute.status in (Dispute.Status.RESOLVED, Dispute.Status.DISMISSED):
+            raise DomainError(f"Dispute is already {dispute.status}.")
+        dispute.status = Dispute.Status.DISMISSED
+        dispute.resolution = resolution.strip() if resolution else "Dismissed by admin."
+        dispute.resolved_at = timezone.now()
+        dispute.save(update_fields=["status", "resolution", "resolved_at", "updated_at"])
+        AuditService.record_event(
+            event_type="dispute.dismissed",
+            entity_type="dispute",
+            entity_id=str(dispute.pk),
+            actor=actor,
+            metadata={"resolution_preview": dispute.resolution[:80]},
+        )
+        return dispute
+
+    @staticmethod
+    def mark_investigating(*, dispute: Dispute, actor: str = "admin") -> Dispute:
+        """Move a dispute into the investigating state."""
+        if dispute.status != Dispute.Status.OPEN:
+            raise DomainError("Only open disputes can be marked as investigating.")
+        dispute.status = Dispute.Status.INVESTIGATING
+        dispute.save(update_fields=["status", "updated_at"])
+        AuditService.record_event(
+            event_type="dispute.investigating",
+            entity_type="dispute",
+            entity_id=str(dispute.pk),
+            actor=actor,
+        )
+        return dispute
+
+    @staticmethod
     def generate_case_pack(*, dispute: Dispute) -> dict:
         agreement = dispute.agreement
         case_pack = {
