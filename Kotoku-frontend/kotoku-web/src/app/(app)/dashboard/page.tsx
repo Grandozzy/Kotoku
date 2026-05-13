@@ -4,6 +4,8 @@ import Link from "next/link";
 import { Handshake } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { agreementsApi } from "@/api/agreements";
+import { PlanBanner } from "@/components/billing/PlanBanner";
+import { usePlan } from "@/hooks/usePlan";
 import type { Agreement } from "@/types/agreement";
 
 const STATUS_STYLES: Record<string, string> = {
@@ -25,7 +27,7 @@ function AgreementRow({ agreement }: { agreement: Agreement }) {
       <div>
         <p className="font-medium text-sm">{agreement.title}</p>
         <p className="text-xs text-neutral-400 mt-0.5">
-          {agreement.parties.length} party{agreement.parties.length !== 1 ? "ies" : ""} ·{" "}
+          {agreement.parties.length} part{agreement.parties.length !== 1 ? "ies" : "y"} ·{" "}
           {new Date(agreement.created_at).toLocaleDateString("en-GB", {
             day: "numeric",
             month: "short",
@@ -44,6 +46,29 @@ function AgreementRow({ agreement }: { agreement: Agreement }) {
   );
 }
 
+function UsagePill() {
+  const { data: plan } = usePlan();
+  if (!plan || plan.flags.is_enterprise) return null;
+
+  const { usage } = plan;
+  const capReached = usage.is_cap_reached;
+  const nearCap = usage.is_near_cap;
+
+  const pillClass = capReached
+    ? "bg-red-50 text-red-700 border-red-200"
+    : nearCap
+    ? "bg-amber-50 text-amber-700 border-amber-200"
+    : "bg-neutral-100 text-neutral-500 border-transparent";
+
+  return (
+    <span className={`text-xs font-medium px-3 py-1 rounded-full border ${pillClass}`}>
+      {capReached
+        ? `Limit reached — ${plan.plan.name}`
+        : `${usage.sealed_agreements_this_period} / ${plan.plan.max_agreements_per_month} seals this month`}
+    </span>
+  );
+}
+
 export default function DashboardPage() {
   const { data, isLoading, error } = useQuery({
     queryKey: ["agreements"],
@@ -58,18 +83,27 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight">Home</h1>
+      <PlanBanner />
+
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-bold tracking-tight">Home</h1>
+          <UsagePill />
+        </div>
         <Link
           href="/agreements/new"
-          className="px-4 py-2 rounded-full bg-neutral-900 text-white text-sm font-medium hover:bg-neutral-700 transition-colors"
+          className="px-4 py-2 rounded-full bg-neutral-900 text-white text-sm font-medium hover:bg-neutral-700 transition-colors shrink-0"
         >
           + New agreement
         </Link>
       </div>
 
       {isLoading && (
-        <p className="text-sm text-neutral-400">Loading your agreements…</p>
+        <div className="flex flex-col gap-2">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-14 rounded-xl bg-neutral-100 animate-pulse" />
+          ))}
+        </div>
       )}
       {error && (
         <p className="text-sm text-red-600">Could not load agreements.</p>

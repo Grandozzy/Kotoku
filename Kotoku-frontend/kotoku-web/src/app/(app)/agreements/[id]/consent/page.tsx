@@ -1,16 +1,20 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { agreementsApi } from "@/api/agreements";
 import { consentApi } from "@/api/consent";
+import { usePlan, useInvalidatePlan } from "@/hooks/usePlan";
 
 export default function ConsentPage() {
   const { id } = useParams<{ id: string }>();
   const agreementId = Number(id);
   const router = useRouter();
   const queryClient = useQueryClient();
+  const { data: planData } = usePlan();
+  const invalidatePlan = useInvalidatePlan();
 
   const { data: agreement } = useQuery({
     queryKey: ["agreements", agreementId],
@@ -41,6 +45,8 @@ export default function ConsentPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["agreements", agreementId] });
       queryClient.invalidateQueries({ queryKey: ["consent-status", agreementId] });
+      // Refresh plan usage in case this consent triggered a seal
+      invalidatePlan();
       refetchStatus();
       setOtp("");
     },
@@ -52,6 +58,8 @@ export default function ConsentPage() {
   const isSealed = agreement.status === "sealed";
   const canRequest =
     parties.length >= 2 && ["draft", "active"].includes(agreement.status);
+  const capReached =
+    planData?.flags.is_personal && planData?.usage.is_cap_reached;
 
   // When all_consented → agreement gets sealed, redirect
   if (isSealed) {
@@ -69,6 +77,24 @@ export default function ConsentPage() {
         Both parties must confirm via SMS OTP before the agreement can be sealed.
         No one can seal alone.
       </p>
+
+      {capReached && (
+        <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-4 text-sm">
+          <p className="font-semibold text-red-800">
+            Monthly sealing limit reached — {planData?.plan.name}
+          </p>
+          <p className="text-red-600 mt-1 text-xs">
+            You&apos;ve used all {planData?.plan.max_agreements_per_month} seals for this month.
+            Upgrade your plan or wait until next month to seal more agreements.
+          </p>
+          <Link
+            href="/pricing"
+            className="inline-block mt-3 px-4 py-1.5 rounded-full border border-red-300 text-red-700 text-xs font-semibold hover:bg-red-100 transition-colors"
+          >
+            View upgrade options →
+          </Link>
+        </div>
+      )}
 
       {parties.length < 2 && (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
@@ -129,7 +155,7 @@ export default function ConsentPage() {
           </p>
           <button
             onClick={() => requestMutation.mutate()}
-            disabled={requestMutation.isPending}
+            disabled={requestMutation.isPending || !!capReached}
             className="px-5 py-2.5 rounded-full bg-neutral-900 text-white text-sm font-medium disabled:opacity-50 hover:bg-neutral-700 transition-colors w-fit"
           >
             {requestMutation.isPending ? "Sending…" : "Send OTPs to all parties"}

@@ -2,14 +2,16 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Home, Lock, User } from "lucide-react";
 import { useSessionStore } from "@/store/sessionStore";
 import { useEffect } from "react";
+
+import { Home, Lock, User, Zap } from "lucide-react";
 
 const NAV = [
   { href: "/dashboard", label: "Home",    Icon: Home },
   { href: "/vault",     label: "Vault",   Icon: Lock },
   { href: "/profile",   label: "Profile", Icon: User },
+  { href: "/pricing",   label: "Pricing", Icon: Zap },
 ];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
