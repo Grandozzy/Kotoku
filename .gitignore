@@ -38,6 +38,9 @@ opencode.json
 .claude/
 AGENTS.md
 
+# markdown docs (kept local only)
+*.md
+
 # init docs (local planning)
 init docs/
 
