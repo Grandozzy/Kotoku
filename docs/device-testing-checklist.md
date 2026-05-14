@@ -39,15 +39,15 @@ For each item that fails, note:
 ## 1. Auth Flow
 
 ### Mobile
-- [ ] Cold launch → lands on **Welcome** screen (no blank flash or crash)
-- [ ] Welcome screen scrolls smoothly — all 3 step cards and legal bar visible
-- [ ] Tap **Get started** → goes to phone number screen
-- [ ] Enter number without country code (e.g. `0241234567`) → shows validation error, does not submit
-- [ ] Enter valid number with country code (e.g. `+233241234567`) → **Send code** button enables
-- [ ] Tap **Send code** → OTP SMS arrives on the phone within 30 seconds
-- [ ] Enter wrong 8-digit code → shows error message, does not log in
-- [ ] Enter correct 8-digit code → lands on **Home** screen
-- [ ] Kill the app completely, relaunch → stays logged in (does **not** show Welcome again)
+- [x] Cold launch → lands on **Welcome** screen (no blank flash or crash)
+- [x] Welcome screen scrolls smoothly — all 3 step cards and legal bar visible
+- [x] Tap **Get started** → goes to phone number screen
+- [x] Enter number without country code (e.g. `0241234567`) → shows validation error, does not submit
+- [x] Enter valid number with country code (e.g. `+233241234567`) → **Send code** button enables
+- [x] Tap **Send code** → OTP SMS arrives on the phone within 30 seconds
+- [x] Enter wrong 8-digit code → shows error message, does not log in
+- [x] Enter correct 8-digit code → lands on **Home** screen
+- [x] Kill the app completely, relaunch → stays logged in (does **not** show Welcome again)
 
 ### Web
 - [ ] Open the web app → lands on **Landing page** (not dashboard)
@@ -63,17 +63,18 @@ For each item that fails, note:
 ## 2. Agreement Creation
 
 ### Mobile
-- [ ] From Home, tap **New** (top right) → goes to scenario selection
-- [ ] Select a scenario (e.g. Used Vehicle Sale)
-- [ ] Fill in agreement title and description → tap Next
-- [ ] Add Party A details (full name, phone, ID type, ID number) → tap Next
-- [ ] Add Party B details → tap Next
+- [x] From Home, tap **New** (top right) → goes to scenario selection
+- [x] Select a scenario (e.g. Used Vehicle Sale)
+- [x] Fill in agreement title and description → tap Next
+- [x] Add Party A details (full name, phone, ID type, ID number) → tap Next
+- [x] Add Party B details → tap Next
 - [ ] Upload at least **one evidence photo** using the camera
-- [ ] Upload at least **one evidence photo** from the photo gallery
-- [ ] Tap Next → reaches Review screen — all details show correctly
+- [x] Upload at least **one evidence photo** from the photo gallery
+- [x] Tap Next → reaches Review screen — all details show correctly
 - [ ] Submit → agreement created, appears in **Home** under Drafts
 - [ ] Tap the draft → can reopen and continue editing
 - [ ] Resume draft → all previously entered data still intact (title, parties, photos)
+
 
 ### Web
 - [ ] From Dashboard, tap **+ New** → goes to new agreement form
