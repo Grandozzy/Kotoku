@@ -1,12 +1,17 @@
+import * as Application from "expo-application";
+import * as Crypto from "expo-crypto";
+import * as Device from "expo-device";
 import axios from "axios";
+import { Platform } from "react-native";
 
 import { API_BASE_URL } from "@/constants/config";
 import {
   clearSession,
   getRefreshToken,
-  getToken,
-  saveAccessToken,
+  getSessionId,
+  saveTokens,
 } from "@/lib/secureStore";
+import { getToken } from "@/lib/secureStore";
 import { useSessionStore } from "@/store/sessionStore";
 
 export const apiClient = axios.create({
@@ -14,35 +19,109 @@ export const apiClient = axios.create({
   timeout: 30_000,
   headers: {
     "Content-Type": "application/json",
+    "X-Client-Type": "mobile",
   },
 });
 
-// Attach JWT access token to every request
+// ── Device fingerprint ────────────────────────────────────────────────────────
+
+let _cachedFingerprint: string | null = null;
+let _cachedDeviceName: string | null = null;
+
+async function getDeviceFingerprint(): Promise<string> {
+  if (_cachedFingerprint) return _cachedFingerprint;
+
+  let androidId = "";
+  if (Platform.OS === "android") {
+    try {
+      androidId = Application.getAndroidId() ?? "";
+    } catch {
+      androidId = "";
+    }
+  } else if (Platform.OS === "ios") {
+    try {
+      androidId = (await Application.getIosIdForVendorAsync()) ?? "";
+    } catch {
+      androidId = "";
+    }
+  }
+
+  const raw = [
+    Device.modelName ?? "",
+    Device.osName ?? "",
+    Device.osVersion ?? "",
+    String(Device.deviceType ?? ""),
+    Platform.OS,
+    androidId,
+  ].join("|");
+
+  _cachedFingerprint = await Crypto.digestStringAsync(
+    Crypto.CryptoDigestAlgorithm.SHA256,
+    raw,
+  );
+  return _cachedFingerprint;
+}
+
+async function getDeviceName(): Promise<string> {
+  if (_cachedDeviceName) return _cachedDeviceName;
+  _cachedDeviceName = [Device.modelName, Device.osName, Device.osVersion]
+    .filter(Boolean)
+    .join(" ");
+  return _cachedDeviceName;
+}
+
+// ── Request interceptor — attach auth + device headers ────────────────────────
+
 apiClient.interceptors.request.use(async (config) => {
   const token = await getToken();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+  try {
+    const [fingerprint, deviceName] = await Promise.all([
+      getDeviceFingerprint(),
+      getDeviceName(),
+    ]);
+    config.headers["X-Device-Fingerprint"] = fingerprint;
+    config.headers["X-Device-Name"] = deviceName;
+  } catch {
+    // Non-fatal: fingerprint enrichment should never block requests.
+  }
   return config;
 });
 
-// Mutex: prevents multiple concurrent 401s from each firing their own refresh
+// ── Mutex refresh-on-401 ──────────────────────────────────────────────────────
+
 let refreshPromise: Promise<string | null> | null = null;
 
 async function refreshAccessToken(): Promise<string | null> {
   if (refreshPromise) return refreshPromise;
 
   refreshPromise = (async () => {
-    const refreshToken = await getRefreshToken();
+    const [refreshToken, sessionId] = await Promise.all([
+      getRefreshToken(),
+      getSessionId(),
+    ]);
     if (!refreshToken) return null;
     try {
-      const res = await axios.post(`${API_BASE_URL}/api/auth/token/refresh/`, {
-        refresh: refreshToken,
-      });
-      const newAccess: string = res.data?.data?.access ?? res.data?.access;
-      await saveAccessToken(newAccess);
-      // Keep in-memory store in sync
-      useSessionStore.getState().setSession(newAccess, useSessionStore.getState().phone!, useSessionStore.getState().accountId!);
+      const res = await axios.post(
+        `${API_BASE_URL}/api/auth/token/refresh/`,
+        { refresh: refreshToken },
+        {
+          headers: {
+            "Content-Type": "application/json",
+            "X-Client-Type": "mobile",
+          },
+        },
+      );
+      const data = res.data?.data ?? res.data;
+      const newAccess: string = data.access;
+      const newRefresh: string = data.refresh;
+      const newSessionId: string = data.session_id ?? sessionId ?? "";
+
+      await saveTokens(newAccess, newRefresh, newSessionId);
+      const store = useSessionStore.getState();
+      store.setSession(newAccess, store.phone!, store.accountId!, store.pinConfigured);
       return newAccess;
     } catch {
       return null;
@@ -54,8 +133,6 @@ async function refreshAccessToken(): Promise<string | null> {
   return refreshPromise;
 }
 
-// On 401: try to refresh the access token and retry once. If refresh also
-// fails, clear the session and let the router redirect to auth.
 apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -67,7 +144,6 @@ apiClient.interceptors.response.use(
         originalRequest.headers.Authorization = `Bearer ${newToken}`;
         return apiClient(originalRequest);
       }
-      // Refresh failed — clear everything and force re-auth
       await clearSession();
       useSessionStore.getState().clearSession();
     }

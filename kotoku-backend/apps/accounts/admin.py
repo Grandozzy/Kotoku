@@ -6,7 +6,7 @@ from django.utils.html import format_html
 
 from apps.billing.constants import PLANS, get_plan
 
-from .models import Account, User
+from .models import Account, DeviceSession, User
 
 
 # ── Plan badge ────────────────────────────────────────────────────────────────
@@ -165,3 +165,51 @@ class AccountAdmin(admin.ModelAdmin):
         return obj.agreement_count  # type: ignore[attr-defined]
     agreement_count.short_description = "Agreements"  # type: ignore[attr-defined]
     agreement_count.admin_order_field = "agreement_count"  # type: ignore[attr-defined]
+
+
+# ── DeviceSession admin ───────────────────────────────────────────────────────
+
+_SESSION_STATUS_STYLES = {
+    True:  "background:#FEE2E2;color:#991B1B",   # revoked
+    False: "background:#D1FAE5;color:#065F46",   # active
+}
+
+
+def session_status_badge(obj: DeviceSession) -> str:
+    label = "Revoked" if obj.is_revoked else "Active"
+    style = _SESSION_STATUS_STYLES[obj.is_revoked]
+    return format_html(
+        '<span style="padding:2px 10px;border-radius:999px;font-size:12px;font-weight:600;{}">{}</span>',
+        style, label,
+    )
+session_status_badge.short_description = "Status"  # type: ignore[attr-defined]
+
+
+@admin.action(description="Revoke selected sessions")
+def action_revoke_sessions(
+    modeladmin: admin.ModelAdmin, request: HttpRequest, queryset: QuerySet
+) -> None:
+    from django.utils import timezone
+    updated = queryset.filter(is_revoked=False).update(
+        is_revoked=True,
+        revoked_at=timezone.now(),
+        revoked_reason="admin",
+    )
+    modeladmin.message_user(request, f"{updated} session(s) revoked.", messages.WARNING)
+
+
+@admin.register(DeviceSession)
+class DeviceSessionAdmin(admin.ModelAdmin):
+    list_display = ("id", "user_phone", "client_type", session_status_badge, "device_name", "last_used_at", "expires_at")
+    list_filter = ("client_type", "is_revoked")
+    search_fields = ("user__phone", "device_name", "device_fingerprint")
+    ordering = ("-last_used_at",)
+    date_hierarchy = "created_at"
+    actions = [action_revoke_sessions]
+    readonly_fields = ("id", "user", "client_type", "device_name", "device_fingerprint",
+                       "created_at", "last_used_at", "expires_at", "revoked_at", "revoked_reason")
+
+    def user_phone(self, obj: DeviceSession) -> str:
+        url = f"/admin/accounts/user/{obj.user_id}/change/"
+        return format_html('<a href="{}">{}</a>', url, obj.user.phone)
+    user_phone.short_description = "User"  # type: ignore[attr-defined]

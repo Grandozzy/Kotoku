@@ -49,6 +49,7 @@ async function request<T>(
   const token = useSessionStore.getState().accessToken;
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
+    "X-Client-Type": "web",
     ...(options.headers as Record<string, string> ?? {}),
   };
   if (token) headers["Authorization"] = `Bearer ${token}`;

@@ -5,7 +5,7 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 from rest_framework_simplejwt.tokens import AccessToken
 
-from apps.accounts.models import User
+from apps.accounts.models import DeviceSession, User
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +30,20 @@ class NotificationConsumer(AsyncWebsocketConsumer):
         except (InvalidToken, TokenError, User.DoesNotExist):
             await self.close(code=4001)
             return
+
+        # G5: Check that the device session is not revoked on connect.
+        # We accept the 24-hour access token window for already-connected clients.
+        session_id = access_token.get("device_session_id")
+        if session_id:
+            try:
+                session = await DeviceSession.objects.aget(id=session_id)
+                if session.is_revoked:
+                    logger.info("WS rejected: session %s revoked for user=%s", session_id, self.user)
+                    await self.close(code=4003)
+                    return
+            except DeviceSession.DoesNotExist:
+                await self.close(code=4003)
+                return
 
         phone = getattr(self.user, "phone", None) or self.user.username
         self.group_name = f"user.{phone.replace('+', '')}"

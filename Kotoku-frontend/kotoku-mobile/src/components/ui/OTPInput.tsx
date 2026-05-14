@@ -20,6 +20,7 @@ interface OTPInputProps {
   onChange: (val: string) => void;
   error?: string;
   disabled?: boolean;
+  secureTextEntry?: boolean;
 }
 
 export const OTPInput: React.FC<OTPInputProps> = ({
@@ -28,6 +29,7 @@ export const OTPInput: React.FC<OTPInputProps> = ({
   onChange,
   error,
   disabled,
+  secureTextEntry,
 }) => {
   const inputs = useRef<Array<TextInput | null>>([]);
 
@@ -73,7 +75,7 @@ export const OTPInput: React.FC<OTPInputProps> = ({
                 ref={(ref) => { inputs.current[idx] = ref; }}
                 keyboardType="number-pad"
                 maxLength={1}
-                value={value[idx] ?? ""}
+                value={secureTextEntry && value[idx] ? "•" : (value[idx] ?? "")}
                 editable={!disabled}
                 onChangeText={(t) => handleChange(t, idx)}
                 onKeyPress={(e) => handleKeyPress(e, idx)}

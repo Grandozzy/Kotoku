@@ -26,9 +26,18 @@ import { useEffect, useState } from "react";
 import { Text, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
+import { API_BASE_URL } from "@/constants/config";
 import { runMigrations } from "@/db/migrations";
 import { queryClient } from "@/lib/queryClient";
-import { getAccountId, getPhone, getToken } from "@/lib/secureStore";
+import {
+  clearSession,
+  getAccountId,
+  getPhone,
+  getPinConfigured,
+  getRefreshToken,
+  getSessionId,
+  saveTokens,
+} from "@/lib/secureStore";
 import { useSessionStore } from "@/store/sessionStore";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useOfflineGuard } from "@/hooks/useOfflineGuard";
@@ -51,6 +60,15 @@ function SyncQueueRunner() {
   return null;
 }
 
+/**
+ * Auth decision tree on startup:
+ *
+ * 1. No refresh token  → /(auth)/welcome  (OTP flow)
+ * 2. Refresh token present → try POST /auth/token/refresh/
+ *    a. Success          → setSession, go home
+ *    b. 401 expired + pin_configured → /(auth)/pin-reauth
+ *    b. 401 expired + no pin        → /(auth)/welcome
+ */
 function AuthGuard() {
   const router = useRouter();
   const segments = useSegments();
@@ -60,13 +78,46 @@ function AuthGuard() {
 
   useEffect(() => {
     (async () => {
-      const [token, phone, accountId] = await Promise.all([
-        getToken(),
+      const [refreshToken, phone, accountId, pinConfigured] = await Promise.all([
+        getRefreshToken(),
         getPhone(),
         getAccountId(),
+        getPinConfigured(),
       ]);
-      if (token && phone && accountId) {
-        setSession(token, phone, accountId);
+
+      if (!refreshToken || !phone || !accountId) {
+        // No stored session — go to OTP flow.
+        setHydrated(true);
+        return;
+      }
+
+      // Try silent token refresh.
+      try {
+        const sessionId = await getSessionId();
+        const res = await fetch(`${API_BASE_URL}/api/auth/token/refresh/`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-Client-Type": "mobile" },
+          body: JSON.stringify({ refresh: refreshToken }),
+        });
+
+        if (res.ok) {
+          const body = await res.json();
+          const data = body.data ?? body;
+          await saveTokens(data.access, data.refresh, data.session_id ?? sessionId ?? "");
+          const pinNow = data.user?.pin_configured ?? pinConfigured;
+          setSession(data.access, phone, accountId, pinNow);
+          setHydrated(true);
+          return;
+        }
+      } catch {
+        // Network error — fall through to PIN or OTP depending on pin_configured.
+      }
+
+      // Refresh failed — route based on PIN state.
+      await clearSession();
+      if (pinConfigured) {
+        // Redirect handled by the segment effect below.
+        router.replace({ pathname: "/(auth)/pin-reauth" as never, params: { phone } });
       }
       setHydrated(true);
     })();

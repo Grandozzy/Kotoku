@@ -111,11 +111,15 @@ REST_FRAMEWORK = {
 from datetime import timedelta  # noqa: E402
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
-    "ROTATE_REFRESH_TOKENS": True,
-    "BLACKLIST_AFTER_ROTATION": True,
-    "UPDATE_LAST_LOGIN": True,
+    # Access token lifetime is enforced per client_type in services.py.
+    # This default is only used if AccessToken.for_user() is called outside
+    # of our token issuance path (e.g. admin tooling).
+    "ACCESS_TOKEN_LIFETIME": timedelta(hours=24),
+    # Refresh tokens are now opaque + DB-backed (DeviceSession).
+    # simplejwt's built-in refresh rotation is disabled.
+    "ROTATE_REFRESH_TOKENS": False,
+    "BLACKLIST_AFTER_ROTATION": False,
+    "UPDATE_LAST_LOGIN": False,
     "AUTH_HEADER_TYPES": ("Bearer",),
     "AUTH_TOKEN_CLASSES": ("rest_framework_simplejwt.tokens.AccessToken",),
 }
@@ -134,7 +138,15 @@ CELERY_BEAT_SCHEDULE = {
     },
     "cleanup-stale-drafts": {
         "task": "apps.agreements.tasks.cleanup_stale_drafts",
-        "schedule": 86400,  # once per day (seconds)
+        "schedule": 86400,
+    },
+    "cleanup-expired-otp-requests": {
+        "task": "apps.auth.tasks.cleanup_expired_otp_requests",
+        "schedule": 3600,   # hourly
+    },
+    "cleanup-expired-device-sessions": {
+        "task": "apps.auth.tasks.cleanup_expired_device_sessions",
+        "schedule": 86400,  # daily
     },
 }
 
