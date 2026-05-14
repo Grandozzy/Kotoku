@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ShieldCheck } from "lucide-react";
+import { KotokuLogo } from "@/components/brand/KotokuLogo";
 
 const NAV_LINKS = [
   { label: "How it works", href: "/how-it-works" },
@@ -14,11 +14,8 @@ export function PublicNav() {
 
   return (
     <nav className="flex items-center justify-between px-6 py-4 border-b border-neutral-100 sticky top-0 bg-white/80 backdrop-blur-sm z-10">
-      <Link href="/" className="flex items-center gap-2">
-        <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center">
-          <ShieldCheck size={16} className="text-white" strokeWidth={2} />
-        </div>
-        <span className="text-xl font-semibold tracking-tight text-slate-900">Kotoku</span>
+      <Link href="/" className="flex items-center">
+        <KotokuLogo variant="horizontal" color="navy" size={28} />
       </Link>
 
       <div className="flex items-center gap-5">

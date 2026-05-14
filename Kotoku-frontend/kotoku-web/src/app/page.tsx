@@ -9,6 +9,7 @@ import {
   Users,
 } from "lucide-react";
 import { PublicNav } from "@/components/layout/PublicNav";
+import { KotokuLogo } from "@/components/brand/KotokuLogo";
 
 const STEPS = [
   {
@@ -190,9 +191,7 @@ export default function LandingPage() {
       {/* Footer */}
       <footer className="px-6 py-8 border-t border-neutral-100 flex flex-col sm:flex-row justify-between items-center gap-4 text-sm text-neutral-400">
         <div className="flex items-center gap-2">
-          <div className="w-5 h-5 rounded bg-blue-600 flex items-center justify-center">
-            <ShieldCheck size={10} className="text-white" strokeWidth={2.5} />
-          </div>
+          <KotokuLogo variant="icon" size={20} />
           <span>© {new Date().getFullYear()} Kotoku. All rights reserved.</span>
         </div>
         <span className="italic">

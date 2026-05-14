@@ -2,6 +2,11 @@ import "@/lib/global.css";
 
 import * as Sentry from "@sentry/react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import {
+  useFonts,
+  CormorantGaramond_400Regular,
+  CormorantGaramond_600SemiBold,
+} from "@expo-google-fonts/cormorant-garamond";
 
 if (process.env.EXPO_PUBLIC_SENTRY_DSN) {
   Sentry.init({
@@ -84,6 +89,10 @@ function AuthGuard() {
 
 export default function RootLayout() {
   const [dbReady, setDbReady] = useState(false);
+  const [fontsLoaded] = useFonts({
+    CormorantGaramond_400Regular,
+    CormorantGaramond_600SemiBold,
+  });
 
   useEffect(() => {
     runMigrations()
@@ -91,7 +100,7 @@ export default function RootLayout() {
       .catch(() => setDbReady(true)); // don't block app if migrations fail
   }, []);
 
-  if (!dbReady) {
+  if (!dbReady || !fontsLoaded) {
     return (
       <View className="flex-1 bg-surface-canvas items-center justify-center">
         <Text className="text-sm text-ink-muted">Starting…</Text>

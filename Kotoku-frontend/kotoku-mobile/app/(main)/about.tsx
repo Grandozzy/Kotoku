@@ -1,9 +1,10 @@
-import { ChevronLeft, ShieldCheck } from "lucide-react-native";
+import { ChevronLeft } from "lucide-react-native";
 import { Linking, Pressable, ScrollView, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { colors } from "@/theme/tokens";
+import { KotokuLogo } from "@/components/brand/KotokuLogo";
 
 const VERSION = "1.0.0";
 
@@ -27,13 +28,8 @@ export default function AboutScreen() {
 
       {/* Logo block */}
       <View className="items-center gap-md py-lg">
-        <View className="w-20 h-20 rounded-3xl bg-brand-primary items-center justify-center">
-          <ShieldCheck size={36} color="#ffffff" strokeWidth={1.8} />
-        </View>
-        <View className="items-center gap-xs">
-          <Text className="text-2xl font-bold text-ink-primary">Kotoku</Text>
-          <Text className="text-sm text-ink-muted">Version {VERSION}</Text>
-        </View>
+        <KotokuLogo variant="stacked" size={80} color="navy" />
+        <Text className="text-sm text-ink-muted">Version {VERSION}</Text>
       </View>
 
       {/* Mission */}

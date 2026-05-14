@@ -11,6 +11,7 @@ import {
 import { ScrollView, Text, View } from "react-native";
 
 import { Button } from "@/components/ui";
+import { KotokuLogo } from "@/components/brand/KotokuLogo";
 import { colors } from "@/theme/tokens";
 
 const STEPS = [
@@ -49,9 +50,7 @@ export default function WelcomeScreen() {
     >
       {/* Hero */}
       <View className="items-center gap-md pt-3xl pb-xl">
-        <View className="w-16 h-16 rounded-2xl bg-brand-primary items-center justify-center">
-          <ShieldCheck size={32} color="#ffffff" strokeWidth={1.8} />
-        </View>
+        <KotokuLogo variant="stacked" size={80} color="navy" />
         <View className="items-center gap-xs">
           <Text className="text-xs font-semibold text-brand-primary tracking-widest uppercase">
             Agreement Evidence Platform

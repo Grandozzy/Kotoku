@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ShieldCheck } from "lucide-react";
 import { authApi } from "@/api/auth";
+import { KotokuLogo } from "@/components/brand/KotokuLogo";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -29,13 +30,8 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-4 bg-neutral-50 gap-6">
       {/* Brand */}
-      <Link href="/" className="flex items-center gap-2 group">
-        <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center">
-          <ShieldCheck size={18} className="text-white" strokeWidth={2} />
-        </div>
-        <span className="text-xl font-bold tracking-tight text-neutral-900 group-hover:text-neutral-700 transition-colors">
-          Kotoku
-        </span>
+      <Link href="/" className="flex items-center">
+        <KotokuLogo variant="stacked" color="navy" size={64} />
       </Link>
 
       {/* Card */}

@@ -6,6 +6,7 @@ import { useSessionStore } from "@/store/sessionStore";
 import { useEffect } from "react";
 
 import { Home, Lock, User, Zap } from "lucide-react";
+import { KotokuLogo } from "@/components/brand/KotokuLogo";
 
 const NAV = [
   { href: "/dashboard", label: "Home",    Icon: Home },
@@ -28,11 +29,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen flex flex-col">
       <nav className="flex items-center justify-between px-6 py-3 border-b border-neutral-100 bg-white/80 backdrop-blur-sm sticky top-0 z-10">
-        <Link href="/dashboard" className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center">
-            <Lock size={13} className="text-white" strokeWidth={2.5} />
-          </div>
-          <span className="text-lg font-bold tracking-tight">Kotoku</span>
+        <Link href="/dashboard" className="flex items-center">
+          <KotokuLogo variant="horizontal" color="navy" size={24} />
         </Link>
 
         <div className="flex items-center gap-1">
