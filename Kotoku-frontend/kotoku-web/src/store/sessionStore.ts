@@ -1,12 +1,15 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { persist, createJSONStorage } from "zustand/middleware";
 
 interface SessionState {
-  // accessToken is intentionally NOT persisted — lives in memory only.
-  // On page refresh it starts null; the first 401 triggers a silent refresh
-  // via refreshToken which restores it without the user noticing.
+  // accessToken lives in memory only — never persisted.
   accessToken: string | null;
-  // refreshToken IS persisted so the session survives page refreshes.
+  // refreshToken is persisted to sessionStorage (not localStorage) so it:
+  //   1. Survives same-tab page refreshes (user can navigate back without re-login).
+  //   2. Is cleared automatically when the tab/window closes.
+  //   3. Is NOT shared across tabs, limiting the blast radius of an XSS leak.
+  // NOTE: sessionStorage is still JS-readable. The proper long-term fix is
+  // httpOnly cookies for the refresh token + CSRF tokens for mutations.
   refreshToken: string | null;
   accountId: number | null;
   phone: string | null;
@@ -32,7 +35,8 @@ export const useSessionStore = create<SessionState>()(
     }),
     {
       name: "kotoku-session",
-      // Only persist what's needed for session restore — never the access token.
+      storage: createJSONStorage(() => sessionStorage),
+      // Never persist the access token — it lives in memory only.
       partialize: (state) => ({
         refreshToken: state.refreshToken,
         accountId: state.accountId,

@@ -1,7 +1,5 @@
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
-from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
-from rest_framework_simplejwt.tokens import AccessToken
 
 from apps.accounts.models import DeviceSession
 from apps.auth.api.serializers import (
@@ -14,6 +12,16 @@ from apps.auth.api.serializers import (
 from apps.auth.services import AuthService, PinService, TokenService
 from common.exceptions import DomainError
 from common.responses import ok
+
+
+# Reads the client_type claim from an already-validated JWT (request.auth).
+# Falls back to CLIENT_WEB so that tokens lacking the claim are treated
+# as least-privileged.
+def _jwt_client_type(request) -> str:
+    try:
+        return request.auth["client_type"]
+    except (KeyError, TypeError):
+        return DeviceSession.CLIENT_WEB
 
 
 def _client_type(request) -> str:
@@ -70,7 +78,8 @@ class PinSetupView(APIView):
 
     def post(self, request):
         # PIN is mobile-only; reject web sessions.
-        if _client_type(request) == DeviceSession.CLIENT_WEB:
+        # Read from the validated JWT claim — not the spoofable X-Client-Type header.
+        if _jwt_client_type(request) == DeviceSession.CLIENT_WEB:
             return ok({"detail": "PIN setup is not available for web sessions."}, status=403)
 
         serializer = PinSetupSerializer(data=request.data)
@@ -113,19 +122,16 @@ class SignOutView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        # Extract device_session_id from the JWT claims if present.
-        auth_header = request.headers.get("Authorization", "")
-        if auth_header.startswith("Bearer "):
-            try:
-                token = AccessToken(auth_header[7:])
-                session_id = token.get("device_session_id")
-                if session_id:
-                    TokenService.revoke_session(
-                        session_id=session_id,
-                        reason=DeviceSession.REVOKE_LOGOUT,
-                    )
-            except (InvalidToken, TokenError):
-                pass
+        # request.auth is already the validated JWT token (DRF + SimpleJWT).
+        # Reading device_session_id from it avoids re-parsing the Bearer header.
+        try:
+            session_id = request.auth["device_session_id"]
+            TokenService.revoke_session(
+                session_id=session_id,
+                reason=DeviceSession.REVOKE_LOGOUT,
+            )
+        except (KeyError, TypeError):
+            pass
         return ok({"signed_out": True})
 
 

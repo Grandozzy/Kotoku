@@ -65,6 +65,8 @@ def _split_opaque_token(raw_token: str) -> tuple[str, str]:
         session_id, secret = raw_token.split(".", 1)
     except ValueError:
         raise DomainError("Invalid refresh token format.") from None
+    if not session_id or not secret:
+        raise DomainError("Invalid refresh token format.")
     return session_id, secret
 
 
@@ -138,13 +140,17 @@ def _build_token_response(user: User, session: DeviceSession, raw_token: str) ->
 
 class AuthService:
     @staticmethod
+    @transaction.atomic
     def send_otp(*, phone: str) -> None:
         one_hour_ago = timezone.now() - timedelta(hours=1)
-        recent_count = OTPRequest.objects.filter(
-            phone=phone,
-            purpose=OTPRequest.PURPOSE_LOGIN,
-            created_at__gte=one_hour_ago,
-        ).count()
+        # select_for_update() serializes concurrent send_otp calls for the same
+        # phone so the count+create pair is atomic within the transaction.
+        recent_count = (
+            OTPRequest.objects
+            .filter(phone=phone, purpose=OTPRequest.PURPOSE_LOGIN, created_at__gte=one_hour_ago)
+            .select_for_update()
+            .count()
+        )
         if recent_count >= _OTP_RATE_LIMIT_PER_HOUR:
             raise DomainError("Too many OTP requests. Please wait before requesting another.")
 
