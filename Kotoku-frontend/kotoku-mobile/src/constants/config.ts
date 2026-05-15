@@ -36,6 +36,17 @@ export const API_BASE_URL = envUrl && envUrl.length > 0
   ? envUrl
   : _defaultApiUrl();
 
+// In production builds (Expo sets __DEV__ = false), enforce HTTPS.
+// Tokens transmitted over plain HTTP can be intercepted by a network
+// observer — this is a hard fail so a misconfigured production env is
+// caught immediately rather than silently leaking credentials.
+if (!__DEV__ && API_BASE_URL.startsWith("http://")) {
+  throw new Error(
+    `[Kotoku] EXPO_PUBLIC_API_URL must use https:// in production builds.\n` +
+    `Current value: "${API_BASE_URL}"`
+  );
+}
+
 export const OTP_EXPIRY_SECONDS = 600;
 export const OTP_MAX_ATTEMPTS = 3;
 export const FREE_RETENTION_DAYS = 60;

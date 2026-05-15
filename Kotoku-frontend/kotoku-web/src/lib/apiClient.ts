@@ -2,6 +2,18 @@ import { useSessionStore } from "@/store/sessionStore";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
+// Enforce HTTPS in production. If the env var is misconfigured as http://,
+// tokens would flow in plaintext — fail loudly rather than silently.
+if (
+  process.env.NODE_ENV === "production" &&
+  BASE_URL.startsWith("http://")
+) {
+  throw new Error(
+    `[Kotoku] NEXT_PUBLIC_API_URL must use https:// in production.\n` +
+    `Current value: "${BASE_URL}"`
+  );
+}
+
 // Mutex: if a refresh is already in flight, queue behind it instead of
 // firing duplicate refresh requests.
 let refreshPromise: Promise<string | null> | null = null;
