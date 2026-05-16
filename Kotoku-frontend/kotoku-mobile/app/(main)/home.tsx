@@ -206,7 +206,7 @@ function ActionCard({ item }: { item: { id: number; title: string; status: strin
   );
 }
 
-function DraftCard({ item }: { item: { id: number; title: string; updated_at: string; scenario_template: string; status: string; parties?: Array<{ role: string; full_name: string }> } }) {
+function DraftCard({ item }: { item: { id: number; title: string; updated_at: string; scenario_template: string; status: string; step_index?: number; parties?: Array<{ role: string; full_name: string }> } }) {
   const router = useRouter();
   const initDraft = useAgreementStore((s) => s.initDraft);
 
@@ -218,6 +218,9 @@ function DraftCard({ item }: { item: { id: number; title: string; updated_at: st
   const relativeTime = getRelativeTime(item.updated_at);
   const scenarioLabel = SCENARIO_LABELS[item.scenario_template] ?? item.scenario_template;
   const partyNames = item.parties?.map(p => p.full_name).join(", ");
+  const stepIndex = item.step_index ?? 0;
+  const totalSteps = STEPS.length;
+  const stepLabel = STEPS[stepIndex];
 
   return (
     <Pressable
@@ -233,6 +236,19 @@ function DraftCard({ item }: { item: { id: number; title: string; updated_at: st
             {item.title}
           </Text>
           <Text className="text-xs text-ink-muted mt-xs">{scenarioLabel} · {relativeTime}</Text>
+          <View className="flex-row items-center gap-sm mt-xs">
+            <View className="flex-row gap-xs">
+              {Array.from({ length: totalSteps }).map((_, i) => (
+                <View
+                  key={i}
+                  className={`w-1.5 h-1.5 rounded-full ${i < stepIndex ? "bg-brand-primary" : i === stepIndex ? "bg-brand-primary" : "bg-border-subtle"}`}
+                />
+              ))}
+            </View>
+            <Text className="text-xs text-ink-secondary">
+              {stepIndex + 1} of {totalSteps} steps
+            </Text>
+          </View>
           {partyNames && <Text className="text-xs text-ink-secondary mt-xs">{partyNames}</Text>}
           <Text className="text-xs text-brand-primary mt-xs">Continue →</Text>
         </View>

@@ -103,6 +103,7 @@ export interface PendingActionItem {
   scenario_template: string;
   created_at: string;
   updated_at: string;
+  step_index?: number;
   parties?: Array<{
     id: number;
     role: string;
