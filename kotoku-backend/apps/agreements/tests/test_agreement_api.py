@@ -84,6 +84,22 @@ class TestAgreementDetailApi:
         data = response.json()["data"]["agreement"]
         assert data["title"] == "Detail Test"
 
+    def test_get_agreement_includes_step_index(self, authenticated_client):
+        client, account = authenticated_client
+        from apps.agreements.services import AgreementService
+
+        agreement = AgreementService.create_draft(
+            title="Step Index Test", created_by=account
+        )
+        # Update the draft with step_index
+        AgreementService.update_draft(agreement_id=agreement.pk, step_index=3)
+
+        response = client.get(f"/api/agreements/{agreement.pk}/", format="json")
+        assert response.status_code == 200
+        data = response.json()["data"]["agreement"]
+        assert "step_index" in data
+        assert data["step_index"] == 3
+
     def test_get_nonexistent_agreement_returns_404(self, authenticated_client):
         client, _ = authenticated_client
         response = client.get("/api/agreements/99999/", format="json")
@@ -120,6 +136,26 @@ class TestAgreementUpdateApi:
         assert response.status_code == 200
         data = response.json()["data"]["agreement"]
         assert data["title"] == "Updated"
+
+    def test_update_draft_with_step_index(self, authenticated_client):
+        client, account = authenticated_client
+        from apps.agreements.services import AgreementService
+
+        agreement = AgreementService.create_draft(
+            title="Step Test", created_by=account
+        )
+        response = client.patch(
+            f"/api/agreements/{agreement.pk}/",
+            {"step_index": 5},
+            format="json",
+        )
+        assert response.status_code == 200
+        data = response.json()["data"]["agreement"]
+        assert data["step_index"] == 5
+
+        # Verify it's persisted
+        agreement.refresh_from_db()
+        assert agreement.step_index == 5
 
     def test_update_non_draft_returns_400(self, authenticated_client):
         client, account = authenticated_client

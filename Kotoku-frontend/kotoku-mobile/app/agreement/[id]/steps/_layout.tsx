@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { StepProgress } from "@/components/agreement/StepProgress";
 import { useAgreementStore, STEPS } from "@/features/agreements/agreementStore";
-import { useDraftPersistence } from "@/hooks/useDraftPersistence";
+import { useDraftSession } from "@/hooks/useDraftSession";
 import { colors } from "@/theme/tokens";
 
 function ReeditHeader({ onExit }: { onExit: () => void }) {
@@ -51,7 +51,7 @@ export default function StepsLayout() {
   const isReopened = useAgreementStore((s) => s.isReopened);
   const goToStep = useAgreementStore((s) => s.goToStep);
   const reset = useAgreementStore((s) => s.reset);
-  useDraftPersistence();
+  const { abandon } = useDraftSession();
 
   const handleStepPress = (index: number) => {
     if (!id) return;

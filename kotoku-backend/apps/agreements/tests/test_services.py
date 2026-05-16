@@ -292,6 +292,23 @@ class TestUpdateDraft:
             entity_id=str(agreement.pk),
         ).exists()
 
+    def test_update_draft_preserves_step_index(self, db):
+        """Test that update_draft() correctly persists step_index."""
+        account = _account("step_index@test.com")
+        agreement = AgreementService.create_draft(
+            title="Test Agreement", created_by=account
+        )
+        # Update draft with step_index=2
+        updated = AgreementService.update_draft(
+            agreement_id=agreement.pk,
+            step_index=2,
+        )
+        assert updated.step_index == 2
+
+        # Verify it's persisted in the database
+        agreement.refresh_from_db()
+        assert agreement.step_index == 2
+
 
 class TestReopenAgreement:
     def test_transitions_sealed_to_active_within_24h(self, db):

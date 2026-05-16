@@ -102,6 +102,7 @@ class AgreementService:
         description: str | None = None,
         scenario_template: str | None = None,
         field_data: dict | None = None,
+        step_index: int | None = None,
     ) -> Agreement:
         agreement = Agreement.objects.get(pk=agreement_id)
         if agreement.status != AgreementStatus.DRAFT:
@@ -119,6 +120,9 @@ class AgreementService:
         if field_data is not None:
             agreement.field_data = field_data
             update_fields.append("field_data")
+        if step_index is not None:
+            agreement.step_index = step_index
+            update_fields.append("step_index")
         agreement.save(update_fields=update_fields)
         AuditService.record_event(
             event_type="agreement.updated",
@@ -136,6 +140,7 @@ class AgreementService:
         description: str | None = None,
         scenario_template: str | None = None,
         field_data: dict | None = None,
+        step_index: int | None = None,
     ) -> Agreement:
         agreement = Agreement.objects.get(pk=agreement_id)
         if agreement.status != AgreementStatus.ACTIVE:
@@ -153,6 +158,9 @@ class AgreementService:
         if field_data is not None:
             agreement.field_data = field_data
             update_fields.append("field_data")
+        if step_index is not None:
+            agreement.step_index = step_index
+            update_fields.append("step_index")
         agreement.save(update_fields=update_fields)
         AuditService.record_event(
             event_type="agreement.updated_active",
