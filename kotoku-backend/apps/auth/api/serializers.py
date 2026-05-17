@@ -11,7 +11,7 @@ class SendOtpSerializer(serializers.Serializer):
 
 class VerifyOtpSerializer(serializers.Serializer):
     phone = serializers.RegexField(_E164_PATTERN, max_length=20)
-    otp_code = serializers.CharField(min_length=8, max_length=8)
+    otp_code = serializers.CharField(min_length=6, max_length=6)
 
 
 class RefreshTokenSerializer(serializers.Serializer):
