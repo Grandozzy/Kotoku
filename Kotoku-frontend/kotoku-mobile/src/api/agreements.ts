@@ -109,8 +109,11 @@ export interface PendingActionItem {
   parties?: Array<{
     id: number;
     role: string;
-    full_name: string;
+    full_name?: string;
+    display_name?: string;
     phone: string;
+    id_type?: string;
+    id_number?: string;
   }>;
 }
 
