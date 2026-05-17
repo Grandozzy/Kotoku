@@ -211,8 +211,9 @@ function DraftCard({ item }: { item: { id: number; title: string; updated_at: st
   const initDraft = useAgreementStore((s) => s.initDraft);
 
   const handlePress = () => {
-    initDraft(item.id, item.scenario_template as ScenarioId);
-    router.push(`/agreement/${item.id}/steps/${item.status === "draft" ? "parties" : "review"}?scenarioId=${item.scenario_template}`);
+    const stepIndex = item.step_index ?? 0;
+    initDraft(item.id, item.scenario_template as ScenarioId, stepIndex);
+    router.push(`/agreement/${item.id}/steps/${STEPS[stepIndex]}?scenarioId=${item.scenario_template}`);
   };
 
   const relativeTime = getRelativeTime(item.updated_at);

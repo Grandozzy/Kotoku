@@ -20,7 +20,7 @@ export function StepProgress({ currentIndex, onStepPress }: StepProgressProps) {
         {STEP_LABELS.map((label, idx) => {
           const done = idx < currentIndex;
           const active = idx === currentIndex;
-          const tappable = done && onStepPress;
+          const tappable = onStepPress;
 
           return (
             <View key={label} className="flex-row items-center">
