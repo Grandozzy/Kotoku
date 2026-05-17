@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { ChevronLeft } from "lucide-react-native";
 import { Pressable, Text, View } from "react-native";
@@ -52,13 +51,7 @@ export default function StepsLayout() {
   const isReopened = useAgreementStore((s) => s.isReopened);
   const goToStep = useAgreementStore((s) => s.goToStep);
   const reset = useAgreementStore((s) => s.reset);
-  const { abandon, save } = useDraftSession();
-
-  useEffect(() => {
-    if (id && stepIndex > 0) {
-      save({ stepIndex }).catch(() => {});
-    }
-  }, [stepIndex]);
+  const { abandon } = useDraftSession();
 
   const handleStepPress = (index: number) => {
     if (!id) return;

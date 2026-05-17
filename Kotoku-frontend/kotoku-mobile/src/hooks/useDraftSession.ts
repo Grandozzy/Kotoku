@@ -1,6 +1,7 @@
 import { useAgreementStore } from "@/features/agreements/agreementStore";
 import type { PartyDraft } from "@/features/agreements/agreementStore";
-import { getAgreement, updateAgreement } from "@/api/agreements";
+import { getAgreement, setParties, updateAgreement } from "@/api/agreements";
+import type { PartyPayload } from "@/api/agreements";
 
 import type { ScenarioId } from "@/constants/scenarios";
 
@@ -37,46 +38,38 @@ export function useDraftSession() {
       idNumber: agreement.parties[1]?.idNumber ?? "",
     };
 
-    const stepIndex = agreement.stepIndex ?? 0;
-
-    const subjectData = agreement.fieldData ?? {};
-
     return {
       agreementId,
       scenarioId: agreement.scenarioId,
-      stepIndex,
+      stepIndex: agreement.stepIndex ?? 0,
       partyA,
       partyB,
-      subjectData,
+      subjectData: agreement.fieldData ?? {},
     };
   };
 
-  const save = async (delta: Partial<DraftState>): Promise<void> => {
-    const agreementId = delta.agreementId ?? store.agreementId;
-    if (agreementId === null) {
-      throw new Error("Cannot save: no agreement ID available");
+  const saveStepProgress = async (
+    agreementId: number,
+    stepIndex: number,
+    fieldData?: Record<string, unknown>,
+  ): Promise<void> => {
+    const payload: Record<string, unknown> = { step_index: stepIndex };
+    if (fieldData !== undefined) {
+      payload.field_data = fieldData;
     }
+    await updateAgreement(agreementId, payload);
+  };
 
-    const payload: Record<string, unknown> = {};
-    if (delta.subjectData !== undefined) payload.field_data = delta.subjectData;
-    if (delta.stepIndex !== undefined) payload.step_index = delta.stepIndex;
-    if (delta.partyA !== undefined || delta.partyB !== undefined) {
-      const partyA = delta.partyA ?? store.partyA;
-      const partyB = delta.partyB ?? store.partyB;
-      payload.parties = [
-        { role: "party_a", full_name: partyA.fullName, phone: partyA.phone, id_type: partyA.idType, id_number: partyA.idNumber },
-        { role: "party_b", full_name: partyB.fullName, phone: partyB.phone, id_type: partyB.idType, id_number: partyB.idNumber },
-      ];
-    }
-
-    if (Object.keys(payload).length > 0) {
-      await updateAgreement(agreementId, payload);
-    }
+  const saveParties = async (
+    agreementId: number,
+    parties: PartyPayload[],
+  ): Promise<void> => {
+    await setParties(agreementId, parties);
   };
 
   const abandon = (): void => {
     store.reset();
   };
 
-  return { load, save, abandon };
+  return { load, saveStepProgress, saveParties, abandon };
 }

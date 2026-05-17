@@ -11,7 +11,7 @@ import {
   type IdType,
 } from "@/features/agreements/agreementStore";
 import { useTemplate } from "@/features/agreements/useAgreementDraft";
-import { setParties } from "@/api/agreements";
+import { useDraftSession } from "@/hooks/useDraftSession";
 
 const partySchema = z.object({
   fullName: z.string().min(2, "Full name is required"),
@@ -49,9 +49,11 @@ export default function PartiesStep() {
   const { partyA, partyB, setPartyA, setPartyB, nextStep } =
     useAgreementStore();
   const template = useTemplate(scenarioId);
+  const { saveStepProgress, saveParties } = useDraftSession();
 
   const [roleA, roleB] = template?.partyRoles ?? ["Buyer", "Seller"];
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const roleEnum = (label: string) => label.toLowerCase();
 
@@ -69,11 +71,10 @@ export default function PartiesStep() {
   });
 
   const onSubmit = async (values: PartiesFormValues) => {
-    setPartyA(values.partyA);
-    setPartyB(values.partyB);
     setSaving(true);
+    setError(null);
     try {
-      await setParties(agreementId, [
+      const partyPayload = [
         {
           role: roleEnum(roleA),
           full_name: values.partyA.fullName,
@@ -88,11 +89,21 @@ export default function PartiesStep() {
           id_type: values.partyB.idType,
           id_number: values.partyB.idNumber,
         },
-      ]);
-    } catch {}
-    setSaving(false);
-    nextStep();
-    router.push(`/agreement/${id}/steps/details?scenarioId=${scenarioId}`);
+      ];
+
+      await saveParties(agreementId, partyPayload);
+      setPartyA(values.partyA);
+      setPartyB(values.partyB);
+
+      const newIndex = 1;
+      await saveStepProgress(agreementId, newIndex);
+      nextStep();
+      router.push(`/agreement/${id}/steps/details?scenarioId=${scenarioId}`);
+    } catch {
+      setError("Failed to save. Check your connection and try again.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -115,6 +126,10 @@ export default function PartiesStep() {
         control={control}
         errors={errors.partyB}
       />
+
+      {error && (
+        <Text className="text-sm text-semantic-error text-center">{error}</Text>
+      )}
 
       <View className="flex-row gap-sm">
         <View style={{ flex: 2 }}>

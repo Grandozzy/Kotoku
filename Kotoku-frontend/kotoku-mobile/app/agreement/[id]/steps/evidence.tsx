@@ -1,12 +1,14 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Mic, MicOff } from "lucide-react-native";
 import { ScrollView, Text, View } from "react-native";
+import { useState } from "react";
 
 import { Button } from "@/components/ui";
 import { PhotoSlot } from "@/components/evidence/PhotoSlot";
 import { useAgreementStore, STEPS } from "@/features/agreements/agreementStore";
 import { useEvidenceUpload } from "@/features/evidence/useEvidenceUpload";
 import { useTemplate } from "@/features/agreements/useAgreementDraft";
+import { useDraftSession } from "@/hooks/useDraftSession";
 import { colors } from "@/theme/tokens";
 
 export default function EvidenceStep() {
@@ -15,10 +17,13 @@ export default function EvidenceStep() {
   const storeScenarioId = useAgreementStore((s) => s.scenarioId);
   const scenarioId = storeScenarioId ?? urlScenarioId;
   const { nextStep, prevStep, stepIndex } = useAgreementStore();
+  const { saveStepProgress } = useDraftSession();
   const template = useTemplate(scenarioId);
   const agreementId = Number(id);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const { items, pickImage, error } = useEvidenceUpload(agreementId);
+  const { items, pickImage, error: uploadError } = useEvidenceUpload(agreementId);
 
   if (!template) return null;
 
@@ -31,9 +36,18 @@ export default function EvidenceStep() {
   ).length;
   const canProceed = uploadedPhotoCount >= minimumPhotoCount;
 
-  const handleNext = () => {
-    nextStep();
-    router.push(`/agreement/${id}/steps/review?scenarioId=${scenarioId}`);
+  const handleNext = async () => {
+    setSaving(true);
+    setError(null);
+    try {
+      const newIndex = stepIndex + 1;
+      await saveStepProgress(agreementId, newIndex);
+      nextStep();
+      router.push(`/agreement/${id}/steps/review?scenarioId=${scenarioId}`);
+    } catch {
+      setError("Failed to save progress. Check your connection and try again.");
+      setSaving(false);
+    }
   };
 
   return (
@@ -96,14 +110,18 @@ export default function EvidenceStep() {
         </View>
       )}
 
-      {error && (
-        <Text className="text-sm text-semantic-error">{error}</Text>
+      {uploadError && (
+        <Text className="text-sm text-semantic-error">{uploadError}</Text>
       )}
 
       {!canProceed && (
         <Text className="text-xs text-ink-muted text-center">
           Upload at least {minimumPhotoCount} photo{minimumPhotoCount !== 1 ? "s" : ""} to continue.
         </Text>
+      )}
+
+      {(error) && (
+        <Text className="text-sm text-semantic-error text-center">{error}</Text>
       )}
 
       <View className="flex-row gap-sm">
@@ -113,6 +131,7 @@ export default function EvidenceStep() {
               title="Back"
               variant="secondary"
               size="lg"
+              disabled={saving}
               onPress={() => {
                 prevStep();
                 router.replace(`/agreement/${id}/steps/${STEPS[stepIndex - 1]}`);
@@ -125,7 +144,8 @@ export default function EvidenceStep() {
             title="Proceed"
             variant="primary"
             size="lg"
-            disabled={!canProceed}
+            disabled={!canProceed || saving}
+            loading={saving}
             onPress={handleNext}
           />
         </View>

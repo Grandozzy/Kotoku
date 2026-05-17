@@ -5,11 +5,10 @@ import { Pressable, RefreshControl, ScrollView, Text, View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Button, CardSkeleton, EmptyState } from "@/components/ui";
-import { getAgreement } from "@/api/agreements";
 import { usePendingActions } from "@/features/agreements/usePendingActions";
 import { useAgreementStore, STEPS } from "@/features/agreements/agreementStore";
+import { useDraftSession } from "@/hooks/useDraftSession";
 import { usePlan } from "@/features/billing/usePlan";
-import type { ScenarioId } from "@/constants/scenarios";
 import { SCENARIOS } from "@/constants/scenarios";
 import { colors } from "@/theme/tokens";
 
@@ -155,23 +154,20 @@ export default function HomeScreen() {
 function ActionCard({ item }: { item: { id: number; title: string; status: string; scenario_template: string } }) {
   const router = useRouter();
   const initForConsent = useAgreementStore((s) => s.initForConsent);
+  const { load } = useDraftSession();
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handlePress = async () => {
     if (item.status === "pending_consent") {
       setLoading(true);
+      setError(null);
       try {
-        const agreement = await getAgreement(item.id);
-        const pA = agreement.parties[0];
-        const pB = agreement.parties[1];
-        initForConsent(
-          agreement.id,
-          agreement.scenarioId as ScenarioId,
-          { fullName: pA.displayName, phone: pA.phone, idType: pA.idType ?? "ghana_card", idNumber: pA.idNumber ?? "" },
-          { fullName: pB.displayName, phone: pB.phone, idType: pB.idType ?? "ghana_card", idNumber: pB.idNumber ?? "" },
-        );
-        router.push(`/agreement/${agreement.id}/steps/consent?scenarioId=${agreement.scenarioId}`);
+        const state = await load(item.id);
+        initForConsent(state.agreementId, state.scenarioId, state.partyA, state.partyB);
+        router.push(`/agreement/${state.agreementId}/steps/consent?scenarioId=${state.scenarioId}`);
       } catch {
+        setError("Failed to load. Try again.");
       } finally {
         setLoading(false);
       }
@@ -199,6 +195,7 @@ function ActionCard({ item }: { item: { id: number; title: string; status: strin
         {item.title}
       </Text>
       <Text className="text-sm text-amber-600 mt-xs">{label}</Text>
+      {error && <Text className="text-xs text-semantic-error mt-xs">{error}</Text>}
       <Text className="text-xs text-brand-primary mt-xs">
         {loading ? "Loading…" : "Tap to continue →"}
       </Text>
@@ -208,31 +205,20 @@ function ActionCard({ item }: { item: { id: number; title: string; status: strin
 
 function DraftCard({ item }: { item: { id: number; title: string; updated_at: string; scenario_template: string; status: string; step_index?: number; parties?: Array<{ role: string; full_name: string; phone: string; id_type: string; id_number: string }> } }) {
   const router = useRouter();
-  const initDraft = useAgreementStore((s) => s.initDraft);
-  const setPartyA = useAgreementStore((s) => s.setPartyA);
-  const setPartyB = useAgreementStore((s) => s.setPartyB);
-  const setSubjectData = useAgreementStore((s) => s.setSubjectData);
+  const hydrate = useAgreementStore((s) => s.hydrate);
+  const { load } = useDraftSession();
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handlePress = async () => {
     setLoading(true);
+    setError(null);
     try {
-      const agreement = await getAgreement(item.id);
-      const stepIndex = agreement.stepIndex ?? 0;
-      initDraft(item.id, agreement.scenarioId, stepIndex);
-
-      if (agreement.parties.length >= 2) {
-        const pA = agreement.parties[0];
-        const pB = agreement.parties[1];
-        setPartyA({ fullName: pA.displayName, phone: pA.phone, idType: pA.idType ?? "ghana_card", idNumber: pA.idNumber ?? "" });
-        setPartyB({ fullName: pB.displayName, phone: pB.phone, idType: pB.idType ?? "ghana_card", idNumber: pB.idNumber ?? "" });
-      }
-      if (agreement.fieldData && Object.keys(agreement.fieldData).length > 0) {
-        setSubjectData(agreement.fieldData);
-      }
-
-      router.push(`/agreement/${item.id}/steps/${STEPS[stepIndex]}?scenarioId=${agreement.scenarioId}`);
+      const state = await load(item.id);
+      hydrate(state);
+      router.push(`/agreement/${item.id}/steps/${STEPS[state.stepIndex]}?scenarioId=${state.scenarioId}`);
     } catch {
+      setError("Failed to load draft. Try again.");
     } finally {
       setLoading(false);
     }
@@ -243,7 +229,6 @@ function DraftCard({ item }: { item: { id: number; title: string; updated_at: st
   const partyNames = item.parties?.map(p => p.full_name).join(", ");
   const stepIndex = item.step_index ?? 0;
   const totalSteps = STEPS.length;
-  const stepLabel = STEPS[stepIndex];
 
   return (
     <Pressable
@@ -274,6 +259,7 @@ function DraftCard({ item }: { item: { id: number; title: string; updated_at: st
             </Text>
           </View>
           {partyNames && <Text className="text-xs text-ink-secondary mt-xs">{partyNames}</Text>}
+          {error && <Text className="text-xs text-semantic-error mt-xs">{error}</Text>}
           <Text className="text-xs text-brand-primary mt-xs">{loading ? "Loading…" : "Continue →"}</Text>
         </View>
       </View>
