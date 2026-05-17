@@ -272,9 +272,9 @@ function DraftCard({ item }: { item: { id: number; title: string; updated_at: st
           </View>
           <View className="flex-1">
             <Text className="text-md font-semibold text-ink-primary" numberOfLines={1}>
-              {item.title}
+              {scenarioLabel}
             </Text>
-            <Text className="text-xs text-ink-muted mt-xs">{scenarioLabel} · {relativeTime}</Text>
+            <Text className="text-xs text-ink-muted mt-xs">{relativeTime}</Text>
             <View className="flex-row items-center gap-sm mt-xs">
               <View className="flex-row gap-xs">
                 {Array.from({ length: totalSteps }).map((_, i) => (

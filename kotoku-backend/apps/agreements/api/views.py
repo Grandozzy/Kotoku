@@ -342,6 +342,7 @@ class PendingActionsView(APIView):
             Agreement.objects.filter(
                 created_by=account,
                 status=AgreementStatus.DRAFT,
+                step_index__gte=1,
             )
             .prefetch_related("parties")
             .order_by("-updated_at")

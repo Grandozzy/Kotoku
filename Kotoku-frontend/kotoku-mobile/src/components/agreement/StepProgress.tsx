@@ -7,10 +7,11 @@ const STEP_LABELS = ["Parties", "Details", "Evidence", "Review", "Consent"];
 
 interface StepProgressProps {
   currentIndex: number;
+  maxCompletedStep: number;
   onStepPress?: (index: number) => void;
 }
 
-export function StepProgress({ currentIndex, onStepPress }: StepProgressProps) {
+export function StepProgress({ currentIndex, maxCompletedStep, onStepPress }: StepProgressProps) {
   return (
     <View
       className="items-center bg-surface-card border-b border-border-subtle"
@@ -20,7 +21,9 @@ export function StepProgress({ currentIndex, onStepPress }: StepProgressProps) {
         {STEP_LABELS.map((label, idx) => {
           const done = idx < currentIndex;
           const active = idx === currentIndex;
-          const tappable = onStepPress;
+          const locked = idx > maxCompletedStep;
+          const reachable = idx > currentIndex && idx <= maxCompletedStep;
+          const tappable = onStepPress && !locked;
 
           return (
             <View key={label} className="flex-row items-center">
@@ -38,7 +41,9 @@ export function StepProgress({ currentIndex, onStepPress }: StepProgressProps) {
                       ? "bg-brand-primary"
                       : active
                         ? "bg-brand-primary"
-                        : "bg-surface-subtle border border-border-subtle",
+                        : reachable
+                          ? "bg-orange-50 border border-orange-300"
+                          : "bg-surface-subtle border border-border-subtle",
                   ].join(" ")}
                 >
                   {done ? (
@@ -46,7 +51,7 @@ export function StepProgress({ currentIndex, onStepPress }: StepProgressProps) {
                   ) : (
                     <Text
                       className={
-                        active ? "text-xs font-semibold text-white" : "text-xs text-ink-muted"
+                        active ? "text-xs font-semibold text-white" : reachable ? "text-xs text-ink-primary" : "text-xs text-ink-muted"
                       }
                     >
                       {idx + 1}
@@ -56,7 +61,7 @@ export function StepProgress({ currentIndex, onStepPress }: StepProgressProps) {
                 <Text
                   className={[
                     "text-xs mt-xs",
-                    active ? "text-brand-primary font-semibold" : "text-ink-muted",
+                    active ? "text-brand-primary font-semibold" : reachable ? "text-ink-primary" : "text-ink-muted",
                   ].join(" ")}
                   numberOfLines={1}
                 >
@@ -68,7 +73,7 @@ export function StepProgress({ currentIndex, onStepPress }: StepProgressProps) {
                 <View
                   className={[
                     "h-px w-6 mx-xs mb-4",
-                    done ? "bg-brand-primary" : "bg-border-subtle",
+                    idx < maxCompletedStep ? "bg-brand-primary" : "bg-border-subtle",
                   ].join(" ")}
                 />
               )}

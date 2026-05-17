@@ -48,6 +48,7 @@ export default function StepsLayout() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const stepIndex = useAgreementStore((s) => s.stepIndex);
+  const maxCompletedStep = useAgreementStore((s) => s.maxCompletedStep);
   const isReopened = useAgreementStore((s) => s.isReopened);
   const goToStep = useAgreementStore((s) => s.goToStep);
   const reset = useAgreementStore((s) => s.reset);
@@ -55,6 +56,7 @@ export default function StepsLayout() {
 
   const handleStepPress = (index: number) => {
     if (!id) return;
+    if (index > maxCompletedStep) return;
     goToStep(index);
     router.replace(`/agreement/${id}/steps/${STEPS[index]}`);
   };
@@ -75,7 +77,7 @@ export default function StepsLayout() {
       ) : (
         <FormHeader onExit={handleExit} />
       )}
-      <StepProgress currentIndex={stepIndex} onStepPress={handleStepPress} />
+      <StepProgress currentIndex={stepIndex} maxCompletedStep={maxCompletedStep} onStepPress={handleStepPress} />
     </View>
   );
 

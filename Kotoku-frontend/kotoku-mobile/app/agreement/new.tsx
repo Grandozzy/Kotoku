@@ -3,14 +3,11 @@ import { ChevronRight, TrendingUp } from "lucide-react-native";
 import { Pressable, ScrollView, Text, View } from "react-native";
 
 import { SCENARIOS } from "@/constants/scenarios";
-import { useCreateDraft } from "@/features/agreements/useAgreementDraft";
 import { usePlan } from "@/features/billing/usePlan";
-import { getApiErrorMessage } from "@/lib/errorHandler";
 import { colors } from "@/theme/tokens";
 
 export default function NewAgreementScreen() {
   const router = useRouter();
-  const mutation = useCreateDraft();
   const { data: plan } = usePlan();
 
   const capReached = plan?.flags.is_personal && plan?.usage.is_cap_reached;
@@ -61,7 +58,6 @@ export default function NewAgreementScreen() {
               <Pressable
                 className="bg-brand-primary rounded-xl py-md items-center active:opacity-70"
                 onPress={() => {
-                  // Deep link to pricing page — handled by web or future in-app billing screen
                   router.back();
                 }}
               >
@@ -89,17 +85,14 @@ export default function NewAgreementScreen() {
       className="flex-1 bg-surface-canvas"
       contentContainerClassName="px-lg py-xl gap-xl"
     >
-      {/* Subtitle */}
       <Text className="text-md text-ink-secondary">
         Select the type that best matches your transaction.
       </Text>
 
-      {/* Scenario cards */}
       {SCENARIOS.map((scenario) => (
         <Pressable
           key={scenario.id}
-          disabled={mutation.isPending}
-          onPress={() => mutation.mutate(scenario.id)}
+          onPress={() => router.push(`/agreement/new/${scenario.id}/steps/parties?scenarioId=${scenario.id}`)}
           className="bg-surface-card rounded-lg p-lg border border-border-subtle flex-row items-center justify-between active:opacity-70"
         >
           <View className="flex-1 gap-xs pr-md">
@@ -113,18 +106,6 @@ export default function NewAgreementScreen() {
           <ChevronRight size={20} color={colors.inkMuted} />
         </Pressable>
       ))}
-
-      {mutation.isError && (
-        <Text className="text-sm text-semantic-error text-center">
-          {getApiErrorMessage(mutation.error)}
-        </Text>
-      )}
-
-      {mutation.isPending && (
-        <Text className="text-sm text-ink-muted text-center">
-          Creating draft…
-        </Text>
-      )}
     </ScrollView>
   );
 }

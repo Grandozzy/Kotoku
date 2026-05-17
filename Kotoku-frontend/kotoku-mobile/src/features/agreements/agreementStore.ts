@@ -26,6 +26,7 @@ interface AgreementDraftStore {
 
   // Step tracking
   stepIndex: number;
+  maxCompletedStep: number;
   steps: readonly StepId[];
 
   // Draft data
@@ -73,6 +74,7 @@ export const useAgreementStore = create<AgreementDraftStore>((set) => ({
   agreementId: null,
   scenarioId: null,
   stepIndex: 0,
+  maxCompletedStep: 0,
   steps: STEPS,
   partyA: emptyParty,
   partyB: emptyParty,
@@ -82,7 +84,18 @@ export const useAgreementStore = create<AgreementDraftStore>((set) => ({
   isReopened: false,
 
   initDraft: (agreementId, scenarioId, stepIndex = 0) =>
-    set({ agreementId, scenarioId, stepIndex, isReopened: false }),
+    set({
+      agreementId,
+      scenarioId,
+      stepIndex,
+      maxCompletedStep: stepIndex,
+      isReopened: false,
+      partyA: emptyParty,
+      partyB: emptyParty,
+      subjectData: {},
+      consentA: emptyConsent,
+      consentB: emptyConsent,
+    }),
 
   initReopened: (agreementId, scenarioId, partyA, partyB, subjectData) =>
     set({
@@ -111,6 +124,7 @@ export const useAgreementStore = create<AgreementDraftStore>((set) => ({
       agreementId: state.agreementId,
       scenarioId: state.scenarioId,
       stepIndex: state.stepIndex,
+      maxCompletedStep: state.stepIndex,
       partyA: state.partyA,
       partyB: state.partyB,
       subjectData: state.subjectData,
@@ -122,7 +136,10 @@ export const useAgreementStore = create<AgreementDraftStore>((set) => ({
   goToStep: (index) => set({ stepIndex: index }),
 
   nextStep: () =>
-    set((s) => ({ stepIndex: Math.min(s.stepIndex + 1, STEPS.length - 1) })),
+    set((s) => ({
+      stepIndex: Math.min(s.stepIndex + 1, STEPS.length - 1),
+      maxCompletedStep: Math.max(s.maxCompletedStep, s.stepIndex + 1),
+    })),
 
   prevStep: () =>
     set((s) => ({ stepIndex: Math.max(s.stepIndex - 1, 0) })),
@@ -150,6 +167,7 @@ export const useAgreementStore = create<AgreementDraftStore>((set) => ({
       agreementId: null,
       scenarioId: null,
       stepIndex: 0,
+      maxCompletedStep: 0,
       partyA: emptyParty,
       partyB: emptyParty,
       subjectData: {},
