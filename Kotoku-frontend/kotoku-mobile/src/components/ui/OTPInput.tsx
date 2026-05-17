@@ -1,5 +1,5 @@
 // src/components/ui/OTPInput.tsx
-import React, { useRef } from "react";
+import React, { useEffect, useRef } from "react";
 import {
   NativeSyntheticEvent,
   Platform,
@@ -8,13 +8,12 @@ import {
   View,
 } from "react-native";
 
-// KeyboardEventData is the non-deprecated successor to TextInputKeyPressEventData
 type KeyboardEventData = { key: string };
 
 import { cn } from "@/lib/cn";
 
 interface OTPInputProps {
-  // Default is 8 to match Kotoku's OTP policy (8-digit codes).
+  // Default is 6 to match Kotoku's OTP policy (6-digit codes).
   length?: number;
   value: string;
   onChange: (val: string) => void;
@@ -24,7 +23,7 @@ interface OTPInputProps {
 }
 
 export const OTPInput: React.FC<OTPInputProps> = ({
-  length = 8,
+  length = 6,
   value,
   onChange,
   error,
@@ -32,12 +31,28 @@ export const OTPInput: React.FC<OTPInputProps> = ({
   secureTextEntry,
 }) => {
   const inputs = useRef<Array<TextInput | null>>([]);
+  const isDeleting = useRef(false);
+
+  // Auto-focus the first empty cell
+  useEffect(() => {
+    const firstEmptyIndex = value.length;
+    if (firstEmptyIndex < length) {
+      inputs.current[firstEmptyIndex]?.focus();
+    }
+  }, [value, length]);
 
   const handleChange = (text: string, index: number) => {
+    if (isDeleting.current) {
+      isDeleting.current = false;
+      return;
+    }
+
     const digit = text.slice(-1);
-    const next =
+    const nextValue =
       value.substring(0, index) + digit + value.substring(index + 1);
-    onChange(next);
+    onChange(nextValue);
+
+    // Move focus to next cell if digit entered
     if (digit && index < length - 1) {
       inputs.current[index + 1]?.focus();
     }
@@ -47,8 +62,16 @@ export const OTPInput: React.FC<OTPInputProps> = ({
     e: NativeSyntheticEvent<KeyboardEventData>,
     index: number,
   ) => {
-    if (e.nativeEvent.key === "Backspace" && !value[index] && index > 0) {
-      inputs.current[index - 1]?.focus();
+    if (e.nativeEvent.key === "Backspace") {
+      if (value[index]) {
+        // Clear current cell and stay
+        isDeleting.current = true;
+        const prevValue = value.substring(0, index) + value.substring(index + 1);
+        onChange(prevValue);
+      } else if (index > 0) {
+        // Move to previous cell if current is empty
+        inputs.current[index - 1]?.focus();
+      }
     }
   };
 
@@ -57,15 +80,14 @@ export const OTPInput: React.FC<OTPInputProps> = ({
 
   return (
     <View>
-      <View className="flex-row justify-center gap-xs">
+      <View className="flex-row justify-center gap-sm">
         {Array.from({ length }).map((_, idx) => {
           const filled = Boolean(value[idx]);
           return (
             <View
               key={idx}
               className={cn(
-                // w-9 (36px) × 8 cells + gap-xs (4px) × 7 = 288 + 28 = 316px — fits 360px screens
-                "w-9 h-11 items-center justify-center rounded-md border",
+                "w-12 h-14 items-center justify-center rounded-md border-2",
                 filled ? cellBorderFilled : cellBorder,
                 "bg-surface-card",
                 disabled && "opacity-40",
@@ -84,6 +106,7 @@ export const OTPInput: React.FC<OTPInputProps> = ({
                 textAlignVertical="center"
                 includeFontPadding={Platform.OS === "android" ? false : undefined}
                 accessibilityLabel={`OTP digit ${idx + 1}`}
+                selectTextOnFocus
               />
             </View>
           );
