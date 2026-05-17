@@ -99,8 +99,12 @@ export default function PartiesStep() {
       await saveStepProgress(agreementId, newIndex);
       nextStep();
       router.push(`/agreement/${id}/steps/details?scenarioId=${scenarioId}`);
-    } catch {
-      setError("Failed to save. Check your connection and try again.");
+    } catch (e: unknown) {
+      const msg =
+        e && typeof e === "object" && "message" in e
+          ? (e as { message: string }).message
+          : "Failed to save. Check your connection and try again.";
+      setError(msg);
     } finally {
       setSaving(false);
     }

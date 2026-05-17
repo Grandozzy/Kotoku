@@ -134,12 +134,19 @@ export interface PartyPayload {
   id_number: string;
 }
 
+const normalizePhone = (phone: string): string => {
+  const cleaned = phone.replace(/\s/g, "");
+  if (cleaned.startsWith("+")) return cleaned;
+  if (cleaned.startsWith("0")) return `+233${cleaned.slice(1)}`;
+  return `+233${cleaned}`;
+};
+
 export async function setParties(
   agreementId: number,
   parties: PartyPayload[],
 ): Promise<void> {
   await apiClient.post<ApiResponse<unknown>>(
     `/agreements/${agreementId}/parties/`,
-    { parties },
+    { parties: parties.map((p) => ({ ...p, phone: normalizePhone(p.phone) })) },
   );
 }
