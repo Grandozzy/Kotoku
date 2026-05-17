@@ -22,6 +22,7 @@
     "expo-camera": "~55.0.18",
     "expo-constants": "~55.0.16",
     "expo-crypto": "~55.0.15",
+    "expo-dev-client": "^55.0.34",
     "expo-device": "~55.0.17",
     "expo-file-system": "~55.0.20",
     "expo-font": "~55.0.7",
@@ -58,7 +59,10 @@
   },
   "expo": {
     "install": {
-      "exclude": ["react", "react-dom"]
+      "exclude": [
+        "react",
+        "react-dom"
+      ]
     }
   },
   "private": true
