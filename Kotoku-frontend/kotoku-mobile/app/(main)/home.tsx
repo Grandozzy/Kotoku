@@ -1,13 +1,15 @@
 import { useRouter } from "expo-router";
-import { AlertTriangle, FileText, Handshake, TrendingUp } from "lucide-react-native";
+import { AlertTriangle, FileText, Handshake, MoreVertical, TrendingUp, Trash2 } from "lucide-react-native";
 import { useState } from "react";
-import { Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
+import { Alert, Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useQueryClient } from "@tanstack/react-query";
 
 import { Button, CardSkeleton, EmptyState } from "@/components/ui";
 import { usePendingActions } from "@/features/agreements/usePendingActions";
 import { useAgreementStore, STEPS } from "@/features/agreements/agreementStore";
 import { useDraftSession } from "@/hooks/useDraftSession";
+import { deleteAgreement } from "@/api/agreements";
 import { usePlan } from "@/features/billing/usePlan";
 import { SCENARIOS } from "@/constants/scenarios";
 import { colors } from "@/theme/tokens";
@@ -205,10 +207,12 @@ function ActionCard({ item }: { item: { id: number; title: string; status: strin
 
 function DraftCard({ item }: { item: { id: number; title: string; updated_at: string; scenario_template: string; status: string; step_index?: number; parties?: Array<{ role: string; full_name?: string; display_name?: string; phone: string; id_type?: string; id_number?: string }> } }) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const hydrate = useAgreementStore((s) => s.hydrate);
   const { load } = useDraftSession();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const handlePress = async () => {
     setLoading(true);
@@ -224,7 +228,31 @@ function DraftCard({ item }: { item: { id: number; title: string; updated_at: st
     }
   };
 
-  console.log("[DraftCard] item.id:", item.id, "step_index:", item.step_index, "parties:", item.parties?.length);
+  const handleDelete = () => {
+    Alert.alert(
+      "Delete draft",
+      "This cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            setDeleting(true);
+            try {
+              await deleteAgreement(item.id);
+              queryClient.invalidateQueries({ queryKey: ["pending-actions-v2"] });
+            } catch {
+              Alert.alert("Error", "Failed to delete draft");
+            } finally {
+              setDeleting(false);
+            }
+          },
+        },
+      ],
+    );
+  };
+
   const relativeTime = getRelativeTime(item.updated_at);
   const scenarioLabel = SCENARIO_LABELS[item.scenario_template] ?? item.scenario_template;
   const partyNames = item.parties?.map(p => p.full_name ?? p.display_name ?? "").filter(Boolean).join(", ");
@@ -234,35 +262,49 @@ function DraftCard({ item }: { item: { id: number; title: string; updated_at: st
   return (
     <Pressable
       onPress={handlePress}
-      disabled={loading}
+      disabled={loading || deleting}
       className="bg-surface-card rounded-xl border border-border-subtle p-lg active:opacity-70"
     >
-      <View className="flex-row items-start gap-md">
-        <View className="w-9 h-9 rounded-lg bg-surface-canvas items-center justify-center mt-xs">
-          <FileText size={16} color={colors.inkSecondary} strokeWidth={1.8} />
-        </View>
-        <View className="flex-1">
-          <Text className="text-md font-semibold text-ink-primary" numberOfLines={1}>
-            {item.title}
-          </Text>
-          <Text className="text-xs text-ink-muted mt-xs">{scenarioLabel} · {relativeTime}</Text>
-          <View className="flex-row items-center gap-sm mt-xs">
-            <View className="flex-row gap-xs">
-              {Array.from({ length: totalSteps }).map((_, i) => (
-                <View
-                  key={i}
-                  className={`w-1.5 h-1.5 rounded-full ${i <= stepIndex ? "bg-brand-primary" : "bg-border-subtle"}`}
-                />
-              ))}
-            </View>
-            <Text className="text-xs text-ink-secondary">
-              {stepIndex + 1} of {totalSteps} steps
-            </Text>
+      <View className="flex-row items-start justify-between">
+        <View className="flex-row items-start gap-md flex-1">
+          <View className="w-9 h-9 rounded-lg bg-surface-canvas items-center justify-center mt-xs">
+            <FileText size={16} color={colors.inkSecondary} strokeWidth={1.8} />
           </View>
-          {partyNames && <Text className="text-xs text-ink-secondary mt-xs">{partyNames}</Text>}
-          {error && <Text className="text-xs text-semantic-error mt-xs">{error}</Text>}
-          <Text className="text-xs text-brand-primary mt-xs">{loading ? "Loading…" : "Continue →"}</Text>
+          <View className="flex-1">
+            <Text className="text-md font-semibold text-ink-primary" numberOfLines={1}>
+              {item.title}
+            </Text>
+            <Text className="text-xs text-ink-muted mt-xs">{scenarioLabel} · {relativeTime}</Text>
+            <View className="flex-row items-center gap-sm mt-xs">
+              <View className="flex-row gap-xs">
+                {Array.from({ length: totalSteps }).map((_, i) => (
+                  <View
+                    key={i}
+                    className={`w-1.5 h-1.5 rounded-full ${i <= stepIndex ? "bg-brand-primary" : "bg-border-subtle"}`}
+                  />
+                ))}
+              </View>
+              <Text className="text-xs text-ink-secondary">
+                {stepIndex + 1} of {totalSteps} steps
+              </Text>
+            </View>
+            {partyNames && <Text className="text-xs text-ink-secondary mt-xs">{partyNames}</Text>}
+            {error && <Text className="text-xs text-semantic-error mt-xs">{error}</Text>}
+            <Text className="text-xs text-brand-primary mt-xs">{loading ? "Loading…" : "Continue →"}</Text>
+          </View>
         </View>
+        <Pressable
+          onPress={deleting ? undefined : handleDelete}
+          disabled={deleting}
+          className="p-sm"
+          hitSlop={8}
+        >
+          {deleting ? (
+            <MoreVertical size={16} color={colors.inkMuted} />
+          ) : (
+            <Trash2 size={16} color={colors.inkMuted} />
+          )}
+        </Pressable>
       </View>
     </Pressable>
   );

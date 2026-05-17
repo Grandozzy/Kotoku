@@ -154,3 +154,7 @@ export async function setParties(
     { parties: parties.map((p) => ({ ...p, phone: normalizePhone(p.phone) })) },
   );
 }
+
+export async function deleteAgreement(id: number): Promise<void> {
+  await apiClient.delete(`/agreements/${id}/`);
+}

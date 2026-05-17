@@ -153,6 +153,30 @@ class AgreementDetailView(APIView):
         )
         return ok({"agreement": AgreementDetailSerializer(agreement).data})
 
+    def delete(self, request, agreement_id: int):
+        agreement = self._get_agreement(
+            agreement_id,
+            account_id=request.user.account.pk,
+            account_phone=request.user.account.phone,
+        )
+        logger.info(
+            "[DRAFT] discard_draft id=%s status=%s account=%s",
+            agreement_id,
+            agreement.status,
+            request.user.account.pk,
+        )
+        try:
+            AgreementService.discard_draft(agreement_id=agreement_id)
+        except DomainError as exc:
+            from rest_framework.response import Response
+            return Response({"detail": str(exc)}, status=400)
+        logger.info(
+            "[DRAFT] discard_draft success id=%s",
+            agreement_id,
+        )
+        from rest_framework.response import Response
+        return Response(status=204)
+
 
 class ValidateView(APIView):
     authentication_classes = [JWTAuthentication]

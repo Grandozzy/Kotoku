@@ -396,3 +396,17 @@ class AgreementService:
             entity_id=str(agreement.pk),
         )
         return agreement
+
+    @staticmethod
+    @transaction.atomic
+    def discard_draft(*, agreement_id: int) -> None:
+        agreement = Agreement.objects.select_for_update().get(pk=agreement_id)
+        if agreement.status != AgreementStatus.DRAFT:
+            raise DomainError("Can only discard draft agreements")
+        agreement_id_str = str(agreement.pk)
+        agreement.delete()
+        AuditService.record_event(
+            event_type="agreement.discarded",
+            entity_type="agreement",
+            entity_id=agreement_id_str,
+        )

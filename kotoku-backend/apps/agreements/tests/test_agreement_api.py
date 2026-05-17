@@ -186,3 +186,52 @@ class TestAgreementUpdateApi:
             format="json",
         )
         assert response.status_code == 404
+
+
+@pytest.mark.django_db
+class TestAgreementDeleteApi:
+    def test_delete_draft_returns_204(self, authenticated_client):
+        client, account = authenticated_client
+        from apps.agreements.services import AgreementService
+
+        agreement = AgreementService.create_draft(
+            title="Delete Me", created_by=account
+        )
+        response = client.delete(
+            f"/api/agreements/{agreement.pk}/",
+            format="json",
+        )
+        assert response.status_code == 204
+
+    def test_delete_sealed_returns_400(self, authenticated_client):
+        client, account = authenticated_client
+        from apps.agreements.domain.enums import AgreementStatus
+        from apps.agreements.services import AgreementService
+
+        agreement = AgreementService.create_draft(title="Sealed", created_by=account)
+        agreement.status = AgreementStatus.SEALED
+        agreement.save()
+        response = client.delete(
+            f"/api/agreements/{agreement.pk}/",
+            format="json",
+        )
+        assert response.status_code == 400
+
+    def test_delete_other_users_draft_returns_404(
+        self, authenticated_client, second_authenticated_client
+    ):
+        owner_client, account = authenticated_client
+        other_client, _ = second_authenticated_client
+        from apps.agreements.services import AgreementService
+
+        agreement = AgreementService.create_draft(title="Private", created_by=account)
+        response = other_client.delete(
+            f"/api/agreements/{agreement.pk}/",
+            format="json",
+        )
+        assert response.status_code == 404
+
+    def test_delete_nonexistent_returns_404(self, authenticated_client):
+        client, _ = authenticated_client
+        response = client.delete("/api/agreements/99999/", format="json")
+        assert response.status_code == 404
