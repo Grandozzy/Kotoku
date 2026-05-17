@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button, CardSkeleton, EmptyState } from "@/components/ui";
 import { getAgreement } from "@/api/agreements";
 import { usePendingActions } from "@/features/agreements/usePendingActions";
-import { useAgreementStore } from "@/features/agreements/agreementStore";
+import { useAgreementStore, STEPS } from "@/features/agreements/agreementStore";
 import { usePlan } from "@/features/billing/usePlan";
 import type { ScenarioId } from "@/constants/scenarios";
 import { SCENARIOS } from "@/constants/scenarios";
