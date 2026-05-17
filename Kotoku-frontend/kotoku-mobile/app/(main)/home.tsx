@@ -206,14 +206,36 @@ function ActionCard({ item }: { item: { id: number; title: string; status: strin
   );
 }
 
-function DraftCard({ item }: { item: { id: number; title: string; updated_at: string; scenario_template: string; status: string; step_index?: number; parties?: Array<{ role: string; full_name: string }> } }) {
+function DraftCard({ item }: { item: { id: number; title: string; updated_at: string; scenario_template: string; status: string; step_index?: number; parties?: Array<{ role: string; full_name: string; phone: string; id_type: string; id_number: string }> } }) {
   const router = useRouter();
   const initDraft = useAgreementStore((s) => s.initDraft);
+  const setPartyA = useAgreementStore((s) => s.setPartyA);
+  const setPartyB = useAgreementStore((s) => s.setPartyB);
+  const setSubjectData = useAgreementStore((s) => s.setSubjectData);
+  const [loading, setLoading] = useState(false);
 
-  const handlePress = () => {
-    const stepIndex = item.step_index ?? 0;
-    initDraft(item.id, item.scenario_template as ScenarioId, stepIndex);
-    router.push(`/agreement/${item.id}/steps/${STEPS[stepIndex]}?scenarioId=${item.scenario_template}`);
+  const handlePress = async () => {
+    setLoading(true);
+    try {
+      const agreement = await getAgreement(item.id);
+      const stepIndex = agreement.stepIndex ?? 0;
+      initDraft(item.id, agreement.scenarioId, stepIndex);
+
+      if (agreement.parties.length >= 2) {
+        const pA = agreement.parties[0];
+        const pB = agreement.parties[1];
+        setPartyA({ fullName: pA.displayName, phone: pA.phone, idType: pA.idType ?? "ghana_card", idNumber: pA.idNumber ?? "" });
+        setPartyB({ fullName: pB.displayName, phone: pB.phone, idType: pB.idType ?? "ghana_card", idNumber: pB.idNumber ?? "" });
+      }
+      if (agreement.fieldData && Object.keys(agreement.fieldData).length > 0) {
+        setSubjectData(agreement.fieldData);
+      }
+
+      router.push(`/agreement/${item.id}/steps/${STEPS[stepIndex]}?scenarioId=${agreement.scenarioId}`);
+    } catch {
+    } finally {
+      setLoading(false);
+    }
   };
 
   const relativeTime = getRelativeTime(item.updated_at);
@@ -226,6 +248,7 @@ function DraftCard({ item }: { item: { id: number; title: string; updated_at: st
   return (
     <Pressable
       onPress={handlePress}
+      disabled={loading}
       className="bg-surface-card rounded-xl border border-border-subtle p-lg active:opacity-70"
     >
       <View className="flex-row items-start gap-md">
@@ -251,7 +274,7 @@ function DraftCard({ item }: { item: { id: number; title: string; updated_at: st
             </Text>
           </View>
           {partyNames && <Text className="text-xs text-ink-secondary mt-xs">{partyNames}</Text>}
-          <Text className="text-xs text-brand-primary mt-xs">Continue →</Text>
+          <Text className="text-xs text-brand-primary mt-xs">{loading ? "Loading…" : "Continue →"}</Text>
         </View>
       </View>
     </Pressable>

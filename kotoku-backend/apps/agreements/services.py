@@ -1,5 +1,6 @@
 import hashlib
 import json
+import logging
 
 from django.db import transaction
 from django.utils import timezone
@@ -18,6 +19,8 @@ from apps.identity.models import IdentityRecord
 from apps.notifications.push import send_to_user
 from apps.parties.models import Party
 from common.exceptions import DomainError
+
+logger = logging.getLogger("kotoku")
 
 
 def _compute_seal_hash(agreement) -> str:
@@ -79,11 +82,21 @@ class AgreementService:
         description: str = "",
         scenario_template: str = "",
     ) -> Agreement:
+        logger.info(
+            "[DRAFT] service.create_draft title='%s' scenario_template='%s' creator=%s",
+            title,
+            scenario_template,
+            created_by.pk,
+        )
         agreement = Agreement.objects.create(
             title=title,
             description=description,
             scenario_template=scenario_template,
             created_by=created_by,
+        )
+        logger.info(
+            "[DRAFT] service.create_draft persisted id=%s",
+            agreement.pk,
         )
         AuditService.record_event(
             event_type="agreement.created",
@@ -124,6 +137,14 @@ class AgreementService:
             agreement.step_index = step_index
             update_fields.append("step_index")
         agreement.save(update_fields=update_fields)
+        logger.info(
+            "[DRAFT] service.update_draft id=%s fields=%s scenario_template='%s' step_index=%s field_data_len=%s",
+            agreement_id,
+            [f for f in update_fields if f != "updated_at"],
+            agreement.scenario_template,
+            agreement.step_index,
+            len(agreement.field_data) if agreement.field_data else 0,
+        )
         AuditService.record_event(
             event_type="agreement.updated",
             entity_type="agreement",

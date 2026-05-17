@@ -35,7 +35,7 @@ class AgreementListSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Agreement
-        fields = ("id", "title", "status", "scenario_template", "field_data", "created_at", "updated_at", "parties")
+        fields = ("id", "title", "status", "scenario_template", "field_data", "step_index", "created_at", "updated_at", "parties")
 
 
 class AgreementDetailSerializer(serializers.ModelSerializer):

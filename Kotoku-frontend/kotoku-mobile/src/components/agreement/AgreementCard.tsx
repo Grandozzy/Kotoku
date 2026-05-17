@@ -45,9 +45,17 @@ interface AgreementCardProps {
 export function AgreementCard({ agreement }: AgreementCardProps) {
   const router = useRouter();
 
+  const handlePress = () => {
+    if (agreement.status === "draft") {
+      router.push(`/agreement/${agreement.id}/steps/parties?scenarioId=${agreement.scenarioId}`);
+    } else {
+      router.push(`/agreement/${agreement.id}/steps/review`);
+    }
+  };
+
   return (
     <Pressable
-      onPress={() => router.push(`/agreement/${agreement.id}/steps/review`)}
+      onPress={handlePress}
       className="bg-surface-card rounded-lg p-lg flex-row items-center justify-between border border-border-subtle active:opacity-70"
     >
       <View className="flex-1 gap-xs mr-md">

@@ -2,7 +2,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Controller, useForm } from "react-hook-form";
 import { Pressable, ScrollView, Text, View } from "react-native";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { z } from "zod";
 
 import { Button, TextInput } from "@/components/ui";
@@ -49,13 +49,6 @@ export default function PartiesStep() {
   const { partyA, partyB, setPartyA, setPartyB, nextStep } =
     useAgreementStore();
   const template = useTemplate(scenarioId);
-
-  // Log only when scenarioId changes
-  const prevScenarioId = useRef(scenarioId);
-  if (scenarioId !== prevScenarioId.current) {
-    console.log("[Parties] scenarioId:", scenarioId, "template:", !!template);
-    prevScenarioId.current = scenarioId;
-  }
 
   const [roleA, roleB] = template?.partyRoles ?? ["Buyer", "Seller"];
   const [saving, setSaving] = useState(false);

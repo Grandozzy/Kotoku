@@ -1,3 +1,5 @@
+import logging
+
 from django.http import Http404
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.permissions import IsAuthenticated
@@ -21,20 +23,33 @@ from common.exceptions import DomainError
 from common.pagination import DefaultPagination
 from common.responses import ok
 
+logger = logging.getLogger("kotoku")
+
 
 class AgreementCollectionView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
+        status_filter = request.query_params.get("status")
+        logger.info(
+            "[DRAFT] list_agreements account=%s status_filter=%s",
+            request.user.account.pk,
+            status_filter,
+        )
         qs = AgreementSelector.list_agreements(
             account_id=request.user.account.pk,
             account_phone=request.user.account.phone,
-            status=request.query_params.get("status"),
+            status=status_filter,
         )
         paginator = DefaultPagination()
         page = paginator.paginate_queryset(qs, request)
         serializer = AgreementListSerializer(page, many=True)
+        logger.info(
+            "[DRAFT] list_agreements result count=%s page_size=%s",
+            paginator.page.paginator.count,
+            len(serializer.data),
+        )
         return ok({
             "results": serializer.data,
             "count": paginator.page.paginator.count,
@@ -46,11 +61,23 @@ class AgreementCollectionView(APIView):
         serializer = AgreementCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         account = request.user.account
+        scenario_template = serializer.validated_data.get("scenario_template", "")
+        logger.info(
+            "[DRAFT] create_draft account=%s title=%s scenario_template='%s'",
+            account.pk,
+            serializer.validated_data["title"],
+            scenario_template,
+        )
         agreement = AgreementService.create_draft(
             title=serializer.validated_data["title"],
             description=serializer.validated_data.get("description", ""),
-            scenario_template=serializer.validated_data.get("scenario_template", ""),
+            scenario_template=scenario_template,
             created_by=account,
+        )
+        logger.info(
+            "[DRAFT] create_draft success id=%s status=%s",
+            agreement.pk,
+            agreement.status,
         )
         return ok(
             {"agreement": AgreementDetailSerializer(agreement).data}, status_code=201
@@ -70,10 +97,24 @@ class AgreementDetailView(APIView):
             raise Http404 from None
 
     def get(self, request, agreement_id: int):
+        logger.info(
+            "[DRAFT] get_agreement_detail id=%s account=%s",
+            agreement_id,
+            request.user.account.pk,
+        )
         agreement = self._get_agreement(
             agreement_id,
             account_id=request.user.account.pk,
             account_phone=request.user.account.phone,
+        )
+        logger.info(
+            "[DRAFT] get_agreement_detail id=%s status=%s scenario_template='%s' step_index=%s parties=%s field_data_keys=%s",
+            agreement.pk,
+            agreement.status,
+            agreement.scenario_template,
+            agreement.step_index,
+            len(agreement.parties.all()),
+            list(agreement.field_data.keys()) if agreement.field_data else [],
         )
         return ok({"agreement": AgreementDetailSerializer(agreement).data})
 
@@ -85,6 +126,13 @@ class AgreementDetailView(APIView):
         )
         serializer = AgreementUpdateSerializer(data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
+        update_keys = [k for k, v in serializer.validated_data.items() if v is not None]
+        logger.info(
+            "[DRAFT] update_agreement id=%s status=%s fields=%s",
+            agreement_id,
+            agreement.status,
+            update_keys,
+        )
         if agreement.status == AgreementStatus.DRAFT:
             agreement = AgreementService.update_draft(
                 agreement_id=agreement_id,
@@ -97,6 +145,12 @@ class AgreementDetailView(APIView):
             )
         else:
             raise DomainError("Cannot update agreement in this status")
+        logger.info(
+            "[DRAFT] update_agreement success id=%s scenario_template='%s' step_index=%s",
+            agreement.pk,
+            agreement.scenario_template,
+            agreement.step_index,
+        )
         return ok({"agreement": AgreementDetailSerializer(agreement).data})
 
 
@@ -113,7 +167,18 @@ class ValidateView(APIView):
             )
         except Agreement.DoesNotExist:
             raise Http404 from None
+        logger.info(
+            "[DRAFT] validate id=%s status=%s scenario_template='%s'",
+            agreement_id,
+            agreement.status,
+            agreement.scenario_template,
+        )
         result = validate_agreement(agreement)
+        logger.info(
+            "[DRAFT] validate result valid=%s errors=%s",
+            result.valid,
+            len(result.errors),
+        )
         return ok(
             {
                 "valid": result.valid,
@@ -243,6 +308,12 @@ class PendingActionsView(APIView):
         account = request.user.account
         phone = account.phone
 
+        logger.info(
+            "[DRAFT] pending_actions account=%s phone=%s",
+            account.pk,
+            phone,
+        )
+
         drafts = list(
             Agreement.objects.filter(
                 created_by=account,
@@ -250,6 +321,12 @@ class PendingActionsView(APIView):
             )
             .prefetch_related("parties")
             .order_by("-updated_at")
+        )
+
+        logger.info(
+            "[DRAFT] pending_actions drafts_found=%s ids=%s",
+            len(drafts),
+            [d.pk for d in drafts],
         )
 
         pending_consent_qs = (
@@ -277,6 +354,13 @@ class PendingActionsView(APIView):
         )
 
         action_required = list(pending_consent_qs) + list(reopen_requested_qs)
+
+        logger.info(
+            "[DRAFT] pending_actions action_required=%s (pending_consent=%s, reopen_requested=%s)",
+            len(action_required),
+            len(pending_consent_qs),
+            len(reopen_requested_qs),
+        )
 
         return ok({
             "action_required": AgreementListSerializer(action_required, many=True).data,

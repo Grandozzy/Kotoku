@@ -33,5 +33,6 @@ export interface Agreement {
   createdAt: string;
   sealedAt: string | null;
   fieldData: Record<string, unknown>;
+  stepIndex: number;
   parties: Party[];
 }

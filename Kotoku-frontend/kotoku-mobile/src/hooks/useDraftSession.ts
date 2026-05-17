@@ -37,7 +37,7 @@ export function useDraftSession() {
       idNumber: agreement.parties[1]?.idNumber ?? "",
     };
 
-    const stepIndex = 0;
+    const stepIndex = agreement.stepIndex ?? 0;
 
     const subjectData = agreement.fieldData ?? {};
 
@@ -52,12 +52,25 @@ export function useDraftSession() {
   };
 
   const save = async (delta: Partial<DraftState>): Promise<void> => {
-    if (delta.subjectData !== undefined) {
-      const agreementId = delta.agreementId ?? store.agreementId;
-      if (agreementId === null) {
-        throw new Error("Cannot save: no agreement ID available");
-      }
-      await updateAgreement(agreementId, { field_data: delta.subjectData });
+    const agreementId = delta.agreementId ?? store.agreementId;
+    if (agreementId === null) {
+      throw new Error("Cannot save: no agreement ID available");
+    }
+
+    const payload: Record<string, unknown> = {};
+    if (delta.subjectData !== undefined) payload.field_data = delta.subjectData;
+    if (delta.stepIndex !== undefined) payload.step_index = delta.stepIndex;
+    if (delta.partyA !== undefined || delta.partyB !== undefined) {
+      const partyA = delta.partyA ?? store.partyA;
+      const partyB = delta.partyB ?? store.partyB;
+      payload.parties = [
+        { role: "party_a", full_name: partyA.fullName, phone: partyA.phone, id_type: partyA.idType, id_number: partyA.idNumber },
+        { role: "party_b", full_name: partyB.fullName, phone: partyB.phone, id_type: partyB.idType, id_number: partyB.idNumber },
+      ];
+    }
+
+    if (Object.keys(payload).length > 0) {
+      await updateAgreement(agreementId, payload);
     }
   };
 
