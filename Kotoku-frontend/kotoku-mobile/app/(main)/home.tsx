@@ -224,9 +224,12 @@ function DraftCard({ item }: { item: { id: number; title: string; updated_at: st
     }
   };
 
+  console.log("[DraftCard] item.id:", item.id, "step_index:", item.step_index, "parties:", item.parties?.length);
   const relativeTime = getRelativeTime(item.updated_at);
   const scenarioLabel = SCENARIO_LABELS[item.scenario_template] ?? item.scenario_template;
   const partyNames = item.parties?.map(p => p.full_name ?? p.display_name ?? "").filter(Boolean).join(", ");
+  const stepIndex = item.step_index ?? 0;
+  const totalSteps = STEPS.length;
 
   return (
     <Pressable
@@ -243,6 +246,19 @@ function DraftCard({ item }: { item: { id: number; title: string; updated_at: st
             {item.title}
           </Text>
           <Text className="text-xs text-ink-muted mt-xs">{scenarioLabel} · {relativeTime}</Text>
+          <View className="flex-row items-center gap-sm mt-xs">
+            <View className="flex-row gap-xs">
+              {Array.from({ length: totalSteps }).map((_, i) => (
+                <View
+                  key={i}
+                  className={`w-1.5 h-1.5 rounded-full ${i <= stepIndex ? "bg-brand-primary" : "bg-border-subtle"}`}
+                />
+              ))}
+            </View>
+            <Text className="text-xs text-ink-secondary">
+              {stepIndex + 1} of {totalSteps} steps
+            </Text>
+          </View>
           {partyNames && <Text className="text-xs text-ink-secondary mt-xs">{partyNames}</Text>}
           {error && <Text className="text-xs text-semantic-error mt-xs">{error}</Text>}
           <Text className="text-xs text-brand-primary mt-xs">{loading ? "Loading…" : "Continue →"}</Text>

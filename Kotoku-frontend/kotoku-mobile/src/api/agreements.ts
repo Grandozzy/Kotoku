@@ -126,6 +126,7 @@ export async function fetchPendingActions(): Promise<PendingActionsResponse> {
   const res = await apiClient.get<ApiResponse<PendingActionsResponse>>(
     "/agreements/pending-actions/",
   );
+  console.log("[fetchPendingActions] raw drafts:", JSON.stringify(res.data.data.drafts?.map(d => ({ id: d.id, step_index: d.step_index }))));
   return res.data.data;
 }
 

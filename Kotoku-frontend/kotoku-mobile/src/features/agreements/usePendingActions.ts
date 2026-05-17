@@ -12,12 +12,12 @@ export function usePendingActions() {
   // Refetch when home screen comes into focus
   useFocusEffect(
     useCallback(() => {
-      queryClient.invalidateQueries({ queryKey: ["pending-actions"] });
+      queryClient.invalidateQueries({ queryKey: ["pending-actions-v2"] });
     }, [queryClient]),
   );
 
   return useQuery({
-    queryKey: ["pending-actions"],
+    queryKey: ["pending-actions-v2"],
     queryFn: fetchPendingActions,
     enabled: isAuthenticated,
     staleTime: 0,
