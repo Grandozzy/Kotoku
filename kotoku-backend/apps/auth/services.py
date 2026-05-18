@@ -4,6 +4,7 @@ from datetime import timedelta
 
 import argon2
 from django.contrib.auth.hashers import check_password, make_password
+from django.core.cache import cache
 from django.db import transaction
 from django.utils import timezone
 from rest_framework_simplejwt.tokens import AccessToken
@@ -16,9 +17,13 @@ from infrastructure.sms import get_sms_gateway
 logger = logging.getLogger(__name__)
 
 _OTP_LENGTH = 6
-_OTP_TTL_SECONDS = 600              # 10 minutes
+_OTP_TTL_SECONDS = 300              # 5 minutes
+_OTP_RATE_TTL_SECONDS = 60          # 1 minute between sends
 _OTP_MAX_ATTEMPTS = 3               # per OTP record
 _OTP_RATE_LIMIT_PER_HOUR = 5
+
+_OTP_CACHE_KEY = "auth_otp:{phone}"
+_OTP_RATE_KEY = "auth_otp_sent:{phone}"
 
 _PIN_LOCK_AFTER = 5                 # failed attempts before 15-min lock
 _PIN_FORCE_OTP_AFTER = 10           # total failures before forcing OTP re-auth
@@ -140,25 +145,21 @@ def _build_token_response(user: User, session: DeviceSession, raw_token: str) ->
 
 class AuthService:
     @staticmethod
-    @transaction.atomic
     def send_otp(*, phone: str) -> None:
-        one_hour_ago = timezone.now() - timedelta(hours=1)
-        # select_for_update() serializes concurrent send_otp calls for the same
-        # phone so the count+create pair is atomic within the transaction.
-        recent_count = (
-            OTPRequest.objects
-            .filter(phone=phone, purpose=OTPRequest.PURPOSE_LOGIN, created_at__gte=one_hour_ago)
-            .select_for_update()
-            .count()
-        )
-        if recent_count >= _OTP_RATE_LIMIT_PER_HOUR:
-            raise DomainError("Too many OTP requests. Please wait before requesting another.")
+        rate_key = _OTP_RATE_KEY.format(phone=phone)
+        if cache.get(rate_key):
+            raise DomainError("Please wait before requesting another OTP.")
 
         otp_code = "".join(secrets.choice("0123456789") for _ in range(_OTP_LENGTH))
-        otp_hash = make_password(otp_code)
+
+        # Cache the raw code for direct comparison in verify_otp.
+        cache.set(_OTP_CACHE_KEY.format(phone=phone), otp_code, timeout=_OTP_TTL_SECONDS)
+        cache.set(rate_key, True, timeout=_OTP_RATE_TTL_SECONDS)
+
+        # Keep a DB audit record (hashed — never store raw OTP in DB).
         OTPRequest.objects.create(
             phone=phone,
-            otp_hash=otp_hash,
+            otp_hash=make_password(otp_code),
             purpose=OTPRequest.PURPOSE_LOGIN,
             expires_at=timezone.now() + timedelta(seconds=_OTP_TTL_SECONDS),
         )
@@ -166,7 +167,7 @@ class AuthService:
         try:
             get_sms_gateway().send(
                 to=phone,
-                body=f"Your Kotoku verification code is {otp_code}. Valid for 10 minutes.",
+                body=f"Your Kotoku verification code is {otp_code}. Valid for 5 minutes.",
             )
         except Exception:
             logger.exception("Failed to dispatch OTP SMS to %s", phone)
@@ -188,29 +189,27 @@ class AuthService:
         device_fingerprint: str = "",
         device_name: str = "",
     ) -> dict:
-        # Find the most recent unused, unexpired login OTP for this phone.
+        cache_key = _OTP_CACHE_KEY.format(phone=phone)
+        cached_otp = cache.get(cache_key)
+
+        if cached_otp is None:
+            raise DomainError("OTP has expired or was not sent. Please request a new one.")
+        if cached_otp != otp_code:
+            raise DomainError("Invalid OTP code.")
+
+        cache.delete(cache_key)
+
+        # Mark the DB audit record as used.
         record = (
             OTPRequest.objects
             .filter(phone=phone, purpose=OTPRequest.PURPOSE_LOGIN, is_used=False)
             .order_by("-created_at")
-            .select_for_update()
             .first()
         )
-        if record is None or record.is_expired:
-            raise DomainError("OTP has expired or was not sent. Please request a new one.")
-
-        record.attempt_count += 1
-        if record.attempt_count > _OTP_MAX_ATTEMPTS:
-            record.save(update_fields=["attempt_count"])
-            raise DomainError("Too many incorrect attempts. Please request a new OTP.")
-
-        if not check_password(otp_code, record.otp_hash):
-            record.save(update_fields=["attempt_count"])
-            raise DomainError("Invalid OTP code.")
-
-        record.is_used = True
-        record.used_at = timezone.now()
-        record.save(update_fields=["is_used", "used_at", "attempt_count"])
+        if record and not record.is_expired:
+            record.is_used = True
+            record.used_at = timezone.now()
+            record.save(update_fields=["is_used", "used_at"])
 
         user, created = User.objects.get_or_create(phone=phone)
         if created:

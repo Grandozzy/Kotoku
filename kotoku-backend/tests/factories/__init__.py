@@ -10,8 +10,8 @@ Usage:
 """
 import factory
 from django.utils import timezone
-from rest_framework.authtoken.models import Token
 from rest_framework.test import APIClient
+from rest_framework_simplejwt.tokens import AccessToken
 
 from apps.accounts.models import Account, User
 from apps.agreements.domain.enums import AgreementStatus
@@ -106,7 +106,7 @@ class SealedAgreementFactory(factory.django.DjangoModelFactory):
 
 def make_authenticated_client(account: Account) -> APIClient:
     """Return an APIClient authenticated as the given account."""
-    token, _ = Token.objects.get_or_create(user=account.user)
+    token = AccessToken.for_user(account.user)
     client = APIClient()
-    client.credentials(HTTP_AUTHORIZATION=f"Token {token.key}")
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
     return client

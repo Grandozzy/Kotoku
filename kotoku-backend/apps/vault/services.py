@@ -65,11 +65,12 @@ class VaultService:
 
     @staticmethod
     @transaction.atomic
-    def mark_pdf_ready(*, vault_entry_id: int, pdf_key: str) -> VaultEntry:
+    def mark_pdf_ready(*, vault_entry_id: int, pdf_key: str, pdf_url: str = "") -> VaultEntry:
         entry = VaultEntry.objects.select_for_update().get(pk=vault_entry_id)
         entry.pdf_key = pdf_key
+        entry.pdf_url = pdf_url
         entry.pdf_status = VaultEntry.PdfStatus.READY
-        entry.save(update_fields=["pdf_key", "pdf_status", "updated_at"])
+        entry.save(update_fields=["pdf_key", "pdf_url", "pdf_status", "updated_at"])
         AuditService.record_event(
             event_type="vault.export_ready",
             entity_type="vault_entry",

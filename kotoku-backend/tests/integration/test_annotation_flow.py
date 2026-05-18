@@ -9,8 +9,8 @@ from unittest.mock import patch
 
 import pytest
 from django.utils import timezone
-from rest_framework.authtoken.models import Token
 from rest_framework.test import APIClient
+from rest_framework_simplejwt.tokens import AccessToken
 
 from apps.accounts.models import Account, User
 from apps.agreements.domain.enums import AgreementStatus
@@ -35,9 +35,9 @@ def _make_account(phone_suffix: str) -> tuple[Account, APIClient]:
     account = Account.objects.create(
         user=user, email=f"annot{_seq}@test.com", phone=phone,
     )
-    token, _ = Token.objects.get_or_create(user=user)
+    token = AccessToken.for_user(user)
     client = APIClient()
-    client.credentials(HTTP_AUTHORIZATION=f"Token {token.key}")
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
     return account, client
 
 
