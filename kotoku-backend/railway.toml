@@ -1,0 +1,8 @@
+[build]
+builder = "dockerfile"
+
+[deploy]
+startCommand = "python manage.py migrate --noinput && daphne -b 0.0.0.0 -p 8000 config.asgi:application"
+healthcheckPath = "/api/health/"
+healthcheckTimeout = 30
+restartPolicyType = "on_failure"
