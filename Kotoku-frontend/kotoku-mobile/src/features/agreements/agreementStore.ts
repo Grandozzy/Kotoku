@@ -84,24 +84,14 @@ export const useAgreementStore = create<AgreementDraftStore>((set) => ({
   isReopened: false,
 
   initDraft: (agreementId, scenarioId, stepIndex = 0) =>
-    set({
-      agreementId,
-      scenarioId,
-      stepIndex,
-      maxCompletedStep: stepIndex,
-      isReopened: false,
-      partyA: emptyParty,
-      partyB: emptyParty,
-      subjectData: {},
-      consentA: emptyConsent,
-      consentB: emptyConsent,
-    }),
+    set({ agreementId, scenarioId, stepIndex, maxCompletedStep: stepIndex, isReopened: false }),
 
   initReopened: (agreementId, scenarioId, partyA, partyB, subjectData) =>
     set({
       agreementId,
       scenarioId,
       stepIndex: 0,
+      maxCompletedStep: STEPS.length - 1,
       isReopened: true,
       partyA: partyA ?? emptyParty,
       partyB: partyB ?? emptyParty,
@@ -113,6 +103,7 @@ export const useAgreementStore = create<AgreementDraftStore>((set) => ({
       agreementId,
       scenarioId,
       stepIndex: 4,
+      maxCompletedStep: 4,
       isReopened: false,
       partyA,
       partyB,

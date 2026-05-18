@@ -1,4 +1,4 @@
-import { Check } from "lucide-react-native";
+import { Check, Lock } from "lucide-react-native";
 import { Pressable, Text, View } from "react-native";
 
 import { colors } from "@/theme/tokens";
@@ -22,7 +22,7 @@ export function StepProgress({ currentIndex, maxCompletedStep, onStepPress }: St
           const done = idx < currentIndex;
           const active = idx === currentIndex;
           const locked = idx > maxCompletedStep;
-          const reachable = idx > currentIndex && idx <= maxCompletedStep;
+          const reachable = !done && !active && !locked;
           const tappable = onStepPress && !locked;
 
           return (
@@ -32,7 +32,9 @@ export function StepProgress({ currentIndex, maxCompletedStep, onStepPress }: St
                 disabled={!tappable}
                 className="items-center"
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                style={({ pressed }) => pressed && tappable ? { opacity: 0.7 } : undefined}
+                style={({ pressed }) =>
+                  pressed && tappable ? { opacity: 0.7 } : locked ? { opacity: 0.4 } : undefined
+                }
               >
                 <View
                   className={[
@@ -48,10 +50,12 @@ export function StepProgress({ currentIndex, maxCompletedStep, onStepPress }: St
                 >
                   {done ? (
                     <Check size={14} color={colors.bgCard} strokeWidth={2.5} />
+                  ) : locked ? (
+                    <Lock size={12} color={colors.inkMuted} strokeWidth={2} />
                   ) : (
                     <Text
                       className={
-                        active ? "text-xs font-semibold text-white" : reachable ? "text-xs text-ink-primary" : "text-xs text-ink-muted"
+                        active ? "text-xs font-semibold text-white" : "text-xs text-ink-primary"
                       }
                     >
                       {idx + 1}
@@ -61,7 +65,7 @@ export function StepProgress({ currentIndex, maxCompletedStep, onStepPress }: St
                 <Text
                   className={[
                     "text-xs mt-xs",
-                    active ? "text-brand-primary font-semibold" : reachable ? "text-ink-primary" : "text-ink-muted",
+                    active ? "text-brand-primary font-semibold" : locked ? "text-ink-muted" : "text-ink-primary",
                   ].join(" ")}
                   numberOfLines={1}
                 >

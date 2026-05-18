@@ -20,6 +20,15 @@ module.exports = {
           primarySoft: colors.brandPrimarySoft,
           secondary: colors.brandSecondary,
         },
+        orange: {
+          50: "#FFF7ED",
+          100: "#FFEDD5",
+          200: "#FED7AA",
+          300: "#FDBA74",
+          400: "#FB923C",
+          500: colors.brandSecondary,
+          600: "#EA580C",
+        },
         semantic: {
           success: colors.success,
           warning: colors.warning,
