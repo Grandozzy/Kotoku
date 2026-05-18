@@ -12,14 +12,14 @@ from config.asgi import application
 def user_with_token(db, django_user_model):
     user = django_user_model.objects.create_user(phone="+233500000001")
     refresh = RefreshToken.for_user(user)
-    return user, token
+    return user, str(refresh.access_token)
 
 
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.asyncio
 async def test_connect_with_valid_token(user_with_token):
     user, token = user_with_token
-    communicator = WebsocketCommunicator(application, f"/ws/notifications/?token={token.key}")
+    communicator = WebsocketCommunicator(application, f"/ws/notifications/?token={token}")
     connected, _ = await communicator.connect()
     assert connected
     await communicator.disconnect()
@@ -38,7 +38,7 @@ async def test_connect_with_invalid_token_rejected(db):
 @pytest.mark.asyncio
 async def test_receive_push_notification(user_with_token):
     user, token = user_with_token
-    communicator = WebsocketCommunicator(application, f"/ws/notifications/?token={token.key}")
+    communicator = WebsocketCommunicator(application, f"/ws/notifications/?token={token}")
     connected, _ = await communicator.connect()
     assert connected
 
