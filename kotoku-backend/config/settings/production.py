@@ -2,7 +2,7 @@ from .base import *  # noqa: F403
 
 DEBUG = False
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
-SECURE_SSL_REDIRECT = True
+SECURE_SSL_REDIRECT = False  # Railway proxy handles SSL termination; redirecting breaks HTTP healthchecks
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
 
