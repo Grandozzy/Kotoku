@@ -16,7 +16,7 @@ from infrastructure.sms import get_sms_gateway
 
 logger = logging.getLogger(__name__)
 
-_OTP_LENGTH = 6
+_OTP_LENGTH = 8
 _OTP_TTL_SECONDS = 300              # 5 minutes
 _OTP_RATE_TTL_SECONDS = 60          # 1 minute between sends
 _OTP_MAX_ATTEMPTS = 3               # per OTP record
