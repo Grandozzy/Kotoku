@@ -24,6 +24,7 @@ class Agreement(models.Model):
     )
     scenario_template = models.CharField(max_length=128, blank=True)
     field_data = models.JSONField(default=dict, blank=True)
+    step_index = models.IntegerField(default=0)
     created_by = models.ForeignKey(
         Account,
         on_delete=models.CASCADE,
