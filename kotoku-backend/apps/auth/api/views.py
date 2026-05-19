@@ -1,7 +1,7 @@
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
-from apps.accounts.models import DeviceSession
+from apps.accounts.models import DeviceSession, UserPin
 from apps.auth.api.serializers import (
     PinSetupSerializer,
     PinVerifySerializer,
@@ -55,6 +55,16 @@ class VerifyOtpView(APIView):
             device_fingerprint=fingerprint,
             device_name=name,
         )
+        # Service attaches User/Account model instances for testability.
+        # Serialize them to dicts before sending the HTTP response.
+        user = result.pop("user")
+        account = result.pop("account", None)
+        result["user"] = {
+            "id": user.pk,
+            "phone": user.phone,
+            "pin_configured": UserPin.objects.filter(user=user).exists(),
+            "account_id": account.pk if account else None,
+        }
         return ok(result)
 
 

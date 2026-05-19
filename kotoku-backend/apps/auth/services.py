@@ -213,11 +213,20 @@ class AuthService:
 
         user, created = User.objects.get_or_create(phone=phone)
         if created:
-            Account.objects.create(
+            account = Account.objects.create(
                 user=user,
                 email=f"{phone}@kotoku.app",
                 phone=phone,
             )
+        else:
+            try:
+                account = user.account
+            except Account.DoesNotExist:
+                account = Account.objects.create(
+                    user=user,
+                    email=f"{phone}@kotoku.app",
+                    phone=phone,
+                )
 
         # New device login revokes all other sessions.
         revoked = _revoke_all_sessions(user, reason=DeviceSession.REVOKE_NEW_DEVICE)
@@ -237,7 +246,10 @@ class AuthService:
             entity_id=str(user.pk),
             metadata={"new_user": created, "session_id": session.id},
         )
-        return _build_token_response(user, session, raw_token)
+        result = _build_token_response(user, session, raw_token)
+        result["user"] = user
+        result["account"] = account
+        return result
 
 
 # ─────────────────────────────────────────────────────────────────────────────
