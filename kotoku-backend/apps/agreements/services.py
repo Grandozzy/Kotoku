@@ -1,5 +1,6 @@
 import hashlib
 import json
+import logging
 
 from django.db import transaction
 from django.utils import timezone
@@ -18,6 +19,8 @@ from apps.identity.models import IdentityRecord
 from apps.notifications.push import send_to_user
 from apps.parties.models import Party
 from common.exceptions import DomainError
+
+logger = logging.getLogger("kotoku")
 
 
 def _compute_seal_hash(agreement) -> str:
@@ -79,11 +82,21 @@ class AgreementService:
         description: str = "",
         scenario_template: str = "",
     ) -> Agreement:
+        logger.info(
+            "[DRAFT] service.create_draft title='%s' scenario_template='%s' creator=%s",
+            title,
+            scenario_template,
+            created_by.pk,
+        )
         agreement = Agreement.objects.create(
             title=title,
             description=description,
             scenario_template=scenario_template,
             created_by=created_by,
+        )
+        logger.info(
+            "[DRAFT] service.create_draft persisted id=%s",
+            agreement.pk,
         )
         AuditService.record_event(
             event_type="agreement.created",
@@ -102,6 +115,7 @@ class AgreementService:
         description: str | None = None,
         scenario_template: str | None = None,
         field_data: dict | None = None,
+        step_index: int | None = None,
     ) -> Agreement:
         agreement = Agreement.objects.get(pk=agreement_id)
         if agreement.status != AgreementStatus.DRAFT:
@@ -119,7 +133,18 @@ class AgreementService:
         if field_data is not None:
             agreement.field_data = field_data
             update_fields.append("field_data")
+        if step_index is not None:
+            agreement.step_index = step_index
+            update_fields.append("step_index")
         agreement.save(update_fields=update_fields)
+        logger.info(
+            "[DRAFT] service.update_draft id=%s fields=%s scenario_template='%s' step_index=%s field_data_len=%s",
+            agreement_id,
+            [f for f in update_fields if f != "updated_at"],
+            agreement.scenario_template,
+            agreement.step_index,
+            len(agreement.field_data) if agreement.field_data else 0,
+        )
         AuditService.record_event(
             event_type="agreement.updated",
             entity_type="agreement",
@@ -136,6 +161,7 @@ class AgreementService:
         description: str | None = None,
         scenario_template: str | None = None,
         field_data: dict | None = None,
+        step_index: int | None = None,
     ) -> Agreement:
         agreement = Agreement.objects.get(pk=agreement_id)
         if agreement.status != AgreementStatus.ACTIVE:
@@ -153,6 +179,9 @@ class AgreementService:
         if field_data is not None:
             agreement.field_data = field_data
             update_fields.append("field_data")
+        if step_index is not None:
+            agreement.step_index = step_index
+            update_fields.append("step_index")
         agreement.save(update_fields=update_fields)
         AuditService.record_event(
             event_type="agreement.updated_active",
@@ -367,3 +396,17 @@ class AgreementService:
             entity_id=str(agreement.pk),
         )
         return agreement
+
+    @staticmethod
+    @transaction.atomic
+    def discard_draft(*, agreement_id: int) -> None:
+        agreement = Agreement.objects.select_for_update().get(pk=agreement_id)
+        if agreement.status != AgreementStatus.DRAFT:
+            raise DomainError("Can only discard draft agreements")
+        agreement_id_str = str(agreement.pk)
+        agreement.delete()
+        AuditService.record_event(
+            event_type="agreement.discarded",
+            entity_type="agreement",
+            entity_id=agreement_id_str,
+        )

@@ -26,6 +26,7 @@ interface AgreementDraftStore {
 
   // Step tracking
   stepIndex: number;
+  maxCompletedStep: number;
   steps: readonly StepId[];
 
   // Draft data
@@ -41,9 +42,10 @@ interface AgreementDraftStore {
   isReopened: boolean;
 
   // Actions
-  initDraft: (agreementId: number, scenarioId: ScenarioId) => void;
+  initDraft: (agreementId: number, scenarioId: ScenarioId, stepIndex?: number) => void;
   initReopened: (agreementId: number, scenarioId: ScenarioId, partyA?: PartyDraft, partyB?: PartyDraft, subjectData?: Record<string, unknown>) => void;
   initForConsent: (agreementId: number, scenarioId: ScenarioId, partyA: PartyDraft, partyB: PartyDraft) => void;
+  hydrate: (state: { agreementId: number; scenarioId: ScenarioId; stepIndex: number; partyA: PartyDraft; partyB: PartyDraft; subjectData: Record<string, unknown> }) => void;
   setScenarioId: (id: ScenarioId | null) => void;
   goToStep: (index: number) => void;
   nextStep: () => void;
@@ -72,6 +74,7 @@ export const useAgreementStore = create<AgreementDraftStore>((set) => ({
   agreementId: null,
   scenarioId: null,
   stepIndex: 0,
+  maxCompletedStep: 0,
   steps: STEPS,
   partyA: emptyParty,
   partyB: emptyParty,
@@ -80,14 +83,15 @@ export const useAgreementStore = create<AgreementDraftStore>((set) => ({
   consentB: emptyConsent,
   isReopened: false,
 
-  initDraft: (agreementId, scenarioId) =>
-    set({ agreementId, scenarioId, stepIndex: 0, isReopened: false }),
+  initDraft: (agreementId, scenarioId, stepIndex = 0) =>
+    set({ agreementId, scenarioId, stepIndex, maxCompletedStep: stepIndex, isReopened: false }),
 
   initReopened: (agreementId, scenarioId, partyA, partyB, subjectData) =>
     set({
       agreementId,
       scenarioId,
       stepIndex: 0,
+      maxCompletedStep: STEPS.length - 1,
       isReopened: true,
       partyA: partyA ?? emptyParty,
       partyB: partyB ?? emptyParty,
@@ -99,10 +103,23 @@ export const useAgreementStore = create<AgreementDraftStore>((set) => ({
       agreementId,
       scenarioId,
       stepIndex: 4,
+      maxCompletedStep: 4,
       isReopened: false,
       partyA,
       partyB,
       subjectData: {},
+    }),
+
+  hydrate: (state) =>
+    set({
+      agreementId: state.agreementId,
+      scenarioId: state.scenarioId,
+      stepIndex: state.stepIndex,
+      maxCompletedStep: state.stepIndex,
+      partyA: state.partyA,
+      partyB: state.partyB,
+      subjectData: state.subjectData,
+      isReopened: false,
     }),
 
   setScenarioId: (id) => set({ scenarioId: id }),
@@ -110,7 +127,10 @@ export const useAgreementStore = create<AgreementDraftStore>((set) => ({
   goToStep: (index) => set({ stepIndex: index }),
 
   nextStep: () =>
-    set((s) => ({ stepIndex: Math.min(s.stepIndex + 1, STEPS.length - 1) })),
+    set((s) => ({
+      stepIndex: Math.min(s.stepIndex + 1, STEPS.length - 1),
+      maxCompletedStep: Math.max(s.maxCompletedStep, s.stepIndex + 1),
+    })),
 
   prevStep: () =>
     set((s) => ({ stepIndex: Math.max(s.stepIndex - 1, 0) })),
@@ -138,6 +158,7 @@ export const useAgreementStore = create<AgreementDraftStore>((set) => ({
       agreementId: null,
       scenarioId: null,
       stepIndex: 0,
+      maxCompletedStep: 0,
       partyA: emptyParty,
       partyB: emptyParty,
       subjectData: {},

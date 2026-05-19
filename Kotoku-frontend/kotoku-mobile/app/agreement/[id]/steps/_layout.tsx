@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { StepProgress } from "@/components/agreement/StepProgress";
 import { useAgreementStore, STEPS } from "@/features/agreements/agreementStore";
-import { useDraftPersistence } from "@/hooks/useDraftPersistence";
+import { useDraftSession } from "@/hooks/useDraftSession";
 import { colors } from "@/theme/tokens";
 
 function ReeditHeader({ onExit }: { onExit: () => void }) {
@@ -48,13 +48,15 @@ export default function StepsLayout() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const stepIndex = useAgreementStore((s) => s.stepIndex);
+  const maxCompletedStep = useAgreementStore((s) => s.maxCompletedStep);
   const isReopened = useAgreementStore((s) => s.isReopened);
   const goToStep = useAgreementStore((s) => s.goToStep);
   const reset = useAgreementStore((s) => s.reset);
-  useDraftPersistence();
+  const { abandon } = useDraftSession();
 
   const handleStepPress = (index: number) => {
     if (!id) return;
+    if (index > maxCompletedStep) return;
     goToStep(index);
     router.replace(`/agreement/${id}/steps/${STEPS[index]}`);
   };
@@ -75,7 +77,7 @@ export default function StepsLayout() {
       ) : (
         <FormHeader onExit={handleExit} />
       )}
-      <StepProgress currentIndex={stepIndex} onStepPress={handleStepPress} />
+      <StepProgress currentIndex={stepIndex} maxCompletedStep={maxCompletedStep} onStepPress={handleStepPress} />
     </View>
   );
 

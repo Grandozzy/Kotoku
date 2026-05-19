@@ -10,6 +10,7 @@ interface RawAgreement {
   status: string;
   scenario_template: string;
   field_data: Record<string, unknown>;
+  step_index: number;
   sealed_at: string | null;
   created_at: string;
   parties: {
@@ -31,6 +32,7 @@ function mapAgreement(raw: RawAgreement): Agreement {
     createdAt: raw.created_at,
     sealedAt: raw.sealed_at,
     fieldData: raw.field_data ?? {},
+    stepIndex: raw.step_index ?? 0,
     parties: raw.parties.map((p) => ({
       id: p.id,
       role: p.role as Agreement["parties"][number]["role"],
@@ -48,7 +50,7 @@ export async function createDraft(payload: {
   title: string;
 }): Promise<Agreement> {
   const res = await apiClient.post<ApiResponse<{ agreement: RawAgreement }>>("/agreements/", {
-    scenario_id: payload.scenarioId,
+    scenario_template: payload.scenarioId,
     title: payload.title,
   });
   return mapAgreement(res.data.data.agreement);
@@ -103,11 +105,15 @@ export interface PendingActionItem {
   scenario_template: string;
   created_at: string;
   updated_at: string;
+  step_index?: number;
   parties?: Array<{
     id: number;
     role: string;
-    full_name: string;
+    full_name?: string;
+    display_name?: string;
     phone: string;
+    id_type?: string;
+    id_number?: string;
   }>;
 }
 
@@ -120,6 +126,7 @@ export async function fetchPendingActions(): Promise<PendingActionsResponse> {
   const res = await apiClient.get<ApiResponse<PendingActionsResponse>>(
     "/agreements/pending-actions/",
   );
+  console.log("[fetchPendingActions] raw drafts:", JSON.stringify(res.data.data.drafts?.map(d => ({ id: d.id, step_index: d.step_index }))));
   return res.data.data;
 }
 
@@ -131,12 +138,23 @@ export interface PartyPayload {
   id_number: string;
 }
 
+const normalizePhone = (phone: string): string => {
+  const cleaned = phone.replace(/\s/g, "");
+  if (cleaned.startsWith("+")) return cleaned;
+  if (cleaned.startsWith("0")) return `+233${cleaned.slice(1)}`;
+  return `+233${cleaned}`;
+};
+
 export async function setParties(
   agreementId: number,
   parties: PartyPayload[],
 ): Promise<void> {
   await apiClient.post<ApiResponse<unknown>>(
     `/agreements/${agreementId}/parties/`,
-    { parties },
+    { parties: parties.map((p) => ({ ...p, phone: normalizePhone(p.phone) })) },
   );
+}
+
+export async function deleteAgreement(id: number): Promise<void> {
+  await apiClient.delete(`/agreements/${id}/`);
 }

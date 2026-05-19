@@ -18,6 +18,7 @@ class AgreementUpdateSerializer(serializers.Serializer):
         max_length=128, required=False, default="", allow_blank=True
     )
     field_data = serializers.JSONField(required=False)
+    step_index = serializers.IntegerField(required=False)
 
 
 class PartySerializer(serializers.Serializer):
@@ -34,7 +35,7 @@ class AgreementListSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Agreement
-        fields = ("id", "title", "status", "scenario_template", "field_data", "created_at", "updated_at", "parties")
+        fields = ("id", "title", "status", "scenario_template", "field_data", "step_index", "created_at", "updated_at", "parties")
 
 
 class AgreementDetailSerializer(serializers.ModelSerializer):
@@ -49,6 +50,7 @@ class AgreementDetailSerializer(serializers.ModelSerializer):
             "status",
             "scenario_template",
             "field_data",
+            "step_index",
             "sealed_at",
             "seal_hash",
             "closed_at",

@@ -1,15 +1,26 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useFocusEffect } from "@react-navigation/native";
+import { useCallback } from "react";
 
 import { fetchPendingActions } from "@/api/agreements";
 import { useSessionStore } from "@/store/sessionStore";
 
 export function usePendingActions() {
   const isAuthenticated = useSessionStore((s) => s.isAuthenticated);
+  const queryClient = useQueryClient();
+
+  // Refetch when home screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      queryClient.invalidateQueries({ queryKey: ["pending-actions-v2"] });
+    }, [queryClient]),
+  );
+
   return useQuery({
-    queryKey: ["pending-actions"],
+    queryKey: ["pending-actions-v2"],
     queryFn: fetchPendingActions,
     enabled: isAuthenticated,
-    refetchOnWindowFocus: true,
-    staleTime: 30000,
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 }

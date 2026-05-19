@@ -84,6 +84,22 @@ class TestAgreementDetailApi:
         data = response.json()["data"]["agreement"]
         assert data["title"] == "Detail Test"
 
+    def test_get_agreement_includes_step_index(self, authenticated_client):
+        client, account = authenticated_client
+        from apps.agreements.services import AgreementService
+
+        agreement = AgreementService.create_draft(
+            title="Step Index Test", created_by=account
+        )
+        # Update the draft with step_index
+        AgreementService.update_draft(agreement_id=agreement.pk, step_index=3)
+
+        response = client.get(f"/api/agreements/{agreement.pk}/", format="json")
+        assert response.status_code == 200
+        data = response.json()["data"]["agreement"]
+        assert "step_index" in data
+        assert data["step_index"] == 3
+
     def test_get_nonexistent_agreement_returns_404(self, authenticated_client):
         client, _ = authenticated_client
         response = client.get("/api/agreements/99999/", format="json")
@@ -121,6 +137,26 @@ class TestAgreementUpdateApi:
         data = response.json()["data"]["agreement"]
         assert data["title"] == "Updated"
 
+    def test_update_draft_with_step_index(self, authenticated_client):
+        client, account = authenticated_client
+        from apps.agreements.services import AgreementService
+
+        agreement = AgreementService.create_draft(
+            title="Step Test", created_by=account
+        )
+        response = client.patch(
+            f"/api/agreements/{agreement.pk}/",
+            {"step_index": 5},
+            format="json",
+        )
+        assert response.status_code == 200
+        data = response.json()["data"]["agreement"]
+        assert data["step_index"] == 5
+
+        # Verify it's persisted
+        agreement.refresh_from_db()
+        assert agreement.step_index == 5
+
     def test_update_non_draft_returns_400(self, authenticated_client):
         client, account = authenticated_client
         from apps.agreements.domain.enums import AgreementStatus
@@ -149,4 +185,53 @@ class TestAgreementUpdateApi:
             {"title": "Hacked"},
             format="json",
         )
+        assert response.status_code == 404
+
+
+@pytest.mark.django_db
+class TestAgreementDeleteApi:
+    def test_delete_draft_returns_204(self, authenticated_client):
+        client, account = authenticated_client
+        from apps.agreements.services import AgreementService
+
+        agreement = AgreementService.create_draft(
+            title="Delete Me", created_by=account
+        )
+        response = client.delete(
+            f"/api/agreements/{agreement.pk}/",
+            format="json",
+        )
+        assert response.status_code == 204
+
+    def test_delete_sealed_returns_400(self, authenticated_client):
+        client, account = authenticated_client
+        from apps.agreements.domain.enums import AgreementStatus
+        from apps.agreements.services import AgreementService
+
+        agreement = AgreementService.create_draft(title="Sealed", created_by=account)
+        agreement.status = AgreementStatus.SEALED
+        agreement.save()
+        response = client.delete(
+            f"/api/agreements/{agreement.pk}/",
+            format="json",
+        )
+        assert response.status_code == 400
+
+    def test_delete_other_users_draft_returns_404(
+        self, authenticated_client, second_authenticated_client
+    ):
+        owner_client, account = authenticated_client
+        other_client, _ = second_authenticated_client
+        from apps.agreements.services import AgreementService
+
+        agreement = AgreementService.create_draft(title="Private", created_by=account)
+        response = other_client.delete(
+            f"/api/agreements/{agreement.pk}/",
+            format="json",
+        )
+        assert response.status_code == 404
+
+    def test_delete_nonexistent_returns_404(self, authenticated_client):
+        client, _ = authenticated_client
+        response = client.delete("/api/agreements/99999/", format="json")
         assert response.status_code == 404

@@ -2,6 +2,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Controller, useForm } from "react-hook-form";
 import { ScrollView, Text, View } from "react-native";
+import { useState } from "react";
 import { z } from "zod";
 
 import { Button } from "@/components/ui";
@@ -11,7 +12,7 @@ import {
   STEPS,
 } from "@/features/agreements/agreementStore";
 import { useTemplate } from "@/features/agreements/useAgreementDraft";
-import { updateAgreement } from "@/api/agreements";
+import { useDraftSession } from "@/hooks/useDraftSession";
 
 function buildDetailsSchema(template: {
   fields: Record<string, { required: boolean; type: string }>;
@@ -46,7 +47,10 @@ export default function DetailsStep() {
   const scenarioId = storeScenarioId ?? urlScenarioId;
   const { subjectData, setSubjectData, nextStep, prevStep, stepIndex } =
     useAgreementStore();
+  const { saveStepProgress } = useDraftSession();
   const template = useTemplate(scenarioId);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   if (!template) {
     return (
@@ -73,12 +77,18 @@ export default function DetailsStep() {
   const watchValues = watch();
 
   const onSubmit = async (values: Record<string, unknown>) => {
-    setSubjectData(values);
+    setSaving(true);
+    setError(null);
     try {
-      await updateAgreement(Number(id), { field_data: values });
-    } catch {}
-    nextStep();
-    router.push(`/agreement/${id}/steps/evidence?scenarioId=${scenarioId}`);
+      const newIndex = stepIndex + 1;
+      await saveStepProgress(Number(id), newIndex, values);
+      setSubjectData(values);
+      nextStep();
+      router.push(`/agreement/${id}/steps/evidence?scenarioId=${scenarioId}`);
+    } catch {
+      setError("Failed to save. Check your connection and try again.");
+      setSaving(false);
+    }
   };
 
   return (
@@ -111,6 +121,10 @@ export default function DetailsStep() {
         </View>
       ))}
 
+      {error && (
+        <Text className="text-sm text-semantic-error text-center">{error}</Text>
+      )}
+
       <View className="flex-row gap-sm">
         {stepIndex > 0 && (
           <View style={{ flex: 1 }}>
@@ -118,6 +132,7 @@ export default function DetailsStep() {
               title="Back"
               variant="secondary"
               size="lg"
+              disabled={saving}
               onPress={() => {
                 prevStep();
                 router.replace(`/agreement/${id}/steps/${STEPS[stepIndex - 1]}`);
@@ -130,7 +145,8 @@ export default function DetailsStep() {
             title="Proceed"
             variant="primary"
             size="lg"
-            disabled={!isValid}
+            disabled={!isValid || saving}
+            loading={saving}
             onPress={handleSubmit(onSubmit)}
           />
         </View>

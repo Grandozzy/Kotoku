@@ -24,8 +24,7 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.kotoku.mobile",
-      "minSdkVersion": 29
+      "package": "com.kotoku.mobile"
     },
     "web": {
       "bundler": "metro",
