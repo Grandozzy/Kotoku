@@ -29,7 +29,7 @@ export const phoneSchema = z.object({
 });
 
 export const otpSchema = z.object({
-  code: z.string().length(6, "Enter the full 6-digit code."),
+  code: z.string().length(8, "Enter the full 8-digit code."),
 });
 
 export const pinSchema = z.object({
