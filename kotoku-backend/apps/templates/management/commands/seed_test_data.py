@@ -355,7 +355,7 @@ class Command(BaseCommand):
         captured_otps = []
         real_generate_otp = consent_module.generate_otp
 
-        def capture_otp(length=8):
+        def capture_otp(length=6):
             otp = real_generate_otp(length)
             captured_otps.append(otp)
             return otp
