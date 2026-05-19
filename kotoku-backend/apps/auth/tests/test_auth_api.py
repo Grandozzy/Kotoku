@@ -49,6 +49,7 @@ class TestVerifyOtpApi(TestCase):
     def setUp(self):
         self.client = APIClient()
         cache.clear()
+        cache.clear()
 
     def test_verify_otp_returns_200_with_token(self):
         with _PATCH_SMS:

@@ -83,6 +83,11 @@ class TestNotificationService:
                 body="Nope",
             )
 
+    def test_raises_on_unknown_channel(self, db):
+        from apps.notifications.services import _get_provider
+        with pytest.raises(ValueError, match="No provider registered"):
+            _get_provider("UNKNOWN_CHANNEL")
+
 
 class TestDispatchTask:
     def test_dispatches_and_updates_status(self, db):

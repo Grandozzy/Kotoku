@@ -1,8 +1,26 @@
 import pytest
+from unittest.mock import MagicMock
 
 from apps.accounts.models import Account, User
+from apps.accounts.permissions import IsAccountOwner
 from apps.accounts.services import AccountService
 from common.exceptions import DomainError
+
+
+class TestIsAccountOwner:
+    def _request(self, authenticated=True):
+        req = MagicMock()
+        req.user = MagicMock()
+        req.user.is_authenticated = authenticated
+        return req
+
+    def test_returns_true_when_authenticated(self):
+        perm = IsAccountOwner()
+        assert perm.has_permission(self._request(True), None) is True
+
+    def test_returns_false_when_not_authenticated(self):
+        perm = IsAccountOwner()
+        assert perm.has_permission(self._request(False), None) is False
 
 
 def _make_account(phone, email):
