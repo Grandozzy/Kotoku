@@ -61,9 +61,9 @@ class TestVerifyOtpApi(TestCase):
         )
         assert response.status_code == 200
         data = response.json()
-        assert "token" in data["data"]
-        assert "account_id" in data["data"]
-        assert isinstance(data["data"]["account_id"], int)
+        assert "access" in data["data"]
+        assert "account_id" in data["data"]["user"]
+        assert isinstance(data["data"]["user"]["account_id"], int)
 
     def test_verify_otp_wrong_code_returns_400(self):
         with _PATCH_SMS:
