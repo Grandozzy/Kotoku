@@ -17,7 +17,7 @@ class TestSendOtpApi(TestCase):
         with _PATCH_SMS:
             response = self.client.post(
                 "/api/auth/send-otp/",
-                {"phone": "+233501234567"},
+                {"country_code": "+233", "phone_number": "501234567"},
                 format="json",
             )
         assert response.status_code == 200
@@ -53,11 +53,16 @@ class TestVerifyOtpApi(TestCase):
 
     def test_verify_otp_returns_200_with_token(self):
         with _PATCH_SMS:
-            self.client.post("/api/auth/send-otp/", {"phone": "+233501234567"}, format="json")
+            self.client.post(
+                "/api/auth/send-otp/",
+                {"country_code": "+233", "phone_number": "501234567"},
+                format="json",
+            )
         otp = cache.get("auth_otp:+233501234567")
+        verify_data = {"country_code": "+233", "phone_number": "501234567", "otp_code": otp}
         response = self.client.post(
             "/api/auth/verify-otp/",
-            {"phone": "+233501234567", "otp_code": otp},
+            verify_data,
             format="json",
         )
         assert response.status_code == 200

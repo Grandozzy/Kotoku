@@ -39,7 +39,10 @@ class SendOtpView(APIView):
     def post(self, request):
         serializer = SendOtpSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        AuthService.send_otp(phone=serializer.validated_data["phone"])
+        country_code = serializer.validated_data["country_code"]
+        phone_number = serializer.validated_data["phone_number"]
+        phone = f"{country_code}{phone_number}"
+        AuthService.send_otp(phone=phone)
         return ok({"message": "OTP sent", "expires_in_seconds": 600})
 
 
@@ -47,9 +50,13 @@ class VerifyOtpView(APIView):
     def post(self, request):
         serializer = VerifyOtpSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        country_code = serializer.validated_data["country_code"]
+        phone_number = serializer.validated_data["phone_number"]
+        phone = f"{country_code}{phone_number}"
         fingerprint, name = _device_info(request)
         result = AuthService.verify_otp(
-            phone=serializer.validated_data["phone"],
+            country_code=country_code,
+            phone_number=phone_number,
             otp_code=serializer.validated_data["otp_code"],
             client_type=_client_type(request),
             device_fingerprint=fingerprint,
@@ -108,10 +115,14 @@ class PinVerifyView(APIView):
 
         serializer = PinVerifySerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        country_code = serializer.validated_data["country_code"]
+        phone_number = serializer.validated_data["phone_number"]
+        phone = f"{country_code}{phone_number}"
         fingerprint, name = _device_info(request)
         try:
             result = PinService.verify(
-                phone=serializer.validated_data["phone"],
+                country_code=country_code,
+                phone_number=phone_number,
                 pin=serializer.validated_data["pin"],
                 client_type=DeviceSession.CLIENT_MOBILE,
                 device_fingerprint=fingerprint,

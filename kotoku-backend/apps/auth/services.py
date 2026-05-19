@@ -1,4 +1,5 @@
 import logging
+import re
 import secrets
 from datetime import timedelta
 
@@ -183,12 +184,14 @@ class AuthService:
     @transaction.atomic
     def verify_otp(
         *,
-        phone: str,
+        country_code: str,
+        phone_number: str,
         otp_code: str,
         client_type: str = DeviceSession.CLIENT_MOBILE,
         device_fingerprint: str = "",
         device_name: str = "",
     ) -> dict:
+        phone = f"{country_code}{phone_number}"
         cache_key = _OTP_CACHE_KEY.format(phone=phone)
         cached_otp = cache.get(cache_key)
 
@@ -315,6 +318,47 @@ class TokenService:
 # PinService
 # ─────────────────────────────────────────────────────────────────────────────
 
+# ─────────────────────────────────────────────────────────────────────────────
+# PhoneService — E164 validation
+# ─────────────────────────────────────────────────────────────────────────────
+
+class PhoneService:
+    """Validate E164 phone numbers with country codes."""
+
+    COUNTRY_PATTERN = r'^\+[1-9]\d{1,3}$'
+    PHONE_PATTERN = r'^\d{7,15}$'
+
+    @staticmethod
+    def validate_format(phone_number: str) -> None:
+        """
+        Validate E164 phone number format.
+
+        Args:
+            phone_number: Full E164 format (e.g., "+233501234567")
+
+        Raises:
+            DomainError: If format invalid
+        """
+        if not phone_number:
+            raise DomainError("Phone number is required.")
+        
+        # Extract country code (first 1-3 digits after +)
+        match = re.match(r'^\+(\d{1,3})', phone_number)
+        if not match:
+            raise DomainError("Invalid country code. Must start with +.")
+        
+        country_code = match.group(1)
+        if country_code[0] == '0':
+            raise DomainError("Invalid country code. Cannot start with 0.")
+        
+        # Extract phone number digits (everything after country code)
+        phone_part = phone_number[len(country_code) + 1:]
+        if len(phone_part) < 7 or len(phone_part) > 15:
+            raise DomainError("Invalid phone number. Must be 7-15 digits.")
+        if not phone_part.isdigit():
+            raise DomainError("Invalid phone number. Must be digits only.")
+
+
 class PinService:
     @staticmethod
     def validate_strength(pin: str) -> None:
@@ -342,12 +386,14 @@ class PinService:
     @transaction.atomic
     def verify(
         *,
-        phone: str,
+        country_code: str,
+        phone_number: str,
         pin: str,
         client_type: str = DeviceSession.CLIENT_MOBILE,
         device_fingerprint: str = "",
         device_name: str = "",
     ) -> dict:
+        phone = f"{country_code}{phone_number}"
         try:
             user = User.objects.get(phone=phone, is_active=True)
         except User.DoesNotExist:
