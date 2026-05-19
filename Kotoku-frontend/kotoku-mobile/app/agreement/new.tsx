@@ -2,13 +2,15 @@ import { useRouter } from "expo-router";
 import { ChevronRight, TrendingUp } from "lucide-react-native";
 import { Pressable, ScrollView, Text, View } from "react-native";
 
-import { SCENARIOS } from "@/constants/scenarios";
+import { SCENARIOS, type ScenarioId } from "@/constants/scenarios";
 import { usePlan } from "@/features/billing/usePlan";
+import { useCreateDraft } from "@/features/agreements/useAgreementDraft";
 import { colors } from "@/theme/tokens";
 
 export default function NewAgreementScreen() {
   const router = useRouter();
   const { data: plan } = usePlan();
+  const createDraft = useCreateDraft();
 
   const capReached = plan?.flags.is_personal && plan?.usage.is_cap_reached;
 
@@ -92,7 +94,7 @@ export default function NewAgreementScreen() {
       {SCENARIOS.map((scenario) => (
         <Pressable
           key={scenario.id}
-          onPress={() => router.push(`/agreement/new/${scenario.id}/steps/parties?scenarioId=${scenario.id}`)}
+          onPress={() => createDraft.mutate(scenario.id as ScenarioId)}
           className="bg-surface-card rounded-lg p-lg border border-border-subtle flex-row items-center justify-between active:opacity-70"
         >
           <View className="flex-1 gap-xs pr-md">
