@@ -19,7 +19,7 @@ export default function VerifyOtpScreen() {
   const resendMutation = useResendOtp(phone ?? "");
 
   const handleVerify = () => {
-    if (code.length < 8) return;
+    if (code.length < 6) return;
     verifyMutation.mutate(code);
   };
 
@@ -44,7 +44,7 @@ export default function VerifyOtpScreen() {
           Enter your code
         </Text>
         <Text className="text-md text-ink-secondary">
-          We sent an 8-digit code to{" "}
+          We sent a 6-digit code to{" "}
           <Text className="font-semibold text-ink-primary">{phone}</Text>.
           {"\n"}It expires in {OTP_EXPIRY_SECONDS / 60} minutes.
         </Text>
@@ -67,7 +67,7 @@ export default function VerifyOtpScreen() {
           variant="primary"
           size="lg"
           fullWidth
-          disabled={code.length < 8 || isDisabled}
+          disabled={code.length < 6 || isDisabled}
           loading={isLoading}
           onPress={handleVerify}
         />

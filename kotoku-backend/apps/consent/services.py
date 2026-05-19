@@ -26,7 +26,7 @@ _OTP_MAX_ATTEMPTS = 3
 _OTP_LOCKOUT_SECONDS = 900  # 15 minutes
 
 
-def generate_otp(length: int = 8) -> str:
+def generate_otp(length: int = 6) -> str:
     return "".join(secrets.choice("0123456789") for _ in range(length))
 
 

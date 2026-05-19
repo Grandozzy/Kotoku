@@ -14,7 +14,7 @@ type KeyboardEventData = { key: string };
 import { cn } from "@/lib/cn";
 
 interface OTPInputProps {
-  // Default is 8 to match Kotoku's OTP policy (8-digit codes).
+  // Default is 6 to match Kotoku's OTP policy (6-digit codes).
   length?: number;
   value: string;
   onChange: (val: string) => void;
@@ -24,7 +24,7 @@ interface OTPInputProps {
 }
 
 export const OTPInput: React.FC<OTPInputProps> = ({
-  length = 8,
+  length = 6,
   value,
   onChange,
   error,
@@ -64,7 +64,7 @@ export const OTPInput: React.FC<OTPInputProps> = ({
             <View
               key={idx}
               className={cn(
-                // w-9 (36px) × 8 cells + gap-xs (4px) × 7 = 288 + 28 = 316px — fits 360px screens
+                // w-10 (40px) × 6 cells + gap-xs (4px) × 5 = 240 + 20 = 260px — fits 360px screens
                 "w-9 h-11 items-center justify-center rounded-md border",
                 filled ? cellBorderFilled : cellBorder,
                 "bg-surface-card",

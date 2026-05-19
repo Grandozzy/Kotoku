@@ -260,7 +260,7 @@ function ReopenPartyBlock({
             variant="primary"
             size="md"
             fullWidth
-            disabled={code.length < 8 || disabled}
+            disabled={code.length < 6 || disabled}
             loading={loading}
             onPress={onConfirm}
           />

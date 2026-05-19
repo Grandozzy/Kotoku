@@ -44,7 +44,7 @@ function VerifyForm() {
       <div className="w-full max-w-sm bg-white rounded-2xl shadow-sm border border-neutral-100 p-8">
         <h1 className="text-2xl font-bold tracking-tight">Enter your code</h1>
         <p className="mt-1 text-sm text-neutral-500">
-          We sent an 8-digit code to{" "}
+          We sent a 6-digit code to{" "}
           <span className="font-semibold text-neutral-700">{phone}</span>.
           {" "}It expires in 10 minutes.
         </p>
@@ -53,8 +53,8 @@ function VerifyForm() {
           <input
             type="text"
             inputMode="numeric"
-            maxLength={8}
-            placeholder="00000000"
+            maxLength={6}
+            placeholder="000000"
             value={code}
             onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
             required
@@ -63,7 +63,7 @@ function VerifyForm() {
           {error && <p className="text-sm text-red-600">{error}</p>}
           <button
             type="submit"
-            disabled={loading || code.length < 8}
+            disabled={loading || code.length < 6}
             className="w-full py-2.5 rounded-full bg-neutral-900 text-white font-medium text-sm disabled:opacity-50 hover:bg-neutral-700 transition-colors"
           >
             {loading ? "Verifying…" : "Confirm →"}
