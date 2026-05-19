@@ -26,7 +26,7 @@ export default function HomeScreen() {
   const { data: plan } = usePlan();
 
   const actionRequired = data?.action_required ?? [];
-  const drafts = data?.drafts ?? [];
+  const drafts = (data?.drafts ?? []).filter((d) => (d.step_index ?? 0) > 0);
   const isEmpty = !isLoading && actionRequired.length === 0 && drafts.length === 0;
 
   const usage = plan?.usage;
