@@ -173,7 +173,7 @@ export default function ConsentPage() {
         <div className="rounded-2xl border border-neutral-100 p-5 flex flex-col gap-4">
           <p className="text-sm font-semibold">Step 2 — Confirm your OTP</p>
           <p className="text-xs text-neutral-500">
-            Each party enters their phone number and the 6-digit code from their
+            Each party enters their phone number and the 8-digit code from their
             SMS. Counterparties can confirm on their own device.
           </p>
           <div className="grid grid-cols-2 gap-3">
@@ -203,7 +203,7 @@ export default function ConsentPage() {
           <div className="flex gap-3 items-center">
             <button
               onClick={() => confirmMutation.mutate()}
-              disabled={confirmMutation.isPending || !phone || otp.length < 4}
+              disabled={confirmMutation.isPending || !phone || otp.length < 8}
               className="px-5 py-2.5 rounded-full bg-neutral-900 text-white text-sm font-medium disabled:opacity-50 hover:bg-neutral-700 transition-colors"
             >
               {confirmMutation.isPending ? "Confirming…" : "Confirm consent"}
