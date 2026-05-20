@@ -15,7 +15,9 @@ export function useUpdateAnnotation(agreementId: number) {
       body: string;
     }) => updateAnnotation(agreementId, annotationId, partyId, body),
     onError: (error) => {
-      console.error("Update annotation failed:", error);
+      if (__DEV__) {
+        console.error("Update annotation failed:", error);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["annotations", agreementId] });

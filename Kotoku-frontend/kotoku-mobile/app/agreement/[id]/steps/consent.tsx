@@ -13,6 +13,7 @@ import {
 import { useSealAgreement, useTemplate } from "@/features/agreements/useAgreementDraft";
 import { usePlan } from "@/features/billing/usePlan";
 import { isCapReachedError } from "@/lib/errorHandler";
+import { useSessionStore } from "@/store/sessionStore";
 import { colors } from "@/theme/tokens";
 
 export default function ConsentStep() {
@@ -22,6 +23,7 @@ export default function ConsentStep() {
 
   const { scenarioId, consentA, consentB, partyA, partyB, prevStep, stepIndex } =
     useAgreementStore();
+  const authenticatedPhone = useSessionStore((s) => s.phone);
   const template = useTemplate(scenarioId);
   const [roleA, roleB] = template?.partyRoles ?? ["Party A", "Party B"];
 
@@ -35,6 +37,12 @@ export default function ConsentStep() {
 
   const bothConfirmed = consentA.confirmed && consentB.confirmed;
   const otpsSent = consentA.otpSent && consentB.otpSent;
+  const currentParty =
+    authenticatedPhone && authenticatedPhone === partyA.phone
+      ? "A"
+      : authenticatedPhone && authenticatedPhone === partyB.phone
+        ? "B"
+        : null;
 
   // Cap state — either proactive (from plan hook) or reactive (from seal error)
   const proactiveCapReached = plan?.flags.is_personal && plan?.usage.is_cap_reached;
@@ -46,12 +54,12 @@ export default function ConsentStep() {
     requestOtp.mutate();
   };
 
-  const handleConfirmA = () => {
-    confirmOtp.mutate({ party: "A", otpCode: codeA });
-  };
-
-  const handleConfirmB = () => {
-    confirmOtp.mutate({ party: "B", otpCode: codeB });
+  const handleConfirmCurrentParty = () => {
+    if (!currentParty) return;
+    confirmOtp.mutate({
+      party: currentParty,
+      otpCode: currentParty === "A" ? codeA : codeB,
+    });
   };
 
   const confirmError =
@@ -71,6 +79,17 @@ export default function ConsentStep() {
           Both parties must confirm with a one-time code sent to their phone
           before the agreement can be sealed.
         </Text>
+        <View className="bg-blue-50 border border-blue-100 rounded-xl p-md gap-xs">
+          <Text className="text-sm font-semibold text-blue-900">
+            Each party confirms from their own account.
+          </Text>
+          <Text className="text-xs text-blue-800 leading-relaxed">
+            After codes are sent, the second party must sign in with their own
+            phone number on their device or invite link, then enter only the OTP
+            sent to that phone. Kotoku rejects attempts to confirm another party's
+            code.
+          </Text>
+        </View>
       </View>
 
       {!otpsSent && (
@@ -90,7 +109,16 @@ export default function ConsentStep() {
         </Text>
       )}
 
-      {otpsSent && (
+      {otpsSent && !currentParty && (
+        <View className="bg-amber-50 border border-amber-200 rounded-xl p-md">
+          <Text className="text-sm text-amber-800 leading-relaxed">
+            This signed-in phone is not one of the pending parties. Sign in with
+            the phone number that received the OTP to confirm consent.
+          </Text>
+        </View>
+      )}
+
+      {otpsSent && currentParty === "A" && (
         <ConsentPartyBlock
           role={roleA}
           phone={partyA.phone}
@@ -100,14 +128,14 @@ export default function ConsentStep() {
             setCodeA(v);
             if (confirmOtp.isError) confirmOtp.reset();
           }}
-          onConfirm={handleConfirmA}
+          onConfirm={handleConfirmCurrentParty}
           loading={confirmOtp.isPending}
           error={confirmError ?? undefined}
           disabled={consentA.confirmed}
         />
       )}
 
-      {otpsSent && (
+      {otpsSent && currentParty === "B" && (
         <ConsentPartyBlock
           role={roleB}
           phone={partyB.phone}
@@ -117,11 +145,20 @@ export default function ConsentStep() {
             setCodeB(v);
             if (confirmOtp.isError) confirmOtp.reset();
           }}
-          onConfirm={handleConfirmB}
+          onConfirm={handleConfirmCurrentParty}
           loading={confirmOtp.isPending}
           error={confirmError ?? undefined}
           disabled={consentB.confirmed}
         />
+      )}
+
+      {otpsSent && currentParty && !bothConfirmed && (
+        <View className="bg-blue-50 border border-blue-100 rounded-xl p-md">
+          <Text className="text-sm text-blue-800 leading-relaxed">
+            Only your OTP can be confirmed from this account. The other party must
+            sign in with their own phone and confirm on their device.
+          </Text>
+        </View>
       )}
 
       {bothConfirmed && (

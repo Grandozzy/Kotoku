@@ -48,8 +48,5 @@ export interface CurrentPlanResponse {
 }
 
 export const billingApi = {
-  currentPlan: () =>
-    api
-      .get<{ status: string; data: CurrentPlanResponse }>("/api/billing/current-plan/")
-      .then((r) => r.data),
+  currentPlan: () => api.get<CurrentPlanResponse>("/api/billing/current-plan/"),
 };

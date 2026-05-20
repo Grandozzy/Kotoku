@@ -80,6 +80,30 @@ class TestListAgreements:
             list(AgreementSelector.list_agreements())
         assert len(ctx.captured_queries) == 2  # main query + parties prefetch
 
+    def test_participant_only_sees_non_draft_agreements(self, db):
+        owner = _account()
+        participant = _account()
+        visible = _agreement("Visible", created_by=owner, status=AgreementStatus.PENDING_CONSENT)
+        hidden = _agreement("Hidden", created_by=owner, status=AgreementStatus.DRAFT)
+        Party.objects.create(
+            agreement=visible,
+            role=Party.Role.BUYER,
+            display_name="Participant",
+            phone=participant.phone,
+        )
+        Party.objects.create(
+            agreement=hidden,
+            role=Party.Role.BUYER,
+            display_name="Participant",
+            phone=participant.phone,
+        )
+
+        result = AgreementSelector.list_agreements(
+            account_id=participant.pk,
+            account_phone=participant.phone,
+        )
+        assert list(result.values_list("title", flat=True)) == ["Visible"]
+
 
 class TestGetAgreementDetail:
     def test_returns_agreement_with_prefetched_relations(self, db):
@@ -107,6 +131,24 @@ class TestGetAgreementDetail:
     def test_raises_does_not_exist_for_missing(self, db):
         with pytest.raises(Agreement.DoesNotExist):
             AgreementSelector.get_agreement_detail(999999)
+
+    def test_participant_cannot_get_draft_detail(self, db):
+        owner = _account()
+        participant = _account()
+        agreement = _agreement("Draft", created_by=owner, status=AgreementStatus.DRAFT)
+        Party.objects.create(
+            agreement=agreement,
+            role=Party.Role.BUYER,
+            display_name="Participant",
+            phone=participant.phone,
+        )
+
+        with pytest.raises(Agreement.DoesNotExist):
+            AgreementSelector.get_agreement_detail(
+                agreement.pk,
+                account_id=participant.pk,
+                account_phone=participant.phone,
+            )
 
 
 class TestListPartyAgreements:

@@ -9,12 +9,13 @@ import { Badge, ScreenLoader } from "@/components/ui";
 import { AnnotationSection } from "@/components/annotations/AnnotationSection";
 import { AddNoteSheet } from "@/components/annotations/AddNoteSheet";
 import { useAuth } from "@/features/auth/useAuth";
-import { apiClient } from "@/api/client";
 import { ExportButton } from "@/components/vault/ExportButton";
 import { ReopenSection } from "@/components/vault/ReopenSection";
 import { getAgreement } from "@/api/agreements";
+import { createDispute } from "@/api/disputes";
 import { useAgreementStore, type PartyDraft } from "@/features/agreements/agreementStore";
 import { useAuditLog, useRequestExport, useRetryExport, useVaultRecord } from "@/features/vault/useVault";
+import { getApiErrorMessage } from "@/lib/errorHandler";
 import type { ScenarioId } from "@/constants/scenarios";
 import { colors } from "@/theme/tokens";
 
@@ -81,18 +82,21 @@ export default function VaultDetailScreen() {
     }
     setDisputeSubmitting(true);
     try {
-      await apiClient.post(`/agreements/${id}/disputes/`, {
-        raised_by_party_id: userParty.id,
-        reason: trimmed,
-      });
+      await createDispute(id, { reason: trimmed });
       setDisputeModalVisible(false);
       setDisputeReason("");
       Alert.alert("Dispute raised", "Your dispute has been submitted.", [
         { text: "View disputes", onPress: () => router.push("/disputes") },
         { text: "Stay here" },
       ]);
-    } catch {
-      Alert.alert("Error", "Failed to raise dispute. Please try again.");
+    } catch (error) {
+      Alert.alert(
+        "Could not raise dispute",
+        getApiErrorMessage(
+          error,
+          "Sign in with a phone number listed on this agreement and try again.",
+        ),
+      );
     } finally {
       setDisputeSubmitting(false);
     }

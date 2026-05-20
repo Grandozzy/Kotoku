@@ -62,6 +62,7 @@ sprint1-remaining.md
 
 # Frontend
 node_modules/
+package-lock.json
 .expo/
 dist/
 web-build/
@@ -81,3 +82,12 @@ logs/
 *.log
 makemigrations_*.txt
 pr_comment.txt
+
+# OS
+.DS_Store
+
+# Local dev services
+minio/
+
+# Local planning assets
+Plan_A_NEW_Project.jpg

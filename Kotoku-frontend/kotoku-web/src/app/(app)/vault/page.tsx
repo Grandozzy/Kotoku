@@ -47,12 +47,15 @@ export default function VaultPage() {
         {entries.map((entry) => (
           <Link
             key={entry.id}
-            href={`/vault/${entry.id}`}
+            href={`/vault/${entry.agreement}`}
             className="flex items-center justify-between px-4 py-3 rounded-xl border border-neutral-100 hover:border-emerald-100 transition-colors"
           >
             <div>
-              <p className="text-sm font-medium font-mono text-neutral-700">
-                {entry.seal_hash.slice(0, 16)}…
+              <p className="text-sm font-medium text-neutral-700">
+                {entry.title}
+              </p>
+              <p className="text-xs font-mono text-neutral-400 mt-0.5">
+                {entry.seal_hash.slice(0, 16)}...
               </p>
               <p className="text-xs text-neutral-400 mt-0.5">
                 Sealed{" "}

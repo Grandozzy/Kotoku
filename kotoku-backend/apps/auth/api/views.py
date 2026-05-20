@@ -1,3 +1,4 @@
+from django.conf import settings
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
@@ -35,6 +36,53 @@ def _device_info(request) -> tuple[str, str]:
     return fingerprint, name
 
 
+def _refresh_cookie_kwargs() -> dict:
+    kwargs = {
+        "path": settings.AUTH_REFRESH_COOKIE_PATH,
+        "httponly": True,
+        "secure": settings.AUTH_REFRESH_COOKIE_SECURE,
+        "samesite": settings.AUTH_REFRESH_COOKIE_SAMESITE,
+    }
+    if settings.AUTH_REFRESH_COOKIE_DOMAIN:
+        kwargs["domain"] = settings.AUTH_REFRESH_COOKIE_DOMAIN
+    return kwargs
+
+
+def _refresh_cookie_delete_kwargs() -> dict:
+    kwargs = {
+        "path": settings.AUTH_REFRESH_COOKIE_PATH,
+        "samesite": settings.AUTH_REFRESH_COOKIE_SAMESITE,
+    }
+    if settings.AUTH_REFRESH_COOKIE_DOMAIN:
+        kwargs["domain"] = settings.AUTH_REFRESH_COOKIE_DOMAIN
+    return kwargs
+
+
+def _set_web_refresh_cookie(response, refresh_token: str) -> None:
+    response.set_cookie(
+        settings.AUTH_REFRESH_COOKIE_NAME,
+        refresh_token,
+        max_age=settings.AUTH_WEB_REFRESH_COOKIE_MAX_AGE,
+        **_refresh_cookie_kwargs(),
+    )
+
+
+def _clear_web_refresh_cookie(response) -> None:
+    response.delete_cookie(
+        settings.AUTH_REFRESH_COOKIE_NAME,
+        **_refresh_cookie_delete_kwargs(),
+    )
+
+
+def _web_token_response(result: dict, *, status_code: int = 200):
+    response_payload = dict(result)
+    refresh_token = response_payload.pop("refresh", "")
+    response = ok(response_payload, status_code=status_code)
+    if refresh_token:
+        _set_web_refresh_cookie(response, refresh_token)
+    return response
+
+
 class SendOtpView(APIView):
     def post(self, request):
         serializer = SendOtpSerializer(data=request.data)
@@ -65,6 +113,8 @@ class VerifyOtpView(APIView):
             "pin_configured": UserPin.objects.filter(user=user).exists(),
             "account_id": account.pk if account else None,
         }
+        if _client_type(request) == DeviceSession.CLIENT_WEB:
+            return _web_token_response(result)
         return ok(result)
 
 
@@ -73,13 +123,27 @@ class RefreshTokenView(APIView):
     def post(self, request):
         serializer = RefreshTokenSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        client_type = _client_type(request)
+        raw_token = serializer.validated_data.get("refresh", "")
+        if client_type == DeviceSession.CLIENT_WEB:
+            raw_token = raw_token or request.COOKIES.get(settings.AUTH_REFRESH_COOKIE_NAME, "")
+        if not raw_token:
+            response = ok({"detail": "Refresh token is required."}, status_code=401)
+            if client_type == DeviceSession.CLIENT_WEB:
+                _clear_web_refresh_cookie(response)
+            return response
         try:
             result = TokenService.refresh(
-                raw_token=serializer.validated_data["refresh"],
-                client_type=_client_type(request),
+                raw_token=raw_token,
+                client_type=client_type,
             )
         except DomainError as exc:
-            return ok({"detail": str(exc)}, status=401)
+            response = ok({"detail": str(exc)}, status_code=401)
+            if client_type == DeviceSession.CLIENT_WEB:
+                _clear_web_refresh_cookie(response)
+            return response
+        if client_type == DeviceSession.CLIENT_WEB:
+            return _web_token_response(result)
         return ok(result)
 
 
@@ -129,8 +193,6 @@ class PinVerifyView(APIView):
 
 
 class SignOutView(APIView):
-    permission_classes = [IsAuthenticated]
-
     def post(self, request):
         # request.auth is already the validated JWT token (DRF + SimpleJWT).
         # Reading device_session_id from it avoids re-parsing the Bearer header.
@@ -141,8 +203,19 @@ class SignOutView(APIView):
                 reason=DeviceSession.REVOKE_LOGOUT,
             )
         except (KeyError, TypeError):
-            pass
-        return ok({"signed_out": True})
+            raw_token = request.COOKIES.get(settings.AUTH_REFRESH_COOKIE_NAME, "")
+            if raw_token:
+                try:
+                    TokenService.revoke_raw_token(
+                        raw_token=raw_token,
+                        reason=DeviceSession.REVOKE_LOGOUT,
+                    )
+                except DomainError:
+                    pass
+        response = ok({"signed_out": True})
+        if _client_type(request) == DeviceSession.CLIENT_WEB:
+            _clear_web_refresh_cookie(response)
+        return response
 
 
 class SignOutAllView(APIView):

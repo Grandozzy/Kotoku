@@ -1,4 +1,4 @@
-import type { PartyRole, IdType } from "@/types/party";
+import type { PartyRole } from "@/types/party";
 
 export interface FieldDef {
   key: string;
@@ -100,5 +100,5 @@ export const ROLE_LABEL: Record<string, string> = {
 export const ID_TYPE_LABEL: Record<string, string> = {
   ghana_card: "Ghana Card",
   passport: "Passport",
-  other: "Other ID",
+  national_id: "National ID Card",
 };

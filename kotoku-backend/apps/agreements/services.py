@@ -1,6 +1,9 @@
 import hashlib
 import json
+import logging
+from datetime import timezone as dt_timezone
 
+from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 
@@ -16,8 +19,12 @@ from apps.agreements.models import Agreement, AgreementRevision
 from apps.audit.services import AuditService
 from apps.identity.models import IdentityRecord
 from apps.notifications.push import send_to_user
+from apps.notifications.tasks import send_sms_message
 from apps.parties.models import Party
 from common.exceptions import DomainError
+
+logger = logging.getLogger("kotoku")
+_RECEIPT_MAX_EVIDENCE_ITEMS = 5
 
 
 def _compute_seal_hash(agreement) -> str:
@@ -68,6 +75,29 @@ def _build_snapshot(agreement) -> dict:
         "parties": parties,
         "evidence": evidence,
     }
+
+
+def _build_seal_receipt_sms(agreement) -> str:
+    evidence_labels = list(
+        agreement.evidence_items.filter(upload_status="confirmed")
+        .order_by("evidence_type", "file_key")
+        .values_list("evidence_type", flat=True)
+    )
+    shown = evidence_labels[:_RECEIPT_MAX_EVIDENCE_ITEMS]
+    if not shown:
+        files_summary = "none"
+    else:
+        files_summary = ", ".join(shown)
+        remaining = len(evidence_labels) - len(shown)
+        if remaining > 0:
+            files_summary = f"{files_summary} +{remaining} more"
+
+    sealed_at = agreement.sealed_at or timezone.now()
+    sealed_at_str = sealed_at.astimezone(dt_timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    return (
+        f"Kotoku receipt. Agreement #{agreement.pk} sealed {sealed_at_str}. "
+        f"Files: {files_summary}. Keep this SMS for support."
+    )
 
 
 class AgreementService:
@@ -220,10 +250,25 @@ class AgreementService:
             BillingService.check_seal_allowed(creator_account)
         except Exception as exc:
             from common.exceptions import DomainError as _DE
+
             if isinstance(exc, _DE):
                 raise
-            # If billing check itself errors, fail open (don't block sealing)
-            pass
+            if getattr(settings, "BILLING_ENFORCEMENT_FAIL_OPEN", False):
+                logger.exception(
+                    "Billing enforcement failed open during seal for agreement=%s account=%s",
+                    agreement.pk,
+                    creator_account.pk,
+                )
+            else:
+                logger.exception(
+                    "Billing enforcement blocked seal for agreement=%s account=%s",
+                    agreement.pk,
+                    creator_account.pk,
+                )
+                raise DomainError(
+                    "Billing enforcement is temporarily unavailable. "
+                    "Sealing is blocked until billing checks recover."
+                ) from exc
 
         if not can_seal(agreement):
             raise DomainError(
@@ -236,17 +281,30 @@ class AgreementService:
         agreement.seal_hash = _compute_seal_hash(agreement)
         agreement.save(update_fields=["status", "sealed_at", "seal_hash", "updated_at"])
         parties = Party.objects.filter(agreement=agreement)
-        for p in parties:
-            if p.phone:
-                send_to_user(p.phone, "agreement.sealed", {
+        receipt_sms = _build_seal_receipt_sms(agreement)
+        seal_notifications = [
+            (
+                p.phone,
+                {
                     "agreement_id": agreement.pk,
                     "title": agreement.title,
-                })
+                },
+            )
+            for p in parties
+            if p.phone
+        ]
         AuditService.record_event(
             event_type="agreement.sealed",
             entity_type="agreement",
             entity_id=str(agreement.pk),
         )
+
+        def _send_seal_notifications() -> None:
+            for phone, payload in seal_notifications:
+                send_to_user(phone, "agreement.sealed", payload)
+                send_sms_message.delay(to=phone, body=receipt_sms)
+
+        transaction.on_commit(_send_seal_notifications)
         return agreement
 
     @staticmethod
@@ -282,10 +340,14 @@ class AgreementService:
         parties = Party.objects.filter(agreement=agreement)
         for p in parties:
             if p.phone:
-                send_to_user(p.phone, "agreement.reopen_requested", {
-                    "agreement_id": agreement.pk,
-                    "title": agreement.title,
-                })
+                send_to_user(
+                    p.phone,
+                    "agreement.reopen_requested",
+                    {
+                        "agreement_id": agreement.pk,
+                        "title": agreement.title,
+                    },
+                )
         AuditService.record_event(
             event_type="agreement.reopen_requested",
             entity_type="agreement",
@@ -306,9 +368,7 @@ class AgreementService:
         agreement = Agreement.objects.select_for_update().get(pk=agreement_id)
         new_status = next_state(agreement.status, "bilateral_confirm")
         snapshot_data = _build_snapshot(agreement)
-        revision_number = AgreementRevision.objects.filter(
-            agreement=agreement
-        ).count() + 1
+        revision_number = AgreementRevision.objects.filter(agreement=agreement).count() + 1
         AgreementRevision.objects.create(
             agreement=agreement,
             revision_number=revision_number,
@@ -323,10 +383,14 @@ class AgreementService:
         parties = Party.objects.filter(agreement=agreement)
         for p in parties:
             if p.phone:
-                send_to_user(p.phone, "agreement.reopen_confirmed", {
-                    "agreement_id": agreement.pk,
-                    "title": agreement.title,
-                })
+                send_to_user(
+                    p.phone,
+                    "agreement.reopen_confirmed",
+                    {
+                        "agreement_id": agreement.pk,
+                        "title": agreement.title,
+                    },
+                )
         AuditService.record_event(
             event_type="agreement.reopened_bilateral",
             entity_type="agreement",
@@ -354,9 +418,7 @@ class AgreementService:
     def reopen_agreement(*, agreement_id: int) -> Agreement:
         agreement = Agreement.objects.select_for_update().get(pk=agreement_id)
         if not can_reopen(agreement):
-            raise DomainError(
-                "Cannot reopen: agreement must be sealed within the last 24 hours"
-            )
+            raise DomainError("Cannot reopen: agreement must be sealed within the last 24 hours")
         new_status = next_state(agreement.status, "reopen")
         agreement.status = new_status
         agreement.sealed_at = None

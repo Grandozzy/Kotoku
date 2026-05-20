@@ -19,8 +19,16 @@ _UPLOAD_URL_PATH = "/api/agreements/{id}/evidence/upload-url/"
 _EVIDENCE_PATH = "/api/agreements/{id}/evidence/"
 
 _FAKE_PRESIGNED_URL = "https://storage.kotoku/bucket/key?X-Amz-Signature=fake"
-_FAKE_HEADERS = {"Content-Type": "image/jpeg"}
+_FAKE_VIEW_URL = "https://storage.kotoku/bucket/key?response-content-disposition=inline"
+_FAKE_CHECKSUM = "a" * 64
+_FAKE_HEADERS = {"Content-Type": "image/jpeg", "x-amz-meta-sha256": _FAKE_CHECKSUM}
 _FAKE_STORAGE_URL = "https://storage.kotoku/bucket/agreements/1/evidence/photo.jpg"
+_FAKE_HEAD = {
+    "content_length": 500,
+    "content_type": "image/jpeg",
+    "etag": "abc123etag",
+    "metadata": {"sha256": _FAKE_CHECKSUM},
+}
 
 _seq = 0
 
@@ -70,7 +78,12 @@ class TestUploadUrlApi:
         agreement = _agreement(acct)
         resp = client.post(
             _UPLOAD_URL_PATH.format(id=agreement.pk),
-            {"evidence_type": "vehicle_photo_front", "mime_type": "image/jpeg", "size_bytes": 524288},
+            {
+                "evidence_type": "vehicle_photo_front",
+                "mime_type": "image/jpeg",
+                "size_bytes": 524288,
+                "checksum_sha256": _FAKE_CHECKSUM,
+            },
             format="json",
         )
         assert resp.status_code == 201
@@ -85,7 +98,12 @@ class TestUploadUrlApi:
         agreement = _agreement(acct)
         client.post(
             _UPLOAD_URL_PATH.format(id=agreement.pk),
-            {"evidence_type": "vehicle_photo_front", "mime_type": "image/jpeg", "size_bytes": 100},
+            {
+                "evidence_type": "vehicle_photo_front",
+                "mime_type": "image/jpeg",
+                "size_bytes": 100,
+                "checksum_sha256": _FAKE_CHECKSUM,
+            },
             format="json",
         )
         assert EvidenceItem.objects.filter(
@@ -98,7 +116,12 @@ class TestUploadUrlApi:
         agreement = _agreement(acct)
         resp = client.post(
             _UPLOAD_URL_PATH.format(id=agreement.pk),
-            {"evidence_type": "seller_id_photo", "mime_type": "image/png", "size_bytes": 200},
+            {
+                "evidence_type": "seller_id_photo",
+                "mime_type": "image/png",
+                "size_bytes": 200,
+                "checksum_sha256": _FAKE_CHECKSUM,
+            },
             format="json",
         )
         assert "seller_id_photo" in resp.json()["data"]["file_key"]
@@ -108,7 +131,12 @@ class TestUploadUrlApi:
         agreement = _agreement(acct, status=AgreementStatus.SEALED)
         resp = client.post(
             _UPLOAD_URL_PATH.format(id=agreement.pk),
-            {"evidence_type": "vehicle_photo_front", "mime_type": "image/jpeg", "size_bytes": 100},
+            {
+                "evidence_type": "vehicle_photo_front",
+                "mime_type": "image/jpeg",
+                "size_bytes": 100,
+                "checksum_sha256": _FAKE_CHECKSUM,
+            },
             format="json",
         )
         assert resp.status_code == 400
@@ -118,7 +146,7 @@ class TestUploadUrlApi:
         agreement = _agreement(acct)
         resp = client.post(
             _UPLOAD_URL_PATH.format(id=agreement.pk),
-            {"evidence_type": "doc", "mime_type": "text/html", "size_bytes": 100},
+            {"evidence_type": "doc", "mime_type": "text/html", "size_bytes": 100, "checksum_sha256": _FAKE_CHECKSUM},
             format="json",
         )
         assert resp.status_code == 400
@@ -128,7 +156,7 @@ class TestUploadUrlApi:
         agreement = _agreement(acct)
         resp = client.post(
             _UPLOAD_URL_PATH.format(id=agreement.pk),
-            {"evidence_type": "Bad Name!", "mime_type": "image/jpeg", "size_bytes": 100},
+            {"evidence_type": "Bad Name!", "mime_type": "image/jpeg", "size_bytes": 100, "checksum_sha256": _FAKE_CHECKSUM},
             format="json",
         )
         assert resp.status_code == 400
@@ -138,7 +166,12 @@ class TestUploadUrlApi:
         agreement = _agreement(acct)
         resp = client.post(
             _UPLOAD_URL_PATH.format(id=agreement.pk),
-            {"evidence_type": "vehicle_photo_front", "mime_type": "image/jpeg", "size_bytes": 0},
+            {
+                "evidence_type": "vehicle_photo_front",
+                "mime_type": "image/jpeg",
+                "size_bytes": 0,
+                "checksum_sha256": _FAKE_CHECKSUM,
+            },
             format="json",
         )
         assert resp.status_code == 400
@@ -149,7 +182,12 @@ class TestUploadUrlApi:
         agreement = _agreement(other_acct)
         resp = client.post(
             _UPLOAD_URL_PATH.format(id=agreement.pk),
-            {"evidence_type": "vehicle_photo_front", "mime_type": "image/jpeg", "size_bytes": 100},
+            {
+                "evidence_type": "vehicle_photo_front",
+                "mime_type": "image/jpeg",
+                "size_bytes": 100,
+                "checksum_sha256": _FAKE_CHECKSUM,
+            },
             format="json",
         )
         assert resp.status_code == 404
@@ -159,7 +197,12 @@ class TestUploadUrlApi:
         agreement = _agreement(acct)
         resp = APIClient().post(
             _UPLOAD_URL_PATH.format(id=agreement.pk),
-            {"evidence_type": "vehicle_photo_front", "mime_type": "image/jpeg", "size_bytes": 100},
+            {
+                "evidence_type": "vehicle_photo_front",
+                "mime_type": "image/jpeg",
+                "size_bytes": 100,
+                "checksum_sha256": _FAKE_CHECKSUM,
+            },
             format="json",
         )
         assert resp.status_code == 401
@@ -170,7 +213,12 @@ class TestUploadUrlApi:
         _set_parties(agreement, acct.phone)
         client.post(
             _UPLOAD_URL_PATH.format(id=agreement.pk),
-            {"evidence_type": "seller_id_photo", "mime_type": "image/jpeg", "size_bytes": 500},
+            {
+                "evidence_type": "seller_id_photo",
+                "mime_type": "image/jpeg",
+                "size_bytes": 500,
+                "checksum_sha256": _FAKE_CHECKSUM,
+            },
             format="json",
         )
         item = EvidenceItem.objects.get(agreement=agreement, evidence_type="seller_id_photo")
@@ -179,8 +227,12 @@ class TestUploadUrlApi:
 
 
 @patch(
-    "apps.evidence.services.S3StorageClient.build_object_url",
-    return_value=_FAKE_STORAGE_URL,
+    "apps.evidence.api.serializers.S3StorageClient.generate_presigned_view_url",
+    return_value=_FAKE_VIEW_URL,
+)
+@patch(
+    "apps.evidence.services.S3StorageClient.head_object",
+    return_value=_FAKE_HEAD,
 )
 @patch(
     "apps.evidence.services.S3StorageClient.generate_presigned_upload_url",
@@ -192,32 +244,51 @@ class TestConfirmUploadApi:
                      mime_type="image/jpeg"):
         resp = client.post(
             _UPLOAD_URL_PATH.format(id=agreement_id),
-            {"evidence_type": evidence_type, "mime_type": mime_type, "size_bytes": 500},
+            {
+                "evidence_type": evidence_type,
+                "mime_type": mime_type,
+                "size_bytes": 500,
+                "checksum_sha256": _FAKE_CHECKSUM,
+            },
             format="json",
         )
         return resp.json()["data"]["file_key"]
 
-    def test_confirm_returns_201(self, mock_presign, mock_url):
+    def test_confirm_returns_201(self, mock_presign, mock_head, mock_view_url):
         client, acct = _make_client("+233501500001")
         agreement = _agreement(acct)
         file_key = self._request_url(client, agreement.pk)
         resp = client.post(
             _EVIDENCE_PATH.format(id=agreement.pk),
-            {"file_key": file_key, "evidence_type": "vehicle_photo_front", "mime_type": "image/jpeg"},
+            {
+                "file_key": file_key,
+                "evidence_type": "vehicle_photo_front",
+                "mime_type": "image/jpeg",
+                "checksum_sha256": _FAKE_CHECKSUM,
+            },
             format="json",
         )
         assert resp.status_code == 201
         data = resp.json()["data"]["evidence"]
         assert data["upload_status"] == "confirmed"
-        assert data["storage_url"] == _FAKE_STORAGE_URL
+        assert data["view_url"] == _FAKE_VIEW_URL
+        assert "storage_url" not in data
+        assert "download_url" not in data
+        assert "file_key" not in data
+        assert EvidenceItem.objects.get(file_key=file_key).storage_url == ""
 
-    def test_confirmed_item_appears_in_list(self, mock_presign, mock_url):
+    def test_confirmed_item_appears_in_list(self, mock_presign, mock_head, mock_view_url):
         client, acct = _make_client("+233501500002")
         agreement = _agreement(acct)
         file_key = self._request_url(client, agreement.pk)
         client.post(
             _EVIDENCE_PATH.format(id=agreement.pk),
-            {"file_key": file_key, "evidence_type": "vehicle_photo_front", "mime_type": "image/jpeg"},
+            {
+                "file_key": file_key,
+                "evidence_type": "vehicle_photo_front",
+                "mime_type": "image/jpeg",
+                "checksum_sha256": _FAKE_CHECKSUM,
+            },
             format="json",
         )
         resp = client.get(_EVIDENCE_PATH.format(id=agreement.pk))
@@ -225,71 +296,157 @@ class TestConfirmUploadApi:
         items = resp.json()["data"]["evidence"]
         assert len(items) == 1
         assert items[0]["upload_status"] == "confirmed"
+        assert items[0]["view_url"] == _FAKE_VIEW_URL
+        assert "storage_url" not in items[0]
+        assert "download_url" not in items[0]
+        assert "file_key" not in items[0]
 
-    def test_pending_items_excluded_from_list(self, mock_presign, mock_url):
+    def test_pending_items_excluded_from_list(self, mock_presign, mock_head, mock_view_url):
         client, acct = _make_client("+233501500003")
         agreement = _agreement(acct)
         self._request_url(client, agreement.pk)  # creates pending item, no confirm
         resp = client.get(_EVIDENCE_PATH.format(id=agreement.pk))
         assert resp.json()["data"]["evidence"] == []
 
-    def test_wrong_evidence_type_returns_400(self, mock_presign, mock_url):
+    def test_wrong_evidence_type_returns_400(self, mock_presign, mock_head, mock_view_url):
         client, acct = _make_client("+233501500004")
         agreement = _agreement(acct)
         file_key = self._request_url(client, agreement.pk, evidence_type="vehicle_photo_front")
         resp = client.post(
             _EVIDENCE_PATH.format(id=agreement.pk),
-            {"file_key": file_key, "evidence_type": "seller_id_photo", "mime_type": "image/jpeg"},
+            {
+                "file_key": file_key,
+                "evidence_type": "seller_id_photo",
+                "mime_type": "image/jpeg",
+                "checksum_sha256": _FAKE_CHECKSUM,
+            },
             format="json",
         )
         assert resp.status_code == 400
 
-    def test_wrong_mime_type_returns_400(self, mock_presign, mock_url):
+    def test_wrong_mime_type_returns_400(self, mock_presign, mock_head, mock_view_url):
         client, acct = _make_client("+233501500005")
         agreement = _agreement(acct)
         file_key = self._request_url(client, agreement.pk, mime_type="image/jpeg")
         resp = client.post(
             _EVIDENCE_PATH.format(id=agreement.pk),
-            {"file_key": file_key, "evidence_type": "vehicle_photo_front", "mime_type": "image/png"},
+            {
+                "file_key": file_key,
+                "evidence_type": "vehicle_photo_front",
+                "mime_type": "image/png",
+                "checksum_sha256": _FAKE_CHECKSUM,
+            },
             format="json",
         )
         assert resp.status_code == 400
 
-    def test_unknown_file_key_returns_400(self, mock_presign, mock_url):
+    def test_unknown_file_key_returns_400(self, mock_presign, mock_head, mock_view_url):
         client, acct = _make_client("+233501500006")
         agreement = _agreement(acct)
         resp = client.post(
             _EVIDENCE_PATH.format(id=agreement.pk),
             {"file_key": "agreements/99/evidence/ghost.jpg",
-             "evidence_type": "vehicle_photo_front", "mime_type": "image/jpeg"},
+             "evidence_type": "vehicle_photo_front", "mime_type": "image/jpeg", "checksum_sha256": _FAKE_CHECKSUM},
             format="json",
         )
         assert resp.status_code == 400
 
-    def test_cannot_confirm_twice(self, mock_presign, mock_url):
+    def test_cannot_confirm_twice(self, mock_presign, mock_head, mock_view_url):
         client, acct = _make_client("+233501500007")
         agreement = _agreement(acct)
         file_key = self._request_url(client, agreement.pk)
-        payload = {"file_key": file_key, "evidence_type": "vehicle_photo_front", "mime_type": "image/jpeg"}
+        payload = {
+            "file_key": file_key,
+            "evidence_type": "vehicle_photo_front",
+            "mime_type": "image/jpeg",
+            "checksum_sha256": _FAKE_CHECKSUM,
+        }
         client.post(_EVIDENCE_PATH.format(id=agreement.pk), payload, format="json")
         # Second confirm — item is now CONFIRMED, not PENDING → 400
         resp = client.post(_EVIDENCE_PATH.format(id=agreement.pk), payload, format="json")
         assert resp.status_code == 400
 
-    def test_unauthenticated_returns_401(self, mock_presign, mock_url):
+    def test_unauthenticated_returns_401(self, mock_presign, mock_head, mock_view_url):
         _, acct = _make_client("+233501500008")
         agreement = _agreement(acct)
         resp = APIClient().post(
             _EVIDENCE_PATH.format(id=agreement.pk),
-            {"file_key": "k", "evidence_type": "x_y", "mime_type": "image/jpeg"},
+            {"file_key": "k", "evidence_type": "x_y", "mime_type": "image/jpeg", "checksum_sha256": _FAKE_CHECKSUM},
             format="json",
         )
         assert resp.status_code == 401
 
+    def test_storage_size_mismatch_returns_400(self, mock_presign, mock_head, mock_view_url):
+        mock_head.return_value = {**_FAKE_HEAD, "content_length": 499}
+        client, acct = _make_client("+233501500009")
+        agreement = _agreement(acct)
+        file_key = self._request_url(client, agreement.pk)
+        resp = client.post(
+            _EVIDENCE_PATH.format(id=agreement.pk),
+            {
+                "file_key": file_key,
+                "evidence_type": "vehicle_photo_front",
+                "mime_type": "image/jpeg",
+                "checksum_sha256": _FAKE_CHECKSUM,
+            },
+            format="json",
+        )
+        assert resp.status_code == 400
+
+    def test_storage_mime_mismatch_returns_400(self, mock_presign, mock_head, mock_view_url):
+        mock_head.return_value = {**_FAKE_HEAD, "content_type": "image/png"}
+        client, acct = _make_client("+233501500010")
+        agreement = _agreement(acct)
+        file_key = self._request_url(client, agreement.pk)
+        resp = client.post(
+            _EVIDENCE_PATH.format(id=agreement.pk),
+            {
+                "file_key": file_key,
+                "evidence_type": "vehicle_photo_front",
+                "mime_type": "image/jpeg",
+                "checksum_sha256": _FAKE_CHECKSUM,
+            },
+            format="json",
+        )
+        assert resp.status_code == 400
+
+    def test_checksum_mismatch_returns_400(self, mock_presign, mock_head, mock_view_url):
+        client, acct = _make_client("+233501500011")
+        agreement = _agreement(acct)
+        file_key = self._request_url(client, agreement.pk)
+        resp = client.post(
+            _EVIDENCE_PATH.format(id=agreement.pk),
+            {
+                "file_key": file_key,
+                "evidence_type": "vehicle_photo_front",
+                "mime_type": "image/jpeg",
+                "checksum_sha256": "b" * 64,
+            },
+            format="json",
+        )
+        assert resp.status_code == 400
+
+    def test_storage_checksum_mismatch_returns_400(self, mock_presign, mock_head, mock_view_url):
+        mock_head.return_value = {**_FAKE_HEAD, "metadata": {"sha256": "b" * 64}}
+        client, acct = _make_client("+233501500012")
+        agreement = _agreement(acct)
+        file_key = self._request_url(client, agreement.pk)
+        resp = client.post(
+            _EVIDENCE_PATH.format(id=agreement.pk),
+            {
+                "file_key": file_key,
+                "evidence_type": "vehicle_photo_front",
+                "mime_type": "image/jpeg",
+                "checksum_sha256": _FAKE_CHECKSUM,
+            },
+            format="json",
+        )
+        assert resp.status_code == 400
+
 
 @patch(
-    "apps.evidence.services.S3StorageClient.build_object_url",
-    return_value=_FAKE_STORAGE_URL,
+    "apps.evidence.api.serializers.S3StorageClient.generate_presigned_view_url",
+    return_value=_FAKE_VIEW_URL,
 )
 @patch(
     "apps.evidence.services.S3StorageClient.generate_presigned_upload_url",
@@ -297,16 +454,104 @@ class TestConfirmUploadApi:
 )
 @pytest.mark.django_db
 class TestEvidenceListApi:
-    def test_list_empty_agreement(self, mock_presign, mock_url):
+    def test_list_empty_agreement(self, mock_presign, mock_view_url):
         client, acct = _make_client("+233501600001")
         agreement = _agreement(acct)
         resp = client.get(_EVIDENCE_PATH.format(id=agreement.pk))
         assert resp.status_code == 200
         assert resp.json()["data"]["evidence"] == []
 
-    def test_list_other_users_agreement_returns_404(self, mock_presign, mock_url):
+    def test_list_other_users_agreement_returns_404(self, mock_presign, mock_view_url):
         client, acct = _make_client("+233501600002")
         _, other_acct = _make_client("+233501600003")
         agreement = _agreement(other_acct)
         resp = client.get(_EVIDENCE_PATH.format(id=agreement.pk))
+        assert resp.status_code == 404
+
+    def test_participant_can_list_confirmed_evidence(self, mock_presign, mock_view_url):
+        owner_client, owner_acct = _make_client("+233501600004")
+        participant_client, participant_acct = _make_client("+233501600005")
+        agreement = _agreement(owner_acct)
+        PartyService.set_parties(
+            agreement_id=agreement.pk,
+            initiator_account=owner_acct,
+            parties_data=[
+                {
+                    "role": "seller",
+                    "full_name": "Owner",
+                    "phone": owner_acct.phone,
+                    "id_type": "ghana_card",
+                    "id_number": "GHA-O",
+                },
+                {
+                    "role": "buyer",
+                    "full_name": "Participant",
+                    "phone": participant_acct.phone,
+                    "id_type": "ghana_card",
+                    "id_number": "GHA-P",
+                },
+            ],
+        )
+        agreement.status = AgreementStatus.SEALED
+        agreement.save(update_fields=["status"])
+        EvidenceItem.objects.create(
+            agreement=agreement,
+            file_type=EvidenceItem.FileType.PHOTO,
+            evidence_type="vehicle_photo_front",
+            mime_type="image/jpeg",
+            file_hash=_FAKE_CHECKSUM,
+            file_key="agreements/1/evidence/vehicle_photo_front.jpg",
+            storage_url=_FAKE_STORAGE_URL,
+            upload_status=EvidenceItem.UploadStatus.CONFIRMED,
+        )
+
+        with patch(
+            "apps.evidence.services.S3StorageClient.head_object",
+            return_value=_FAKE_HEAD,
+        ):
+            resp = participant_client.get(_EVIDENCE_PATH.format(id=agreement.pk))
+        assert resp.status_code == 200
+        item = resp.json()["data"]["evidence"][0]
+        assert item["view_url"] == _FAKE_VIEW_URL
+        assert "storage_url" not in item
+        assert "download_url" not in item
+        assert "file_key" not in item
+
+    def test_participant_cannot_request_upload_url(self, mock_presign, mock_view_url):
+        owner_client, owner_acct = _make_client("+233501600006")
+        participant_client, participant_acct = _make_client("+233501600007")
+        agreement = _agreement(owner_acct)
+        PartyService.set_parties(
+            agreement_id=agreement.pk,
+            initiator_account=owner_acct,
+            parties_data=[
+                {
+                    "role": "seller",
+                    "full_name": "Owner",
+                    "phone": owner_acct.phone,
+                    "id_type": "ghana_card",
+                    "id_number": "GHA-O2",
+                },
+                {
+                    "role": "buyer",
+                    "full_name": "Participant",
+                    "phone": participant_acct.phone,
+                    "id_type": "ghana_card",
+                    "id_number": "GHA-P2",
+                },
+            ],
+        )
+        agreement.status = AgreementStatus.SEALED
+        agreement.save(update_fields=["status"])
+
+        resp = participant_client.post(
+            _UPLOAD_URL_PATH.format(id=agreement.pk),
+            {
+                "evidence_type": "vehicle_photo_front",
+                "mime_type": "image/jpeg",
+                "size_bytes": 500,
+                "checksum_sha256": _FAKE_CHECKSUM,
+            },
+            format="json",
+        )
         assert resp.status_code == 404

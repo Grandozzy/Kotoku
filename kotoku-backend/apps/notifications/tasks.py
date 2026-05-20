@@ -10,7 +10,11 @@ from apps.notifications.providers.sms_provider import SmsNotificationProvider
 logger = logging.getLogger(__name__)
 
 
-@shared_task
+@shared_task(
+    autoretry_for=(Exception,),
+    retry_backoff=True,
+    retry_kwargs={"max_retries": 3},
+)
 def dispatch_notification(notification_id: int) -> None:
     try:
         notification = Notification.objects.select_related("account").get(
@@ -45,3 +49,15 @@ def dispatch_notification(notification_id: int) -> None:
         entity_id=str(notification.pk),
         metadata={"status": notification.status},
     )
+
+
+@shared_task(
+    autoretry_for=(Exception,),
+    retry_backoff=True,
+    retry_kwargs={"max_retries": 3},
+)
+def send_sms_message(*, to: str, body: str) -> None:
+    provider = SmsNotificationProvider()
+    success = provider.send(to=to, body=body)
+    if not success:
+        raise RuntimeError(f"SMS delivery failed for {to}")

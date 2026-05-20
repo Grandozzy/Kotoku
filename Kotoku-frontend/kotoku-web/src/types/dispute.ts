@@ -13,6 +13,5 @@ export interface Dispute {
 }
 
 export interface DisputeCreate {
-  raised_by_party_id: number;
   reason: string;
 }

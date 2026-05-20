@@ -15,7 +15,7 @@ class Party(models.Model):
     class IdType(models.TextChoices):
         GHANA_CARD = "ghana_card", "Ghana Card"
         PASSPORT = "passport", "Passport"
-        OTHER = "other", "Other"
+        NATIONAL_ID = "national_id", "National ID Card"
 
     agreement = models.ForeignKey(
         Agreement,
@@ -33,8 +33,8 @@ class Party(models.Model):
     role = models.CharField(max_length=20, choices=Role.choices)
     display_name = models.CharField(max_length=255)
     phone = models.CharField(max_length=20, blank=True)
-    id_type = models.CharField(max_length=20, choices=IdType.choices, blank=True)
-    id_number = models.CharField(max_length=128, blank=True)
+    id_type = models.CharField(max_length=20, choices=IdType.choices)
+    id_number = models.CharField(max_length=128)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

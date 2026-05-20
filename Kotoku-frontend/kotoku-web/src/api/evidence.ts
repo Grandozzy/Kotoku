@@ -1,31 +1,39 @@
 import { api } from "@/lib/apiClient";
 
-interface InitiateResponse {
+interface UploadUrlResponse {
   evidence_id: number;
   upload_url: string;
-  fields: Record<string, string>;
+  file_key: string;
+  headers: Record<string, string>;
 }
 
 export const evidenceApi = {
-  initiate: (
+  requestUploadUrl: (
     agreementId: number,
-    data: { file_type: string; evidence_type: string; file_name: string; file_size: number }
+    data: {
+      evidence_type: string;
+      mime_type: string;
+      size_bytes: number;
+      checksum_sha256: string;
+    }
   ) =>
-    api.post<InitiateResponse>(
-      `/api/agreements/${agreementId}/evidence/initiate/`,
+    api.post<UploadUrlResponse>(
+      `/api/agreements/${agreementId}/evidence/upload-url/`,
       data
     ),
 
-  confirm: (agreementId: number, evidenceId: number) =>
-    api.post<{ detail: string }>(
-      `/api/agreements/${agreementId}/evidence/${evidenceId}/confirm/`
-    ),
+  confirm: (
+    agreementId: number,
+    data: {
+      file_key: string;
+      evidence_type: string;
+      mime_type: string;
+      checksum_sha256: string;
+    }
+  ) => api.post<{ evidence: { id: number } }>(`/api/agreements/${agreementId}/evidence/`, data),
 
-  uploadToS3: async (uploadUrl: string, fields: Record<string, string>, file: File) => {
-    const form = new FormData();
-    Object.entries(fields).forEach(([k, v]) => form.append(k, v));
-    form.append("file", file);
-    const res = await fetch(uploadUrl, { method: "POST", body: form });
+  uploadToStorage: async (uploadUrl: string, headers: Record<string, string>, file: File) => {
+    const res = await fetch(uploadUrl, { method: "PUT", headers, body: file });
     if (!res.ok) throw new Error(`S3 upload failed: ${res.status}`);
   },
 };

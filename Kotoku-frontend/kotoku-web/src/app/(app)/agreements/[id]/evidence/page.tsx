@@ -9,10 +9,10 @@ import { evidenceApi } from "@/api/evidence";
 const EVIDENCE_TYPES = [
   { value: "vehicle_photo", label: "Vehicle photo" },
   { value: "property_photo", label: "Property photo" },
-  { value: "buyer_id_photo", label: "Buyer ID photo" },
-  { value: "seller_id_photo", label: "Seller ID photo" },
-  { value: "landlord_id_photo", label: "Landlord ID photo" },
-  { value: "tenant_id_photo", label: "Tenant ID photo" },
+  { value: "buyer_id_photo", label: "Buyer ID photo (required for sealing)" },
+  { value: "seller_id_photo", label: "Seller ID photo (required for sealing)" },
+  { value: "landlord_id_photo", label: "Landlord ID photo (required for sealing)" },
+  { value: "tenant_id_photo", label: "Tenant ID photo (required for sealing)" },
   { value: "condition_photo", label: "Condition / defect photo" },
   { value: "signature", label: "Signature" },
   { value: "document", label: "Supporting document" },
@@ -23,6 +23,14 @@ interface UploadItem {
   evidenceType: string;
   status: "idle" | "uploading" | "done" | "error";
   errorMsg?: string;
+}
+
+async function sha256Hex(file: File): Promise<string> {
+  const buffer = await file.arrayBuffer();
+  const digest = await crypto.subtle.digest("SHA-256", buffer);
+  return Array.from(new Uint8Array(digest))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
 }
 
 export default function EvidencePage() {
@@ -55,14 +63,20 @@ export default function EvidencePage() {
 
   const uploadMutation = useMutation({
     mutationFn: async (item: UploadItem) => {
-      const init = await evidenceApi.initiate(agreementId, {
-        file_type: item.file.type.startsWith("image/") ? "photo" : "document",
+      const checksumSha256 = await sha256Hex(item.file);
+      const init = await evidenceApi.requestUploadUrl(agreementId, {
         evidence_type: item.evidenceType,
-        file_name: item.file.name,
-        file_size: item.file.size,
+        mime_type: item.file.type,
+        size_bytes: item.file.size,
+        checksum_sha256: checksumSha256,
       });
-      await evidenceApi.uploadToS3(init.upload_url, init.fields, item.file);
-      await evidenceApi.confirm(agreementId, init.evidence_id);
+      await evidenceApi.uploadToStorage(init.upload_url, init.headers, item.file);
+      await evidenceApi.confirm(agreementId, {
+        file_key: init.file_key,
+        evidence_type: item.evidenceType,
+        mime_type: item.file.type,
+        checksum_sha256: checksumSha256,
+      });
       return init.evidence_id;
     },
     onMutate: (item) => {
@@ -101,6 +115,11 @@ export default function EvidencePage() {
       <p className="text-sm text-neutral-500">
         Upload photos, ID documents, and any supporting files. Drag and drop
         multiple files at once.
+      </p>
+      <p className="rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+        Each non-witness party must have a role-specific ID photo before consent
+        and sealing can complete. Use buyer/seller or landlord/tenant ID photo
+        types to match the party roles on this agreement.
       </p>
 
       {/* Type selector */}

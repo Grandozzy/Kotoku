@@ -55,11 +55,28 @@ function mapVaultRecord(raw: RawVaultEntry): VaultRecord {
 }
 
 export interface AuditEvent {
-  id: number;
+  id: string;
   eventType: string;
   actorPhone: string;
   createdAt: string;
   metadata: Record<string, unknown>;
+}
+
+interface RawAuditEvent {
+  type: string;
+  timestamp: string;
+  actor: string;
+  description: string;
+}
+
+function mapAuditEvent(raw: RawAuditEvent, index: number): AuditEvent {
+  return {
+    id: `${raw.timestamp}-${raw.type}-${index}`,
+    eventType: raw.type,
+    actorPhone: raw.actor,
+    createdAt: raw.timestamp,
+    metadata: { description: raw.description },
+  };
 }
 
 export async function listVault(): Promise<VaultRecord[]> {
@@ -89,8 +106,8 @@ export async function retryPdfExport(agreementId: number): Promise<VaultRecord> 
 }
 
 export async function getAuditLog(agreementId: number): Promise<AuditEvent[]> {
-  const res = await apiClient.get<ApiResponse<AuditEvent[]>>(
+  const res = await apiClient.get<ApiResponse<{ events: RawAuditEvent[] }>>(
     `/vault/${agreementId}/audit-log/`,
   );
-  return res.data.data;
+  return res.data.data.events.map(mapAuditEvent);
 }

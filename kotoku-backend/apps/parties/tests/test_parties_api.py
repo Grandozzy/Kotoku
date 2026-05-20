@@ -1,6 +1,6 @@
 import pytest
-from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.test import APIClient
+from rest_framework_simplejwt.tokens import RefreshToken
 
 from apps.accounts.models import Account, User
 from apps.agreements.domain.enums import AgreementStatus
@@ -97,8 +97,20 @@ class TestPartiesPostApi:
         agreement = _agreement(acct)
         body = {
             "parties": [
-                {"role": "seller", "full_name": "A", "phone": acct.phone, "id_type": "ghana_card", "id_number": "X1"},
-                {"role": "seller", "full_name": "B", "phone": "+233200000001", "id_type": "ghana_card", "id_number": "X2"},
+                {
+                    "role": "seller",
+                    "full_name": "A",
+                    "phone": acct.phone,
+                    "id_type": "ghana_card",
+                    "id_number": "X1",
+                },
+                {
+                    "role": "seller",
+                    "full_name": "B",
+                    "phone": "+233200000001",
+                    "id_type": "ghana_card",
+                    "id_number": "X2",
+                },
             ]
         }
         resp = client.post(_URL.format(id=agreement.pk), body, format="json")
@@ -109,8 +121,20 @@ class TestPartiesPostApi:
         agreement = _agreement(acct)
         body = {
             "parties": [
-                {"role": "seller", "full_name": "X", "phone": "+233999000001", "id_type": "ghana_card", "id_number": "N1"},
-                {"role": "buyer", "full_name": "Y", "phone": "+233999000002", "id_type": "ghana_card", "id_number": "N2"},
+                {
+                    "role": "seller",
+                    "full_name": "X",
+                    "phone": "+233999000001",
+                    "id_type": "ghana_card",
+                    "id_number": "N1",
+                },
+                {
+                    "role": "buyer",
+                    "full_name": "Y",
+                    "phone": "+233999000002",
+                    "id_type": "ghana_card",
+                    "id_number": "N2",
+                },
             ]
         }
         resp = client.post(_URL.format(id=agreement.pk), body, format="json")
@@ -155,6 +179,33 @@ class TestPartiesPostApi:
         resp = client.post(_URL.format(id=agreement.pk), body, format="json")
         assert resp.status_code == 400
 
+    def test_other_id_type_returns_400(self):
+        client, acct = _make_client("+233501111012")
+        agreement = _agreement(acct)
+        body = _valid_body(acct.phone)
+        body["parties"][1]["id_type"] = "other"
+        resp = client.post(_URL.format(id=agreement.pk), body, format="json")
+        assert resp.status_code == 400
+
+    def test_national_id_type_is_accepted(self):
+        client, acct = _make_client("+233501111013")
+        agreement = _agreement(acct)
+        body = _valid_body(acct.phone)
+        body["parties"][1]["id_type"] = "national_id"
+        body["parties"][1]["id_number"] = "NID-222-000"
+        resp = client.post(_URL.format(id=agreement.pk), body, format="json")
+        assert resp.status_code == 200
+        buyer = next(p for p in resp.json()["data"]["parties"] if p["role"] == "buyer")
+        assert buyer["id_type"] == "national_id"
+
+    def test_blank_id_number_returns_400(self):
+        client, acct = _make_client("+233501111014")
+        agreement = _agreement(acct)
+        body = _valid_body(acct.phone)
+        body["parties"][1]["id_number"] = ""
+        resp = client.post(_URL.format(id=agreement.pk), body, format="json")
+        assert resp.status_code == 400
+
     def test_replaces_existing_parties(self):
         client, acct = _make_client("+233501111011")
         agreement = _agreement(acct)
@@ -177,8 +228,20 @@ class TestPartiesPatchApi:
             agreement_id=agreement.pk,
             initiator_account=acct,
             parties_data=[
-                {"role": "seller", "full_name": "Kofi", "phone": acct.phone, "id_type": "ghana_card", "id_number": "GHA-S"},
-                {"role": "buyer", "full_name": "Ama", "phone": "+233200000050", "id_type": "passport", "id_number": "PASS-B"},
+                {
+                    "role": "seller",
+                    "full_name": "Kofi",
+                    "phone": acct.phone,
+                    "id_type": "ghana_card",
+                    "id_number": "GHA-S",
+                },
+                {
+                    "role": "buyer",
+                    "full_name": "Ama",
+                    "phone": "+233200000050",
+                    "id_type": "passport",
+                    "id_number": "PASS-B",
+                },
             ],
         )
         return client, acct, agreement
@@ -244,8 +307,20 @@ class TestPartiesGetApi:
             agreement_id=agreement.pk,
             initiator_account=acct,
             parties_data=[
-                {"role": "seller", "full_name": "Kofi", "phone": acct.phone, "id_type": "ghana_card", "id_number": "G1"},
-                {"role": "buyer", "full_name": "Ama", "phone": "+233200000030", "id_type": "ghana_card", "id_number": "G2"},
+                {
+                    "role": "seller",
+                    "full_name": "Kofi",
+                    "phone": acct.phone,
+                    "id_type": "ghana_card",
+                    "id_number": "G1",
+                },
+                {
+                    "role": "buyer",
+                    "full_name": "Ama",
+                    "phone": "+233200000030",
+                    "id_type": "ghana_card",
+                    "id_number": "G2",
+                },
             ],
         )
         resp = client.get(_URL.format(id=agreement.pk))
@@ -258,3 +333,72 @@ class TestPartiesGetApi:
         resp = client.get(_URL.format(id=agreement.pk))
         assert resp.status_code == 200
         assert resp.json()["data"]["parties"] == []
+
+    def test_participant_can_view_parties_after_consent_stage(self):
+        owner_client, owner_acct = _make_client("+233501333003")
+        participant_client, participant_acct = _make_client("+233501333004")
+        agreement = _agreement(owner_acct)
+        PartyService.set_parties(
+            agreement_id=agreement.pk,
+            initiator_account=owner_acct,
+            parties_data=[
+                {
+                    "role": "seller",
+                    "full_name": "Owner",
+                    "phone": owner_acct.phone,
+                    "id_type": "ghana_card",
+                    "id_number": "G1",
+                },
+                {
+                    "role": "buyer",
+                    "full_name": "Participant",
+                    "phone": participant_acct.phone,
+                    "id_type": "ghana_card",
+                    "id_number": "G2",
+                },
+            ],
+        )
+        agreement.status = AgreementStatus.PENDING_CONSENT
+        agreement.save(update_fields=["status"])
+
+        resp = participant_client.get(_URL.format(id=agreement.pk))
+        assert resp.status_code == 200
+        assert len(resp.json()["data"]["parties"]) == 2
+
+    def test_participant_cannot_set_or_patch_parties(self):
+        owner_client, owner_acct = _make_client("+233501333005")
+        participant_client, participant_acct = _make_client("+233501333006")
+        agreement = _agreement(owner_acct)
+        PartyService.set_parties(
+            agreement_id=agreement.pk,
+            initiator_account=owner_acct,
+            parties_data=[
+                {
+                    "role": "seller",
+                    "full_name": "Owner",
+                    "phone": owner_acct.phone,
+                    "id_type": "ghana_card",
+                    "id_number": "G1A",
+                },
+                {
+                    "role": "buyer",
+                    "full_name": "Participant",
+                    "phone": participant_acct.phone,
+                    "id_type": "ghana_card",
+                    "id_number": "G2A",
+                },
+            ],
+        )
+
+        set_resp = participant_client.post(
+            _URL.format(id=agreement.pk),
+            _valid_body(participant_acct.phone),
+            format="json",
+        )
+        patch_resp = participant_client.patch(
+            _URL.format(id=agreement.pk),
+            {"parties": [{"role": "buyer", "phone": "+233200000199"}]},
+            format="json",
+        )
+        assert set_resp.status_code == 404
+        assert patch_resp.status_code == 404

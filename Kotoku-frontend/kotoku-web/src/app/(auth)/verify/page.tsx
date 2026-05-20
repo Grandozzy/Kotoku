@@ -24,7 +24,10 @@ function VerifyForm() {
     setLoading(true);
     try {
       const res = await authApi.verifyOtp(phone, code);
-      setSession(res.access, res.refresh, res.account_id, phone);
+      if (!res.user.account_id) {
+        throw new Error("Account not linked to verified user.");
+      }
+      setSession(res.access, res.user.account_id, phone);
       router.replace("/dashboard");
     } catch {
       setError("Invalid or expired code. Try again.");

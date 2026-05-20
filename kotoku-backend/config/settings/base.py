@@ -3,11 +3,15 @@ from pathlib import Path
 
 import dj_database_url
 from dotenv import load_dotenv
+from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 load_dotenv(BASE_DIR / ".env")
 
-SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "unsafe-dev-key")
+SECRET_KEY = os.getenv(
+    "DJANGO_SECRET_KEY",
+    "unsafe-dev-key-change-before-production-min-32-bytes",
+)
 DEBUG = os.getenv("DJANGO_DEBUG", "false").lower() == "true"
 ALLOWED_HOSTS = [
     host.strip() for host in os.getenv("DJANGO_ALLOWED_HOSTS", "127.0.0.1,localhost").split(",")
@@ -45,6 +49,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "common.middleware.RequestIdMiddleware",
+    "common.middleware.FirstPartyCorsMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -127,6 +132,9 @@ SIMPLE_JWT = {
 CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", os.getenv("REDIS_URL", "redis://localhost:6379/0"))
 CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", "redis://localhost:6379/1")
 CELERY_TASK_ALWAYS_EAGER = False
+BILLING_ENFORCEMENT_FAIL_OPEN = (
+    os.getenv("BILLING_ENFORCEMENT_FAIL_OPEN", "false").lower() == "true"
+)
 CELERY_BEAT_SCHEDULE = {
     "archive-expired-vault-entries": {
         "task": "apps.vault.tasks.archive_expired_vault_entries",
@@ -186,6 +194,27 @@ SMS_BACKEND = os.getenv("SMS_BACKEND", "africastalking")
 SENTRY_DSN = os.getenv("SENTRY_DSN", "")
 OTEL_EXPORTER_OTLP_ENDPOINT = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "")
 
+CORS_ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv(
+        "CORS_ALLOWED_ORIGINS",
+        "http://localhost:3000,https://kotoku-app.com,https://www.kotoku-app.com",
+    ).split(",")
+    if origin.strip()
+]
+CORS_ALLOW_CREDENTIALS = os.getenv("CORS_ALLOW_CREDENTIALS", "true").lower() == "true"
+
+AUTH_REFRESH_COOKIE_NAME = os.getenv("AUTH_REFRESH_COOKIE_NAME", "kotoku_refresh")
+AUTH_REFRESH_COOKIE_DOMAIN = os.getenv("AUTH_REFRESH_COOKIE_DOMAIN", "")
+AUTH_REFRESH_COOKIE_PATH = os.getenv("AUTH_REFRESH_COOKIE_PATH", "/api/auth/")
+AUTH_REFRESH_COOKIE_SAMESITE = os.getenv("AUTH_REFRESH_COOKIE_SAMESITE", "Lax")
+AUTH_REFRESH_COOKIE_SECURE = os.getenv(
+    "AUTH_REFRESH_COOKIE_SECURE",
+    "false" if DEBUG else "true",
+).lower() == "true"
+AUTH_WEB_REFRESH_COOKIE_MAX_AGE = int(os.getenv("AUTH_WEB_REFRESH_COOKIE_MAX_AGE", "28800"))
+EVIDENCE_VIEW_URL_TTL_SECONDS = int(os.getenv("EVIDENCE_VIEW_URL_TTL_SECONDS", "900"))
+
 _LOG_FORMAT = os.getenv("LOG_FORMAT", "verbose")  # set LOG_FORMAT=json in production
 
 LOGGING = {
@@ -233,3 +262,8 @@ if SENTRY_DSN:
     from sentry_sdk.integrations.django import DjangoIntegration
 
     sentry_sdk.init(dsn=SENTRY_DSN, integrations=[DjangoIntegration()], send_default_pii=False)
+
+if not DEBUG and SECRET_KEY == "unsafe-dev-key-change-before-production-min-32-bytes":
+    raise ImproperlyConfigured(
+        "DJANGO_SECRET_KEY must be set explicitly when DJANGO_DEBUG is false."
+    )

@@ -1,5 +1,6 @@
 import pytest
 from django.utils import timezone
+from unittest.mock import patch
 
 from apps.accounts.models import Account, User
 from apps.agreements.domain.enums import AgreementStatus
@@ -171,7 +172,8 @@ class TestAgreementRevision:
 
 
 class TestResealConsentFlow:
-    def test_active_can_transition_to_pending_consent(self, db):
+    @patch("apps.consent.services.send_sms_message.delay", return_value=None)
+    def test_active_can_transition_to_pending_consent(self, mock_delay, db):
         agreement = _make_sealed_agreement()
         agreement.status = AgreementStatus.ACTIVE
         agreement.sealed_at = None
@@ -181,7 +183,8 @@ class TestResealConsentFlow:
 
         assert can_request_consent(agreement) is True
 
-    def test_request_consent_from_active_goes_to_pending(self, db):
+    @patch("apps.consent.services.send_sms_message.delay", return_value=None)
+    def test_request_consent_from_active_goes_to_pending(self, mock_delay, db):
         from apps.consent.services import ConsentService
 
         account = _account("reseal_otp@test.com")
@@ -209,7 +212,8 @@ class TestResealConsentFlow:
 
 
 class TestResealSealFlow:
-    def test_reseal_seal_after_consent(self, db):
+    @patch("apps.consent.services.send_sms_message.delay", return_value=None)
+    def test_reseal_seal_after_consent(self, mock_delay, db):
         agreement = _make_sealed_agreement()
 
         agreement.status = AgreementStatus.REOPEN_REQUESTED

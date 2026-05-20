@@ -26,7 +26,7 @@
     "production": {
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://api.kotoku.app",
+        "EXPO_PUBLIC_API_URL": "https://api.kotoku-app.com",
         "EXPO_PUBLIC_SENTRY_DSN": ""
       },
       "ios": {

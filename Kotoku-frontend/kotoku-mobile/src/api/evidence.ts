@@ -14,8 +14,7 @@ export interface EvidenceItemResponse {
   file_type: string;
   mime_type: string;
   size_bytes: number | null;
-  file_key: string;
-  storage_url: string;
+  view_url: string | null;
   upload_status: string;
   uploaded_by_role: string | null;
   created_at: string;
@@ -26,10 +25,16 @@ export async function getUploadUrl(
   evidenceType: string,
   mimeType: string,
   sizeBytes: number,
+  checksumSha256: string,
 ): Promise<UploadUrlResponse> {
   const res = await apiClient.post<ApiResponse<UploadUrlResponse>>(
     `/agreements/${agreementId}/evidence/upload-url/`,
-    { evidence_type: evidenceType, mime_type: mimeType, size_bytes: sizeBytes },
+    {
+      evidence_type: evidenceType,
+      mime_type: mimeType,
+      size_bytes: sizeBytes,
+      checksum_sha256: checksumSha256,
+    },
   );
   return res.data.data;
 }
@@ -39,10 +44,16 @@ export async function confirmUpload(
   fileKey: string,
   evidenceType: string,
   mimeType: string,
+  checksumSha256: string,
 ): Promise<EvidenceItemResponse> {
   const res = await apiClient.post<ApiResponse<{ evidence: EvidenceItemResponse }>>(
     `/agreements/${agreementId}/evidence/`,
-    { file_key: fileKey, evidence_type: evidenceType, mime_type: mimeType },
+    {
+      file_key: fileKey,
+      evidence_type: evidenceType,
+      mime_type: mimeType,
+      checksum_sha256: checksumSha256,
+    },
   );
   return res.data.data.evidence;
 }

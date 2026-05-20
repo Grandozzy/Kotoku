@@ -1,4 +1,5 @@
 import logging
+import re
 import secrets
 from datetime import timedelta
 
@@ -11,19 +12,21 @@ from rest_framework_simplejwt.tokens import AccessToken
 
 from apps.accounts.models import Account, DeviceSession, OTPRequest, User, UserPin
 from apps.audit.services import AuditService
+from apps.notifications.tasks import send_sms_message
 from common.exceptions import DomainError
-from infrastructure.sms import get_sms_gateway
 
 logger = logging.getLogger(__name__)
 
 _OTP_LENGTH = 8
 _OTP_TTL_SECONDS = 300              # 5 minutes
 _OTP_RATE_TTL_SECONDS = 60          # 1 minute between sends
-_OTP_MAX_ATTEMPTS = 3               # per OTP record
+_OTP_MAX_ATTEMPTS = 5               # per OTP record
 _OTP_RATE_LIMIT_PER_HOUR = 5
+_OTP_LOCKOUT_SECONDS = 900          # 15 minutes
 
-_OTP_CACHE_KEY = "auth_otp:{phone}"
 _OTP_RATE_KEY = "auth_otp_sent:{phone}"
+_OTP_HOURLY_KEY = "auth_otp_hour:{phone}"
+_OTP_LOCK_KEY = "auth_otp_lock:{phone}"
 
 _PIN_LOCK_AFTER = 5                 # failed attempts before 15-min lock
 _PIN_FORCE_OTP_AFTER = 10           # total failures before forcing OTP re-auth
@@ -47,6 +50,7 @@ _SEQUENTIAL_PINS = {
 }
 
 _ph = argon2.PasswordHasher()
+_OTP_BODY_RE = re.compile(r"(\d{8})")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -116,6 +120,14 @@ def _revoke_all_sessions(user: User, reason: str) -> int:
     ).update(is_revoked=True, revoked_at=now, revoked_reason=reason)
 
 
+def _known_device_fingerprints(user: User) -> set[str]:
+    return set(
+        DeviceSession.objects.filter(user=user)
+        .exclude(device_fingerprint="")
+        .values_list("device_fingerprint", flat=True)
+    )
+
+
 def _build_token_response(user: User, session: DeviceSession, raw_token: str) -> dict:
     access = _issue_access_token(user, session.id, session.client_type)
     try:
@@ -147,14 +159,21 @@ class AuthService:
     @staticmethod
     def send_otp(*, phone: str) -> None:
         rate_key = _OTP_RATE_KEY.format(phone=phone)
+        hourly_key = _OTP_HOURLY_KEY.format(phone=phone)
+        lock_key = _OTP_LOCK_KEY.format(phone=phone)
+
+        if cache.get(lock_key):
+            raise DomainError("Too many failed OTP attempts. Try again later.")
         if cache.get(rate_key):
             raise DomainError("Please wait before requesting another OTP.")
 
-        otp_code = "".join(secrets.choice("0123456789") for _ in range(_OTP_LENGTH))
+        hourly_count = cache.get(hourly_key, 0)
+        if hourly_count >= _OTP_RATE_LIMIT_PER_HOUR:
+            raise DomainError("Too many OTP requests. Try again later.")
 
-        # Cache the raw code for direct comparison in verify_otp.
-        cache.set(_OTP_CACHE_KEY.format(phone=phone), otp_code, timeout=_OTP_TTL_SECONDS)
+        otp_code = "".join(secrets.choice("0123456789") for _ in range(_OTP_LENGTH))
         cache.set(rate_key, True, timeout=_OTP_RATE_TTL_SECONDS)
+        cache.set(hourly_key, hourly_count + 1, timeout=3600)
 
         # Keep a DB audit record (hashed — never store raw OTP in DB).
         OTPRequest.objects.create(
@@ -164,13 +183,10 @@ class AuthService:
             expires_at=timezone.now() + timedelta(seconds=_OTP_TTL_SECONDS),
         )
 
-        try:
-            get_sms_gateway().send(
-                to=phone,
-                body=f"Your Kotoku verification code is {otp_code}. Valid for 5 minutes.",
-            )
-        except Exception:
-            logger.exception("Failed to dispatch OTP SMS to %s", phone)
+        send_sms_message.delay(
+            to=phone,
+            body=f"Your Kotoku verification code is {otp_code}. Valid for 5 minutes.",
+        )
 
         AuditService.record_event(
             event_type="auth.otp_sent",
@@ -180,7 +196,6 @@ class AuthService:
         )
 
     @staticmethod
-    @transaction.atomic
     def verify_otp(
         *,
         phone: str,
@@ -189,67 +204,87 @@ class AuthService:
         device_fingerprint: str = "",
         device_name: str = "",
     ) -> dict:
-        cache_key = _OTP_CACHE_KEY.format(phone=phone)
-        cached_otp = cache.get(cache_key)
+        lock_key = _OTP_LOCK_KEY.format(phone=phone)
+        if cache.get(lock_key):
+            raise DomainError("Too many failed OTP attempts. Try again later.")
 
-        if cached_otp is None:
-            raise DomainError("OTP has expired or was not sent. Please request a new one.")
-        if cached_otp != otp_code:
-            raise DomainError("Invalid OTP code.")
-
-        cache.delete(cache_key)
-
-        # Mark the DB audit record as used.
         record = (
-            OTPRequest.objects
-            .filter(phone=phone, purpose=OTPRequest.PURPOSE_LOGIN, is_used=False)
+            OTPRequest.objects.select_for_update()
+            .filter(
+                phone=phone,
+                purpose=OTPRequest.PURPOSE_LOGIN,
+                is_used=False,
+                expires_at__gte=timezone.now(),
+            )
             .order_by("-created_at")
             .first()
         )
-        if record and not record.is_expired:
-            record.is_used = True
-            record.used_at = timezone.now()
-            record.save(update_fields=["is_used", "used_at"])
+        if record is None:
+            raise DomainError("OTP has expired or was not sent. Please request a new one.")
 
-        user, created = User.objects.get_or_create(phone=phone)
-        if created:
-            account = Account.objects.create(
-                user=user,
-                email=f"{phone}@kotoku.app",
-                phone=phone,
-            )
-        else:
-            try:
-                account = user.account
-            except Account.DoesNotExist:
+        if record.attempt_count >= _OTP_MAX_ATTEMPTS:
+            cache.set(lock_key, True, timeout=_OTP_LOCKOUT_SECONDS)
+            raise DomainError("Too many failed OTP attempts. Try again later.")
+
+        if not check_password(otp_code, record.otp_hash):
+            record.attempt_count += 1
+            record.save(update_fields=["attempt_count"])
+            if record.attempt_count >= _OTP_MAX_ATTEMPTS:
+                cache.set(lock_key, True, timeout=_OTP_LOCKOUT_SECONDS)
+            raise DomainError("Invalid OTP code.")
+
+        cache.delete(lock_key)
+        record.is_used = True
+        record.used_at = timezone.now()
+        record.save(update_fields=["is_used", "used_at"])
+
+        with transaction.atomic():
+            user, created = User.objects.get_or_create(phone=phone)
+            if created:
                 account = Account.objects.create(
                     user=user,
                     email=f"{phone}@kotoku.app",
                     phone=phone,
                 )
+            else:
+                try:
+                    account = user.account
+                except Account.DoesNotExist:
+                    account = Account.objects.create(
+                        user=user,
+                        email=f"{phone}@kotoku.app",
+                        phone=phone,
+                    )
 
-        # New device login revokes all other sessions.
-        revoked = _revoke_all_sessions(user, reason=DeviceSession.REVOKE_NEW_DEVICE)
-        if revoked > 0:
-            logger.info("Revoked %d sessions for %s on new-device OTP login", revoked, phone)
+            # New device login revokes all other sessions.
+            revoked = _revoke_all_sessions(user, reason=DeviceSession.REVOKE_NEW_DEVICE)
+            if revoked > 0:
+                logger.info("Revoked %d sessions for %s on new-device OTP login", revoked, phone)
 
-        session, raw_token = _create_session(
-            user=user,
-            client_type=client_type,
-            device_fingerprint=device_fingerprint,
-            device_name=device_name,
-        )
+            session, raw_token = _create_session(
+                user=user,
+                client_type=client_type,
+                device_fingerprint=device_fingerprint,
+                device_name=device_name,
+            )
 
-        AuditService.record_event(
-            event_type="auth.otp_verified",
-            entity_type="user",
-            entity_id=str(user.pk),
-            metadata={"new_user": created, "session_id": session.id},
-        )
+            AuditService.record_event(
+                event_type="auth.otp_verified",
+                entity_type="user",
+                entity_id=str(user.pk),
+                metadata={"new_user": created, "session_id": session.id},
+            )
         result = _build_token_response(user, session, raw_token)
         result["user"] = user
         result["account"] = account
         return result
+
+
+def extract_otp_from_message(body: str) -> str | None:
+    match = _OTP_BODY_RE.search(body)
+    if not match:
+        return None
+    return match.group(1)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -270,6 +305,9 @@ class TokenService:
 
         if session.is_expired:
             raise DomainError("Session expired. Please sign in again.")
+
+        if session.client_type != client_type:
+            raise DomainError("Refresh token client type mismatch.")
 
         if not check_password(secret, session.refresh_token_hash):
             raise DomainError("Invalid refresh token.")
@@ -295,6 +333,26 @@ class TokenService:
             metadata={"old_session": session_id, "new_session": new_session.id},
         )
         return _build_token_response(user, new_session, new_raw_token)
+
+    @staticmethod
+    @transaction.atomic
+    def revoke_raw_token(
+        *,
+        raw_token: str,
+        reason: str = DeviceSession.REVOKE_LOGOUT,
+    ) -> None:
+        session_id, secret = _split_opaque_token(raw_token)
+        try:
+            session = DeviceSession.objects.select_for_update().get(
+                id=session_id, is_revoked=False
+            )
+        except DeviceSession.DoesNotExist:
+            return
+        if check_password(secret, session.refresh_token_hash):
+            session.is_revoked = True
+            session.revoked_at = timezone.now()
+            session.revoked_reason = reason
+            session.save(update_fields=["is_revoked", "revoked_at", "revoked_reason"])
 
     @staticmethod
     @transaction.atomic
@@ -352,6 +410,18 @@ class PinService:
             user = User.objects.get(phone=phone, is_active=True)
         except User.DoesNotExist:
             raise DomainError("No account found for this phone number.") from None
+
+        known_fingerprints = _known_device_fingerprints(user)
+        if known_fingerprints and (
+            not device_fingerprint or device_fingerprint not in known_fingerprints
+        ):
+            AuditService.record_event(
+                event_type="auth.pin_force_otp_unknown_device",
+                entity_type="user",
+                entity_id=str(user.pk),
+                metadata={"known_device_count": len(known_fingerprints)},
+            )
+            raise DomainError("__force_otp__") from None
 
         try:
             user_pin = UserPin.objects.select_for_update().get(user=user)

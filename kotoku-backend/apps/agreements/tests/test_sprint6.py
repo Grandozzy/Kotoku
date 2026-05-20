@@ -7,6 +7,7 @@ Covers:
   - Archival Celery task
   - Logging middleware (request ID propagation)
 """
+
 from __future__ import annotations
 
 from datetime import timedelta
@@ -14,8 +15,8 @@ from unittest.mock import patch
 
 import pytest
 from django.utils import timezone
-from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.test import APIClient
+from rest_framework_simplejwt.tokens import RefreshToken
 
 from apps.accounts.models import Account, User
 from apps.agreements.annotation_services import AnnotationSelector, AnnotationService
@@ -38,6 +39,7 @@ _seq = 0
 
 
 # ── Fixtures ──────────────────────────────────────────────────────────────── #
+
 
 def _make_account(phone_suffix: str) -> tuple[Account, APIClient]:
     global _seq
@@ -62,10 +64,20 @@ def _sealed_agreement(account: Account, initiator_phone: str, second_phone: str)
         agreement_id=agreement.pk,
         initiator_account=account,
         parties_data=[
-            {"role": "seller", "full_name": "Kofi Atta", "phone": initiator_phone,
-             "id_type": "ghana_card", "id_number": "GHA-S-001"},
-            {"role": "buyer", "full_name": "Ama Owusu", "phone": second_phone,
-             "id_type": "ghana_card", "id_number": "GHA-B-001"},
+            {
+                "role": "seller",
+                "full_name": "Kofi Atta",
+                "phone": initiator_phone,
+                "id_type": "ghana_card",
+                "id_number": "GHA-S-001",
+            },
+            {
+                "role": "buyer",
+                "full_name": "Ama Owusu",
+                "phone": second_phone,
+                "id_type": "ghana_card",
+                "id_number": "GHA-B-001",
+            },
         ],
     )
     EvidenceItem.objects.create(
@@ -94,6 +106,7 @@ def _sealed_agreement(account: Account, initiator_phone: str, second_phone: str)
 
 
 # ── Bilateral reopen — service layer ─────────────────────────────────────── #
+
 
 @pytest.mark.django_db
 class TestRequestReopen:
@@ -138,7 +151,7 @@ class TestReopenOtpFlow:
         agreement = _sealed_agreement(acct, "+233700200001", "+233700200002")
         agreement.status = AgreementStatus.REOPEN_REQUESTED
         agreement.save()
-        with patch("infrastructure.sms.gateway.SmsGateway.send", return_value=True):
+        with patch("apps.consent.services.send_sms_message.delay", return_value=None):
             records = ConsentService.request_reopen_otp(agreement_id=agreement.pk)
         assert len(records) == 2
         assert all(r.purpose == ConsentRecord.Purpose.REOPEN for r in records)
@@ -177,9 +190,6 @@ class TestReopenOtpFlow:
         seller_otp = generate_otp()
         buyer_otp = generate_otp()
         parties = list(agreement.parties.order_by("role"))
-        phone_to_otp = {p.phone: (generate_otp() if p.phone not in (seller_phone, buyer_phone)
-                                  else (seller_otp if p.phone == seller_phone else buyer_otp))
-                        for p in parties}
         for party in parties:
             otp = seller_otp if party.phone == seller_phone else buyer_otp
             ConsentRecord.objects.create(
@@ -250,9 +260,12 @@ class TestReopenAPI:
         with patch("infrastructure.sms.gateway.SmsGateway.send", return_value=True):
             resp = client.post(_REOPEN_OTP_REQUEST_PATH.format(id=agreement.pk))
         assert resp.status_code == 200
-        assert ConsentRecord.objects.filter(
-            agreement=agreement, purpose=ConsentRecord.Purpose.REOPEN
-        ).count() == 2
+        assert (
+            ConsentRecord.objects.filter(
+                agreement=agreement, purpose=ConsentRecord.Purpose.REOPEN
+            ).count()
+            == 2
+        )
 
     def test_reopen_otp_confirm_returns_agreement_status(self):
         acct, client = _make_account("00300010")
@@ -279,6 +292,35 @@ class TestReopenAPI:
         assert resp.status_code == 200
         assert resp.json()["data"]["granted"] is True
 
+    def test_reopen_otp_confirm_cannot_use_another_party_phone(self):
+        acct, client = _make_account("00300014")
+        seller_phone = "+233700300014"
+        buyer_phone = "+233700300015"
+        agreement = _sealed_agreement(acct, seller_phone, buyer_phone)
+        agreement.status = AgreementStatus.REOPEN_REQUESTED
+        agreement.save()
+        otp = generate_otp()
+        buyer_party = agreement.parties.get(phone=buyer_phone)
+        ConsentRecord.objects.create(
+            agreement=agreement,
+            party=buyer_party,
+            purpose=ConsentRecord.Purpose.REOPEN,
+            otp_code_hash=hash_otp(otp),
+            channel=ConsentRecord.Channel.SMS,
+            expires_at=timezone.now() + timedelta(minutes=10),
+        )
+        resp = client.post(
+            _REOPEN_OTP_CONFIRM_PATH.format(id=agreement.pk),
+            data={"phone": buyer_phone, "otp_code": otp},
+            format="json",
+        )
+        assert resp.status_code == 403
+        assert not ConsentRecord.objects.get(
+            agreement=agreement,
+            party=buyer_party,
+            purpose=ConsentRecord.Purpose.REOPEN,
+        ).granted
+
     def test_reopen_otp_confirm_requires_phone_and_code(self):
         acct, client = _make_account("00300012")
         agreement = _sealed_agreement(acct, "+233700300012", "+233700300013")
@@ -299,6 +341,7 @@ class TestReopenAPI:
 
 
 # ── Annotations — service layer ───────────────────────────────────────────── #
+
 
 @pytest.mark.django_db
 class TestAnnotationService:
@@ -336,12 +379,14 @@ class TestAnnotationService:
         agreement = _sealed_agreement(acct, "+233700400004", "+233700400005")
         other_acct, _ = _make_account("00400006")
         other_agreement = Agreement.objects.create(
-            title="Other", created_by=other_acct, status=AgreementStatus.SEALED,
-            sealed_at=timezone.now(), seal_hash="abc123",
+            title="Other",
+            created_by=other_acct,
+            status=AgreementStatus.SEALED,
+            sealed_at=timezone.now(),
+            seal_hash="abc123",
         )
         outsider_party = Party.objects.create(
-            agreement=other_agreement, role="seller",
-            display_name="Outsider", phone="+233700400006"
+            agreement=other_agreement, role="seller", display_name="Outsider", phone="+233700400006"
         )
         with pytest.raises(DomainError, match="party"):
             AnnotationService.create(
@@ -354,12 +399,8 @@ class TestAnnotationService:
         acct, _ = _make_account("00400007")
         agreement = _sealed_agreement(acct, "+233700400007", "+233700400008")
         party = agreement.parties.first()
-        AnnotationService.create(
-            agreement_id=agreement.pk, author_party_id=party.pk, body="First"
-        )
-        AnnotationService.create(
-            agreement_id=agreement.pk, author_party_id=party.pk, body="Second"
-        )
+        AnnotationService.create(agreement_id=agreement.pk, author_party_id=party.pk, body="First")
+        AnnotationService.create(agreement_id=agreement.pk, author_party_id=party.pk, body="Second")
         annotations = list(AnnotationSelector.list_for_agreement(agreement_id=agreement.pk))
         assert len(annotations) == 2
         assert annotations[0].body == "First"
@@ -425,8 +466,47 @@ class TestAnnotationAPI:
         assert unauthenticated.get(_ANNOTATIONS_PATH.format(id=1)).status_code == 401
         assert unauthenticated.post(_ANNOTATIONS_PATH.format(id=1)).status_code == 401
 
+    def test_participant_can_list_and_create_annotations(self):
+        owner_acct, owner_client = _make_account("00500008")
+        participant_acct, participant_client = _make_account("00500009")
+        agreement = _sealed_agreement(
+            owner_acct,
+            owner_acct.phone,
+            participant_acct.phone,
+        )
+        participant_party = agreement.parties.get(phone=participant_acct.phone)
+
+        create_resp = participant_client.post(
+            _ANNOTATIONS_PATH.format(id=agreement.pk),
+            data={"author_party_id": participant_party.pk, "body": "Buyer note."},
+            format="json",
+        )
+        assert create_resp.status_code == 201
+
+        list_resp = participant_client.get(_ANNOTATIONS_PATH.format(id=agreement.pk))
+        assert list_resp.status_code == 200
+        assert len(list_resp.json()["data"]["annotations"]) == 1
+
+    def test_participant_cannot_impersonate_annotation_author(self):
+        owner_acct, owner_client = _make_account("00500010")
+        participant_acct, participant_client = _make_account("00500011")
+        agreement = _sealed_agreement(
+            owner_acct,
+            owner_acct.phone,
+            participant_acct.phone,
+        )
+        owner_party = agreement.parties.get(phone=owner_acct.phone)
+
+        resp = participant_client.post(
+            _ANNOTATIONS_PATH.format(id=agreement.pk),
+            data={"author_party_id": owner_party.pk, "body": "Forged note."},
+            format="json",
+        )
+        assert resp.status_code == 403
+
 
 # ── Disputes — service layer ──────────────────────────────────────────────── #
+
 
 @pytest.mark.django_db
 class TestDisputeService:
@@ -475,12 +555,17 @@ class TestDisputeService:
         agreement = _sealed_agreement(acct, "+233700600006", "+233700600007")
         other_acct, _ = _make_account("00600008")
         other_agreement = Agreement.objects.create(
-            title="Other", created_by=other_acct, status=AgreementStatus.SEALED,
-            sealed_at=timezone.now(), seal_hash="xyz",
+            title="Other",
+            created_by=other_acct,
+            status=AgreementStatus.SEALED,
+            sealed_at=timezone.now(),
+            seal_hash="xyz",
         )
         outsider = Party.objects.create(
-            agreement=other_agreement, role="buyer",
-            display_name="Stranger", phone="+233700600008",
+            agreement=other_agreement,
+            role="buyer",
+            display_name="Stranger",
+            phone="+233700600008",
         )
         with pytest.raises(DomainError, match="party"):
             DisputeService.open_dispute(
@@ -528,9 +613,7 @@ class TestDisputeAPI:
         acct, client = _make_account("00700003")
         agreement = _sealed_agreement(acct, "+233700700003", "+233700700004")
         party = agreement.parties.first()
-        Dispute.objects.create(
-            agreement=agreement, raised_by=party, reason="Test dispute."
-        )
+        Dispute.objects.create(agreement=agreement, raised_by=party, reason="Test dispute.")
         resp = client.get(_DISPUTES_PATH.format(id=agreement.pk))
         assert resp.status_code == 200
         assert len(resp.json()["data"]["disputes"]) == 1
@@ -558,8 +641,33 @@ class TestDisputeAPI:
         assert unauthenticated.get(_DISPUTES_PATH.format(id=1)).status_code == 401
         assert unauthenticated.post(_DISPUTES_PATH.format(id=1)).status_code == 401
 
+    def test_participant_can_list_and_open_disputes(self):
+        owner_acct, owner_client = _make_account("00700010")
+        participant_acct, participant_client = _make_account("00700011")
+        agreement = _sealed_agreement(
+            owner_acct,
+            owner_acct.phone,
+            participant_acct.phone,
+        )
+        participant_party = agreement.parties.get(phone=participant_acct.phone)
+
+        create_resp = participant_client.post(
+            _DISPUTES_PATH.format(id=agreement.pk),
+            data={
+                "raised_by_party_id": participant_party.pk,
+                "reason": "Buyer says the delivered item differed from the sealed record.",
+            },
+            format="json",
+        )
+        assert create_resp.status_code == 201
+
+        list_resp = participant_client.get(_DISPUTES_PATH.format(id=agreement.pk))
+        assert list_resp.status_code == 200
+        assert len(list_resp.json()["data"]["disputes"]) == 1
+
 
 # ── Archival task ─────────────────────────────────────────────────────────── #
+
 
 @pytest.mark.django_db
 class TestArchivalTask:
@@ -605,6 +713,7 @@ class TestArchivalTask:
 
 
 # ── Logging middleware ────────────────────────────────────────────────────── #
+
 
 @pytest.mark.django_db
 class TestRequestIdMiddleware:

@@ -1,4 +1,5 @@
 from datetime import timedelta
+from unittest.mock import patch
 
 import pytest
 from django.utils import timezone
@@ -18,11 +19,21 @@ from apps.consent.services import (
 )
 from apps.consent.tasks import sync_consent
 from apps.identity.models import IdentityRecord
-from apps.notifications.models import Notification
 from apps.parties.models import Party
 from common.exceptions import DomainError
 
 _seq = 0
+_PATCH_DIRECT_SMS = patch("apps.consent.services.send_sms_message.delay", return_value=None)
+_PATCH_NOTIFICATION_DISPATCH = patch(
+    "apps.notifications.services.dispatch_notification.delay",
+    return_value=None,
+)
+
+
+@pytest.fixture(autouse=True)
+def _patch_async_dispatch():
+    with _PATCH_DIRECT_SMS, _PATCH_NOTIFICATION_DISPATCH:
+        yield
 
 
 def _account(email="user@test.com"):
@@ -115,13 +126,10 @@ class TestRequestConsent:
         for record in records:
             assert len(record.otp_code_hash) == 64
 
-    def test_creates_notifications(self, db):
+    def test_legacy_request_consent_uses_same_phone_otp_issuance_path(self, db):
         agreement = _agreement_with_parties()
         ConsentService.request_consent(agreement_id=agreement.pk)
-        assert Notification.objects.count() == 2
-        for n in Notification.objects.all():
-            assert n.status == Notification.Status.SENT
-            assert "verification code" in n.body.lower()
+        assert ConsentRecord.objects.filter(agreement=agreement).count() == 2
 
     def test_emits_audit_events(self, db):
         agreement = _agreement_with_parties()

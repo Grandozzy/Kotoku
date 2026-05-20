@@ -2,6 +2,7 @@ from datetime import timedelta
 
 import pytest
 from django.db import IntegrityError
+from django.test import override_settings
 from django.utils import timezone
 
 from apps.accounts.models import Account, User
@@ -233,6 +234,251 @@ class TestSealAgreement:
         with pytest.raises(DomainError, match="evidence"):
             AgreementService.seal_agreement(agreement_id=agreement.pk)
 
+    def test_sends_receipt_sms_to_all_parties_on_seal(
+        self, db, monkeypatch, django_capture_on_commit_callbacks
+    ):
+        account = _account("seal_receipt@test.com")
+        agreement = AgreementService.create_draft(title="Receipt", created_by=account)
+        agreement.status = AgreementStatus.ACTIVE
+        agreement.save()
+        identity = _identity(account)
+        seller = Party.objects.create(
+            agreement=agreement,
+            identity=identity,
+            role=Party.Role.SELLER,
+            display_name="Seller",
+            phone=account.phone,
+        )
+        buyer_identity = IdentityRecord.objects.create(
+            account=account,
+            reference="ref-buyer",
+            verification_type="phone",
+        )
+        Party.objects.create(
+            agreement=agreement,
+            identity=buyer_identity,
+            role=Party.Role.BUYER,
+            display_name="Buyer",
+            phone="+233244000111",
+        )
+        EvidenceItem.objects.create(
+            agreement=agreement,
+            uploaded_by=seller,
+            file_type=EvidenceItem.FileType.PHOTO,
+            evidence_type="vehicle_photo_front",
+            file_hash="receipt-1",
+        )
+        EvidenceItem.objects.create(
+            agreement=agreement,
+            uploaded_by=seller,
+            file_type=EvidenceItem.FileType.DOCUMENT,
+            evidence_type="seller_id_photo",
+            file_hash="receipt-2",
+        )
+
+        push_calls: list[tuple[str, str, dict]] = []
+        sms_calls: list[tuple[str, str]] = []
+
+        def _fake_push(phone, event_type, payload):
+            push_calls.append((phone, event_type, payload))
+
+        def _fake_sms(*, to, body):
+            sms_calls.append((to, body))
+
+        monkeypatch.setattr("apps.agreements.services.send_to_user", _fake_push)
+        monkeypatch.setattr("apps.agreements.services.send_sms_message.delay", _fake_sms)
+
+        with django_capture_on_commit_callbacks(execute=True):
+            sealed = AgreementService.seal_agreement(agreement_id=agreement.pk)
+
+        assert sealed.status == AgreementStatus.SEALED
+        assert len(push_calls) == 2
+        assert len(sms_calls) == 2
+        sms_numbers = {to for to, _body in sms_calls}
+        assert sms_numbers == {account.phone, "+233244000111"}
+        for _to, body in sms_calls:
+            assert f"Agreement #{agreement.pk}" in body
+            assert "vehicle_photo_front" in body
+            assert "seller_id_photo" in body
+            assert "Keep this SMS for support." in body
+
+    def test_receipt_sms_summarizes_long_evidence_lists(
+        self, db, monkeypatch, django_capture_on_commit_callbacks
+    ):
+        account = _account("seal_receipt_long@test.com")
+        agreement = AgreementService.create_draft(title="Receipt", created_by=account)
+        agreement.status = AgreementStatus.ACTIVE
+        agreement.save()
+        identity = _identity(account)
+        party = Party.objects.create(
+            agreement=agreement,
+            identity=identity,
+            role=Party.Role.SELLER,
+            display_name="Seller",
+            phone=account.phone,
+        )
+        Party.objects.create(
+            agreement=agreement,
+            role=Party.Role.BUYER,
+            display_name="Buyer",
+            phone="+233244000222",
+        )
+        evidence_types = [
+            "vehicle_photo_front",
+            "vehicle_photo_side",
+            "vehicle_photo_back",
+            "seller_id_photo",
+            "buyer_id_photo",
+            "condition_photo",
+        ]
+        for idx, evidence_type in enumerate(evidence_types, start=1):
+            EvidenceItem.objects.create(
+                agreement=agreement,
+                uploaded_by=party,
+                file_type=EvidenceItem.FileType.PHOTO,
+                evidence_type=evidence_type,
+                file_hash=f"receipt-long-{idx}",
+            )
+
+        sms_calls: list[tuple[str, str]] = []
+
+        def _fake_sms(*, to, body):
+            sms_calls.append((to, body))
+
+        monkeypatch.setattr(
+            "apps.agreements.services.send_to_user",
+            lambda *_args, **_kwargs: None,
+        )
+        monkeypatch.setattr("apps.agreements.services.send_sms_message.delay", _fake_sms)
+
+        with django_capture_on_commit_callbacks(execute=True):
+            AgreementService.seal_agreement(agreement_id=agreement.pk)
+
+        assert len(sms_calls) == 2
+        for _to, body in sms_calls:
+            assert "vehicle_photo_front" in body
+            assert "vehicle_photo_side" not in body
+            assert "+1 more" in body
+
+    def test_seal_notifications_wait_for_transaction_commit(self, db, monkeypatch):
+        account = _account("seal_commit@test.com")
+        agreement = AgreementService.create_draft(title="Commit Guard", created_by=account)
+        agreement.status = AgreementStatus.ACTIVE
+        agreement.save()
+        identity = _identity(account)
+        party = Party.objects.create(
+            agreement=agreement,
+            identity=identity,
+            role=Party.Role.SELLER,
+            display_name="Seller",
+            phone=account.phone,
+        )
+        EvidenceItem.objects.create(
+            agreement=agreement,
+            uploaded_by=party,
+            file_type=EvidenceItem.FileType.PHOTO,
+            evidence_type="vehicle_photo_front",
+            file_hash="commit-guard",
+        )
+
+        push_calls: list[tuple] = []
+        sms_calls: list[tuple] = []
+
+        def _raise_on_seal_event(**kwargs):
+            if kwargs["event_type"] == "agreement.sealed":
+                raise RuntimeError("audit failed after seal write")
+
+        monkeypatch.setattr(
+            "apps.agreements.services.send_to_user",
+            lambda *args, **kwargs: push_calls.append((args, kwargs)),
+        )
+        monkeypatch.setattr(
+            "apps.agreements.services.send_sms_message.delay",
+            lambda *args, **kwargs: sms_calls.append((args, kwargs)),
+        )
+        monkeypatch.setattr(
+            "apps.agreements.services.AuditService.record_event",
+            _raise_on_seal_event,
+        )
+
+        with pytest.raises(RuntimeError, match="audit failed"):
+            AgreementService.seal_agreement(agreement_id=agreement.pk)
+
+        agreement.refresh_from_db()
+        assert agreement.status == AgreementStatus.ACTIVE
+        assert agreement.sealed_at is None
+        assert push_calls == []
+        assert sms_calls == []
+
+    def test_blocks_seal_when_billing_check_errors(self, db, monkeypatch):
+        account = _account("seal_billing_block@test.com")
+        agreement = AgreementService.create_draft(title="T", created_by=account)
+        agreement.status = AgreementStatus.ACTIVE
+        agreement.save()
+        identity = _identity(account)
+        party = Party.objects.create(
+            agreement=agreement,
+            identity=identity,
+            role=Party.Role.BUYER,
+            display_name="Billing Party",
+        )
+        EvidenceItem.objects.create(
+            agreement=agreement,
+            uploaded_by=party,
+            file_type=EvidenceItem.FileType.PHOTO,
+            file_hash="billing-block",
+        )
+
+        def _boom(_account):
+            raise RuntimeError("billing unavailable")
+
+        monkeypatch.setattr(
+            "apps.billing.services.BillingService.check_seal_allowed",
+            _boom,
+        )
+
+        with pytest.raises(
+            DomainError,
+            match="Billing enforcement is temporarily unavailable",
+        ):
+            AgreementService.seal_agreement(agreement_id=agreement.pk)
+
+        agreement.refresh_from_db()
+        assert agreement.status == AgreementStatus.ACTIVE
+        assert agreement.sealed_at is None
+
+    @override_settings(BILLING_ENFORCEMENT_FAIL_OPEN=True)
+    def test_fail_open_override_allows_seal_when_billing_check_errors(self, db, monkeypatch):
+        account = _account("seal_billing_override@test.com")
+        agreement = AgreementService.create_draft(title="T", created_by=account)
+        agreement.status = AgreementStatus.ACTIVE
+        agreement.save()
+        identity = _identity(account)
+        party = Party.objects.create(
+            agreement=agreement,
+            identity=identity,
+            role=Party.Role.BUYER,
+            display_name="Billing Override Party",
+        )
+        EvidenceItem.objects.create(
+            agreement=agreement,
+            uploaded_by=party,
+            file_type=EvidenceItem.FileType.PHOTO,
+            file_hash="billing-override",
+        )
+
+        def _boom(_account):
+            raise RuntimeError("billing unavailable")
+
+        monkeypatch.setattr(
+            "apps.billing.services.BillingService.check_seal_allowed",
+            _boom,
+        )
+
+        sealed = AgreementService.seal_agreement(agreement_id=agreement.pk)
+        assert sealed.status == AgreementStatus.SEALED
+        assert sealed.sealed_at is not None
+
 
 class TestCloseAgreement:
     def test_transitions_sealed_to_closed(self, db):
@@ -270,15 +516,11 @@ class TestUpdateDraft:
         account = _account("notdraft@test.com")
         agreement = AgreementService.create_draft(title="Test", created_by=account)
         identity = _identity(account)
-        Party.objects.create(
-            agreement=agreement, identity=identity, role="buyer", display_name="A"
-        )
+        Party.objects.create(agreement=agreement, identity=identity, role="buyer", display_name="A")
         id2 = IdentityRecord.objects.create(
             account=account, reference="ref-b", verification_type="phone"
         )
-        Party.objects.create(
-            agreement=agreement, identity=id2, role="seller", display_name="B"
-        )
+        Party.objects.create(agreement=agreement, identity=id2, role="seller", display_name="B")
         AgreementService.request_consent(agreement_id=agreement.pk)
         with pytest.raises(DomainError):
             AgreementService.update_draft(agreement_id=agreement.pk, title="Nope")

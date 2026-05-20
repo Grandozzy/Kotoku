@@ -14,11 +14,9 @@ from apps.agreements.domain.state_machine import next_state
 from apps.agreements.models import Agreement, AgreementRevision
 from apps.audit.services import AuditService
 from apps.consent.models import ConsentRecord
-from apps.notifications.models import Notification
-from apps.notifications.services import NotificationService
+from apps.notifications.tasks import send_sms_message
 from apps.parties.models import Party
 from common.exceptions import DomainError
-from infrastructure.sms import get_sms_gateway
 
 logger = logging.getLogger(__name__)
 
@@ -44,43 +42,72 @@ def generate_otp_expiry(minutes: int = 10) -> timezone.datetime:
 
 class ConsentService:
     @staticmethod
-    def request_consent(*, agreement_id: int) -> list[ConsentRecord]:
-        agreement = Agreement.objects.get(pk=agreement_id)
-        if agreement.status != AgreementStatus.PENDING_CONSENT:
-            raise DomainError(
-                "Cannot request consent: agreement must be in pending_consent status"
-            )
-        parties = list(
-            Party.objects.filter(agreement=agreement).select_related(
-                "identity__account"
-            )
-        )
-        if not parties:
-            raise DomainError("Cannot request consent: agreement has no parties")
+    def _issue_party_otps(
+        *,
+        agreement: Agreement,
+        parties: list[Party],
+        purpose: str = ConsentRecord.Purpose.CONSENT,
+        event_type: str = "consent.otp_issued",
+        sms_label: str = "consent",
+    ) -> list[ConsentRecord]:
         records = []
         for party in parties:
             otp_code = generate_otp()
             record = ConsentRecord.objects.create(
                 agreement=agreement,
                 party=party,
+                purpose=purpose,
                 otp_code_hash=hash_otp(otp_code),
                 channel=ConsentRecord.Channel.SMS,
                 expires_at=generate_otp_expiry(),
             )
-            NotificationService.send_notification(
-                account_id=party.identity.account.pk,
-                channel=Notification.Channel.SMS,
-                body=f"Your verification code is {otp_code}. It expires in 10 minutes.",
-            )
+            phone = party.phone
+            if phone:
+                send_sms_message.delay(
+                    to=phone,
+                    body=(
+                        f"Your Kotoku {sms_label} code is {otp_code}. "
+                        f"Valid for 10 minutes. Do not share this code."
+                    ),
+                )
             AuditService.record_event(
-                event_type="consent.requested",
+                event_type=event_type,
                 entity_type="consent_record",
                 entity_id=str(record.pk),
                 actor=str(party.pk),
-                metadata={"channel": ConsentRecord.Channel.SMS},
+                metadata={"channel": ConsentRecord.Channel.SMS, "party_id": party.pk},
             )
             records.append(record)
         return records
+
+    @staticmethod
+    def request_consent(*, agreement_id: int) -> list[ConsentRecord]:
+        agreement = Agreement.objects.get(pk=agreement_id)
+        if agreement.status != AgreementStatus.PENDING_CONSENT:
+            raise DomainError(
+                "Cannot request consent: agreement must be in pending_consent status"
+            )
+        from apps.consent.selectors import ConsentSelector  # noqa: PLC0415
+
+        existing_records = ConsentSelector.list_consent_for_agreement(
+            agreement_id=agreement_id
+        )
+        if existing_records.exists() and ConsentSelector.all_parties_consented(
+            agreement_id=agreement_id
+        ):
+            raise DomainError("All parties have already consented. Proceed to seal.")
+
+        ConsentRecord.objects.filter(agreement=agreement, granted=False).delete()
+        parties = list(Party.objects.filter(agreement=agreement))
+        if not parties:
+            raise DomainError("Cannot request consent: agreement has no parties")
+        return ConsentService._issue_party_otps(
+            agreement=agreement,
+            parties=parties,
+            purpose=ConsentRecord.Purpose.CONSENT,
+            event_type="consent.requested",
+            sms_label="consent",
+        )
 
     @staticmethod
     @transaction.atomic
@@ -158,8 +185,8 @@ class ConsentService:
         """Transition the agreement to PENDING_CONSENT and issue OTPs to all parties.
 
         Accepted from DRAFT (first call) or PENDING_CONSENT (re-issue after expiry).
-        SMS is sent directly to party.phone via SmsGateway so this works for parties
-        created via the Parties API that may not yet have a linked Account.
+        SMS is sent directly to party.phone so this works for parties created via
+        the Parties API that may not yet have a linked Account.
         """
         agreement = Agreement.objects.select_for_update().get(pk=agreement_id)
 
@@ -198,40 +225,13 @@ class ConsentService:
         if not parties:
             raise DomainError("Cannot issue OTPs: agreement has no parties.")
 
-        gateway = get_sms_gateway()
-        records = []
-        for party in parties:
-            otp_code = generate_otp()
-            record = ConsentRecord.objects.create(
-                agreement=agreement,
-                party=party,
-                otp_code_hash=hash_otp(otp_code),
-                channel=ConsentRecord.Channel.SMS,
-                expires_at=generate_otp_expiry(),
-            )
-            phone = party.phone
-            if phone:
-                try:
-                    gateway.send(
-                        to=phone,
-                        body=(
-                            f"Your Kotoku consent code is {otp_code}. "
-                            f"Valid for 10 minutes. Do not share this code."
-                        ),
-                    )
-                except Exception:
-                    logger.exception(
-                        "Failed to send consent OTP SMS to party %s", party.pk
-                    )
-            AuditService.record_event(
-                event_type="consent.otp_issued",
-                entity_type="consent_record",
-                entity_id=str(record.pk),
-                actor=str(party.pk),
-                metadata={"channel": ConsentRecord.Channel.SMS, "party_id": party.pk},
-            )
-            records.append(record)
-        return records
+        return ConsentService._issue_party_otps(
+            agreement=agreement,
+            parties=parties,
+            purpose=ConsentRecord.Purpose.CONSENT,
+            event_type="consent.otp_issued",
+            sms_label="consent",
+        )
 
     # ------------------------------------------------------------------ #
     # Reopen-consent OTP flow (bilateral re-auth for Sprint 6).          #
@@ -265,41 +265,13 @@ class ConsentService:
         if not parties:
             raise DomainError("Cannot issue reopen OTPs: agreement has no parties.")
 
-        gateway = get_sms_gateway()
-        records = []
-        for party in parties:
-            otp_code = generate_otp()
-            record = ConsentRecord.objects.create(
-                agreement=agreement,
-                party=party,
-                purpose=ConsentRecord.Purpose.REOPEN,
-                otp_code_hash=hash_otp(otp_code),
-                channel=ConsentRecord.Channel.SMS,
-                expires_at=generate_otp_expiry(),
-            )
-            phone = party.phone
-            if phone:
-                try:
-                    gateway.send(
-                        to=phone,
-                        body=(
-                            f"Your Kotoku reopen code is {otp_code}. "
-                            f"Valid for 10 minutes. Do not share this code."
-                        ),
-                    )
-                except Exception:
-                    logger.exception(
-                        "Failed to send reopen OTP SMS to party %s", party.pk
-                    )
-            AuditService.record_event(
-                event_type="consent.reopen_otp_issued",
-                entity_type="consent_record",
-                entity_id=str(record.pk),
-                actor=str(party.pk),
-                metadata={"channel": ConsentRecord.Channel.SMS, "party_id": party.pk},
-            )
-            records.append(record)
-        return records
+        return ConsentService._issue_party_otps(
+            agreement=agreement,
+            parties=parties,
+            purpose=ConsentRecord.Purpose.REOPEN,
+            event_type="consent.reopen_otp_issued",
+            sms_label="reopen",
+        )
 
     @staticmethod
     @transaction.atomic

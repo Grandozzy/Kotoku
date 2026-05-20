@@ -9,12 +9,13 @@ Usage:
         for err in result.errors:
             print(err.code, err.message)
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-
 # ── Data types ────────────────────────────────────────────────────────────── #
+
 
 @dataclass(frozen=True)
 class ValidationError:
@@ -49,6 +50,7 @@ _SCENARIO_REQUIRED_ROLE_PAIRS: dict[str, tuple[str, str]] = {
 
 # ── Internal helpers ──────────────────────────────────────────────────────── #
 
+
 def _count_confirmed_evidence(agreement, evidence_type_prefix: str) -> int:
     """Count confirmed evidence items whose evidence_type starts with prefix."""
     return agreement.evidence_items.filter(
@@ -59,12 +61,14 @@ def _count_confirmed_evidence(agreement, evidence_type_prefix: str) -> int:
 
 def _confirmed_evidence_types(agreement) -> set[str]:
     return set(
-        agreement.evidence_items.filter(upload_status="confirmed")
-        .values_list("evidence_type", flat=True)
+        agreement.evidence_items.filter(upload_status="confirmed").values_list(
+            "evidence_type", flat=True
+        )
     )
 
 
 # ── Core field checks ─────────────────────────────────────────────────────── #
+
 
 def _check_core_fields(agreement, result: ValidationResult) -> None:
     if not agreement.title or not agreement.title.strip():
@@ -82,6 +86,7 @@ def _check_core_fields(agreement, result: ValidationResult) -> None:
 
 
 # ── Party checks ──────────────────────────────────────────────────────────── #
+
 
 def _check_parties(agreement, result: ValidationResult) -> list:
     """Validate party count and roles; return the party list for further checks."""
@@ -111,6 +116,7 @@ def _check_parties(agreement, result: ValidationResult) -> list:
 
 # ── Scenario-specific evidence checks ────────────────────────────────────── #
 
+
 def _check_used_vehicle_sale(agreement, parties: list, result: ValidationResult) -> None:
     vehicle_photo_count = _count_confirmed_evidence(agreement, "vehicle_photo")
     if vehicle_photo_count < 3:
@@ -119,17 +125,6 @@ def _check_used_vehicle_sale(agreement, parties: list, result: ValidationResult)
             message="Add at least 3 photos of the vehicle.",
             field_name="evidence",
         )
-
-    confirmed_types = _confirmed_evidence_types(agreement)
-    for party in parties:
-        if party.role == "witness":
-            continue
-        if f"{party.role}_id_photo" not in confirmed_types:
-            result.add(
-                code="MISSING_PARTY_ID_PHOTO",
-                message=f"An ID photo is required for the {party.role}.",
-                field_name="evidence",
-            )
 
 
 def _check_room_rental(agreement, parties: list, result: ValidationResult) -> None:
@@ -141,17 +136,6 @@ def _check_room_rental(agreement, parties: list, result: ValidationResult) -> No
             field_name="evidence",
         )
 
-    confirmed_types = _confirmed_evidence_types(agreement)
-    for party in parties:
-        if party.role == "witness":
-            continue
-        if f"{party.role}_id_photo" not in confirmed_types:
-            result.add(
-                code="MISSING_PARTY_ID_PHOTO",
-                message=f"An ID photo is required for the {party.role}.",
-                field_name="evidence",
-            )
-
     # If a deposit amount is set, require at least one condition/defect photo.
     deposit = getattr(agreement, "deposit_amount", None)
     if deposit and deposit > 0:
@@ -159,14 +143,14 @@ def _check_room_rental(agreement, parties: list, result: ValidationResult) -> No
             result.add(
                 code="MISSING_CONDITION_PHOTO",
                 message=(
-                    "At least one condition/defect photo is required when a "
-                    "deposit is specified."
+                    "At least one condition/defect photo is required when a deposit is specified."
                 ),
                 field_name="evidence",
             )
 
 
 # ── Identity baseline checks ──────────────────────────────────────────────── #
+
 
 def _check_identity_baseline(parties: list, result: ValidationResult) -> None:
     """Every non-witness party must have id_type and id_number recorded."""
@@ -184,6 +168,23 @@ def _check_identity_baseline(parties: list, result: ValidationResult) -> None:
             )
 
 
+def _check_party_id_photos(
+    parties: list,
+    confirmed_types: set[str],
+    result: ValidationResult,
+) -> None:
+    """Every non-witness party must have a confirmed role-specific ID image."""
+    for party in parties:
+        if party.role == "witness":
+            continue
+        if f"{party.role}_id_photo" not in confirmed_types:
+            result.add(
+                code="MISSING_PARTY_ID_PHOTO",
+                message=f"A confirmed ID card scan/photo is required for the {party.role}.",
+                field_name="evidence",
+            )
+
+
 _SCENARIO_CHECKERS = {
     SCENARIO_USED_VEHICLE_SALE: _check_used_vehicle_sale,
     SCENARIO_ROOM_RENTAL: _check_room_rental,
@@ -191,6 +192,7 @@ _SCENARIO_CHECKERS = {
 
 
 # ── Public API ────────────────────────────────────────────────────────────── #
+
 
 def validate_agreement(agreement) -> ValidationResult:
     """Run all business-rule checks on *agreement* and return a ValidationResult.
@@ -202,6 +204,7 @@ def validate_agreement(agreement) -> ValidationResult:
     _check_core_fields(agreement, result)
     parties = _check_parties(agreement, result)
     _check_identity_baseline(parties, result)
+    _check_party_id_photos(parties, _confirmed_evidence_types(agreement), result)
 
     scenario = agreement.scenario_template
     checker = _SCENARIO_CHECKERS.get(scenario)

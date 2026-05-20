@@ -50,7 +50,7 @@ export interface CurrentPlanResponse {
 
 export async function getCurrentPlan(): Promise<CurrentPlanResponse> {
   const res = await apiClient.get<ApiResponse<CurrentPlanResponse>>(
-    "/api/billing/current-plan/"
+    "/billing/current-plan/"
   );
   return res.data.data;
 }

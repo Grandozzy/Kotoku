@@ -4,7 +4,7 @@ import { createAnnotation, type Annotation } from "@/api/annotations";
 export function useAddAnnotation(agreementId: number) {
   const queryClient = useQueryClient();
 
-  return useMutation<Annotation, Error, { author_party_id: number; body: string }>({
+  return useMutation<Annotation, Error, { authorPartyId: number; body: string }>({
     mutationFn: (payload) => createAnnotation(agreementId, payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["annotations", agreementId] });

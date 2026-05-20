@@ -6,13 +6,15 @@ import { useParams, useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { agreementsApi } from "@/api/agreements";
 import { vaultApi } from "@/api/vault";
-import { consentApi } from "@/api/consent";
+import { reopenApi } from "@/api/reopen";
+import { useSessionStore } from "@/store/sessionStore";
 
 export default function SealedPage() {
   const { id } = useParams<{ id: string }>();
   const agreementId = Number(id);
   const router = useRouter();
   const queryClient = useQueryClient();
+  const authenticatedPhone = useSessionStore((s) => s.phone);
 
   const { data: agreement } = useQuery({
     queryKey: ["agreements", agreementId],
@@ -30,32 +32,31 @@ export default function SealedPage() {
 
   // Reopen flow state
   const [showReopenForm, setShowReopenForm] = useState(false);
-  const [reopenPhone, setReopenPhone] = useState("");
   const [reopenOtp, setReopenOtp] = useState("");
   const [reopenOtpSent, setReopenOtpSent] = useState(false);
 
   const requestReopenMutation = useMutation({
-    mutationFn: () =>
-      fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/agreements/${agreementId}/reopen/request/`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-      }).then((r) => {
-        if (!r.ok) throw new Error("Request failed");
-        return r.json();
-      }),
-    onSuccess: () => setReopenOtpSent(true),
+    mutationFn: () => reopenApi.request(agreementId),
+    onSuccess: () => {
+      setReopenOtpSent(true);
+      queryClient.invalidateQueries({ queryKey: ["agreements", agreementId] });
+      queryClient.invalidateQueries({ queryKey: ["vault"] });
+    },
   });
 
   const confirmReopenMutation = useMutation({
-    mutationFn: () =>
-      consentApi.confirm(agreementId, reopenPhone, reopenOtp).then(() => {
-        // After confirming reopen OTP, poll agreement status
-        queryClient.invalidateQueries({ queryKey: ["agreements", agreementId] });
-      }),
+    mutationFn: () => {
+      if (!authenticatedPhone) {
+        throw new Error("Sign in again before confirming reopen.");
+      }
+      return reopenApi.confirm(agreementId, authenticatedPhone, reopenOtp);
+    },
     onSuccess: () => {
       setShowReopenForm(false);
       setReopenOtpSent(false);
+      setReopenOtp("");
+      queryClient.invalidateQueries({ queryKey: ["agreements", agreementId] });
+      queryClient.invalidateQueries({ queryKey: ["vault"] });
     },
   });
 
@@ -144,7 +145,7 @@ export default function SealedPage() {
             </p>
           </div>
           <Link
-            href={`/vault/${vaultEntry.id}`}
+            href={`/vault/${vaultEntry.agreement}`}
             className="px-4 py-2 rounded-full bg-neutral-900 text-white text-xs font-medium hover:bg-neutral-700 transition-colors"
           >
             Open in vault →
@@ -168,6 +169,11 @@ export default function SealedPage() {
             Reopening requires both parties to confirm again. The original sealed
             record is preserved as a revision.
           </p>
+          <p className="mt-2 rounded-xl border border-amber-100 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+            Each party must confirm reopen from the account tied to their own phone.
+            The counterparty should sign in on their device or invite link and enter
+            only the OTP sent to their phone.
+          </p>
           {!showReopenForm ? (
             <button
               onClick={() => setShowReopenForm(true)}
@@ -180,7 +186,8 @@ export default function SealedPage() {
               {!reopenOtpSent ? (
                 <>
                   <p className="text-xs text-neutral-500">
-                    This will send reopen OTPs to all parties.
+                    This will send reopen OTPs to all parties. Each party must
+                    confirm with the phone/account that received their OTP.
                   </p>
                   <div className="flex gap-3">
                     <button
@@ -201,15 +208,16 @@ export default function SealedPage() {
               ) : (
                 <>
                   <p className="text-xs text-neutral-500">
-                    Enter your phone and the OTP you received to confirm your consent to reopen.
+                    Enter your phone and the OTP you received to confirm your
+                    consent to reopen. Do not enter the counterparty&apos;s phone or code.
                   </p>
                   <div className="grid grid-cols-2 gap-3">
                     <input
                       type="tel"
                       placeholder="+233XXXXXXXXX"
-                      value={reopenPhone}
-                      onChange={(e) => setReopenPhone(e.target.value)}
-                      className="rounded-lg border border-neutral-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+                      value={authenticatedPhone ?? ""}
+                      readOnly
+                      className="rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm text-neutral-500"
                     />
                     <input
                       type="text"
@@ -223,7 +231,11 @@ export default function SealedPage() {
                   </div>
                   <button
                     onClick={() => confirmReopenMutation.mutate()}
-                    disabled={confirmReopenMutation.isPending || !reopenPhone || reopenOtp.length < 4}
+                    disabled={
+                      confirmReopenMutation.isPending ||
+                      !authenticatedPhone ||
+                      reopenOtp.length < 4
+                    }
                     className="px-4 py-2 rounded-full bg-amber-600 text-white text-sm font-medium disabled:opacity-50 w-fit"
                   >
                     {confirmReopenMutation.isPending ? "Confirming…" : "Confirm reopen"}
@@ -234,7 +246,10 @@ export default function SealedPage() {
                 <p className="text-sm text-red-600">Could not request reopen.</p>
               )}
               {confirmReopenMutation.isError && (
-                <p className="text-sm text-red-600">Invalid code. Try again.</p>
+                <p className="text-sm text-red-600">
+                  Invalid code, expired code, or this account does not match the
+                  party phone. Sign in with the phone that received the OTP.
+                </p>
               )}
             </div>
           )}
@@ -253,4 +268,3 @@ export default function SealedPage() {
     </div>
   );
 }
-

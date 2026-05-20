@@ -1,6 +1,17 @@
 import { api } from "@/lib/apiClient";
 import type { Agreement, AgreementCreate, AgreementUpdate } from "@/types/agreement";
 
+export interface ValidationError {
+  code: string;
+  message: string;
+  field: string;
+}
+
+export interface ValidateAgreementResponse {
+  valid: boolean;
+  errors: ValidationError[];
+}
+
 export const agreementsApi = {
   list: () => api.get<{ results: Agreement[]; count: number }>("/api/agreements/"),
 
@@ -13,4 +24,7 @@ export const agreementsApi = {
 
   update: (id: number, data: AgreementUpdate) =>
     api.patch<{ agreement: Agreement }>(`/api/agreements/${id}/`, data).then((r) => r.agreement),
+
+  validate: (id: number) =>
+    api.post<ValidateAgreementResponse>(`/api/agreements/${id}/validate/`),
 };

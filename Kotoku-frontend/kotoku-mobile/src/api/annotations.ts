@@ -9,32 +9,42 @@ export interface Annotation {
   createdAt: string;
 }
 
-interface CreateAnnotationResponse {
-  annotation: Annotation;
+interface RawAnnotation {
+  id: number;
+  author_party_id: number;
+  author_display_name: string;
+  body: string;
+  created_at: string;
 }
 
-interface ListAnnotationsResponse {
-  annotations: Annotation[];
+function mapAnnotation(raw: RawAnnotation): Annotation {
+  return {
+    id: raw.id,
+    authorPartyId: raw.author_party_id,
+    authorDisplayName: raw.author_display_name,
+    body: raw.body,
+    createdAt: raw.created_at,
+  };
 }
 
 export async function createAnnotation(
   agreementId: number,
-  payload: { author_party_id: number; body: string },
+  payload: { authorPartyId: number; body: string },
 ): Promise<Annotation> {
-  const res = await apiClient.post<ApiResponse<CreateAnnotationResponse>>(
+  const res = await apiClient.post<ApiResponse<{ annotation: RawAnnotation }>>(
     `/agreements/${agreementId}/annotations/`,
-    payload,
+    { author_party_id: payload.authorPartyId, body: payload.body },
   );
-  return res.data.data.annotation;
+  return mapAnnotation(res.data.data.annotation);
 }
 
 export async function listAnnotations(
   agreementId: number,
 ): Promise<Annotation[]> {
-  const res = await apiClient.get<ApiResponse<ListAnnotationsResponse>>(
+  const res = await apiClient.get<ApiResponse<{ annotations: RawAnnotation[] }>>(
     `/agreements/${agreementId}/annotations/`,
   );
-  return res.data.data.annotations;
+  return res.data.data.annotations.map(mapAnnotation);
 }
 
 export async function deleteAnnotation(
@@ -53,9 +63,9 @@ export async function updateAnnotation(
   partyId: number,
   body: string,
 ): Promise<Annotation> {
-  const res = await apiClient.put<ApiResponse<{ annotation: Annotation }>>(
+  const res = await apiClient.put<ApiResponse<{ annotation: RawAnnotation }>>(
     `/agreements/${agreementId}/annotations/${annotationId}?party_id=${partyId}`,
     { body },
   );
-  return res.data.data.annotation;
+  return mapAnnotation(res.data.data.annotation);
 }

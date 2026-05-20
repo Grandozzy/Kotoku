@@ -3,6 +3,9 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.test import APIClient
 
 from apps.accounts.models import Account, User
+from apps.agreements.domain.enums import AgreementStatus
+from apps.agreements.models import Agreement
+from apps.parties.models import Party
 
 
 @pytest.fixture()
@@ -102,6 +105,48 @@ class TestAgreementDetailApi:
         )
         assert response.status_code == 404
 
+    def test_participant_can_view_non_draft_agreement(self, authenticated_client, second_authenticated_client):
+        owner_client, account = authenticated_client
+        other_client, other_account = second_authenticated_client
+        agreement = Agreement.objects.create(
+            title="Shared",
+            created_by=account,
+            status=AgreementStatus.PENDING_CONSENT,
+        )
+        Party.objects.create(
+            agreement=agreement,
+            display_name="Creator",
+            role=Party.Role.SELLER,
+            phone=account.phone,
+        )
+        Party.objects.create(
+            agreement=agreement,
+            display_name="Counterparty",
+            role=Party.Role.BUYER,
+            phone=other_account.phone,
+        )
+
+        response = other_client.get(f"/api/agreements/{agreement.pk}/", format="json")
+        assert response.status_code == 200
+
+    def test_participant_cannot_view_draft_agreement(self, authenticated_client, second_authenticated_client):
+        owner_client, account = authenticated_client
+        other_client, other_account = second_authenticated_client
+        agreement = Agreement.objects.create(
+            title="Private Draft",
+            created_by=account,
+            status=AgreementStatus.DRAFT,
+        )
+        Party.objects.create(
+            agreement=agreement,
+            display_name="Counterparty",
+            role=Party.Role.BUYER,
+            phone=other_account.phone,
+        )
+
+        response = other_client.get(f"/api/agreements/{agreement.pk}/", format="json")
+        assert response.status_code == 404
+
 
 @pytest.mark.django_db
 class TestAgreementUpdateApi:
@@ -147,6 +192,34 @@ class TestAgreementUpdateApi:
         response = other_client.patch(
             f"/api/agreements/{agreement.pk}/",
             {"title": "Hacked"},
+            format="json",
+        )
+        assert response.status_code == 404
+
+    def test_participant_cannot_update_reopened_agreement(self, authenticated_client, second_authenticated_client):
+        owner_client, account = authenticated_client
+        other_client, other_account = second_authenticated_client
+        agreement = Agreement.objects.create(
+            title="Reopened",
+            created_by=account,
+            status=AgreementStatus.ACTIVE,
+        )
+        Party.objects.create(
+            agreement=agreement,
+            display_name="Creator",
+            role=Party.Role.SELLER,
+            phone=account.phone,
+        )
+        Party.objects.create(
+            agreement=agreement,
+            display_name="Counterparty",
+            role=Party.Role.BUYER,
+            phone=other_account.phone,
+        )
+
+        response = other_client.patch(
+            f"/api/agreements/{agreement.pk}/",
+            {"title": "Mutated"},
             format="json",
         )
         assert response.status_code == 404

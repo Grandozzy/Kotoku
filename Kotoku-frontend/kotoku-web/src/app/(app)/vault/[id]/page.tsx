@@ -6,17 +6,17 @@ import { vaultApi } from "@/api/vault";
 
 export default function VaultEntryPage() {
   const { id } = useParams<{ id: string }>();
-  const entryId = Number(id);
+  const agreementId = Number(id);
   const queryClient = useQueryClient();
 
   const { data: entry, isLoading } = useQuery({
-    queryKey: ["vault", entryId],
-    queryFn: () => vaultApi.get(entryId),
+    queryKey: ["vault", agreementId],
+    queryFn: () => vaultApi.get(agreementId),
   });
 
   const retryMutation = useMutation({
-    mutationFn: () => vaultApi.retryExport(entryId),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["vault", entryId] }),
+    mutationFn: () => vaultApi.retryExport(agreementId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["vault", agreementId] }),
   });
 
   if (isLoading) {

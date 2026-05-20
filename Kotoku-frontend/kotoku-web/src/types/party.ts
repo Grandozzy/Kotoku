@@ -1,5 +1,5 @@
 export type PartyRole = "buyer" | "seller" | "landlord" | "tenant" | "witness";
-export type IdType = "ghana_card" | "passport" | "other";
+export type IdType = "ghana_card" | "passport" | "national_id";
 
 export interface Party {
   id: number;

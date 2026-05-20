@@ -1,4 +1,5 @@
 import * as ImagePicker from "expo-image-picker";
+import * as Crypto from "expo-crypto";
 import { useEffect, useState } from "react";
 
 import {
@@ -10,6 +11,20 @@ import { getApiErrorMessage } from "@/lib/errorHandler";
 import type { UploadStatus } from "@/types/evidence";
 
 const MIME_JPEG = "image/jpeg";
+
+function arrayBufferToHex(buffer: ArrayBuffer): string {
+  return Array.from(new Uint8Array(buffer))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+async function sha256Hex(blob: Blob): Promise<string> {
+  const digest = await Crypto.digest(
+    Crypto.CryptoDigestAlgorithm.SHA256,
+    await blob.arrayBuffer(),
+  );
+  return arrayBufferToHex(digest);
+}
 
 interface UploadItem {
   slotId: string;
@@ -46,7 +61,7 @@ export function useEvidenceUpload(
           hydrated[slotId] = {
             slotId,
             evidenceType: item.evidence_type,
-            localUri: item.storage_url,
+            localUri: item.view_url ?? "",
             uploadStatus: "uploaded",
             remoteId: item.id,
           };
@@ -82,6 +97,8 @@ export function useEvidenceUpload(
       if (result.canceled || !result.assets[0]) return;
 
       const asset = result.assets[0];
+      const fileBlob = await (await fetch(asset.uri)).blob();
+      const checksumSha256 = await sha256Hex(fileBlob);
 
       setItems((prev) => ({
         ...prev,
@@ -94,23 +111,24 @@ export function useEvidenceUpload(
       }));
 
       step = "getUploadUrl";
-      const sizeBytes = asset.fileSize || 1;
+      const sizeBytes = fileBlob.size || asset.fileSize || 1;
       const uploadUrlRes = await getUploadUrl(
         agreementId,
         evidenceType,
         MIME_JPEG,
         sizeBytes || 1,
+        checksumSha256,
       );
-
-      console.log(`[EVIDENCE-${agreementId}] getUploadUrl OK: ${uploadUrlRes.upload_url.slice(0, 100)}`);
 
       step = "uploadToS3";
       const s3resp = await fetch(uploadUrlRes.upload_url, {
         method: "PUT",
-        headers: { "Content-Type": MIME_JPEG },
-        body: await (await fetch(asset.uri)).blob(),
+        headers:
+          Object.keys(uploadUrlRes.headers ?? {}).length > 0
+            ? uploadUrlRes.headers
+            : { "Content-Type": MIME_JPEG },
+        body: fileBlob,
       });
-      console.log(`[EVIDENCE-${agreementId}] S3 PUT status: ${s3resp.status}`);
 
       if (!s3resp.ok) {
         const body = await s3resp.text().catch(() => "(no body)");
@@ -123,6 +141,7 @@ export function useEvidenceUpload(
         uploadUrlRes.file_key,
         evidenceType,
         MIME_JPEG,
+        checksumSha256,
       );
 
       setItems((prev) => ({
@@ -136,7 +155,9 @@ export function useEvidenceUpload(
     } catch (err) {
       const prefix = `[step:${step}]`;
       const msg = getApiErrorMessage(err, `${prefix} Failed to upload photo.`);
-      console.error(`[EVIDENCE-${agreementId}] ${prefix}`, err);
+      if (__DEV__) {
+        console.error(`[EVIDENCE-${agreementId}] ${prefix}`, err);
+      }
       setError(msg);
       setItems((prev) => {
         if (!prev[slotId]) return prev;

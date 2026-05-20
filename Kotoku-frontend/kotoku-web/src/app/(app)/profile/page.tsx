@@ -121,7 +121,7 @@ export default function ProfilePage() {
     : phone.slice(-2);
 
   async function handleSignOut() {
-    try { await api.post("/api/auth/logout/"); } catch { /* best effort */ }
+    try { await api.post("/api/auth/signout/"); } catch { /* best effort */ }
     clearSession();
     router.replace("/login");
   }

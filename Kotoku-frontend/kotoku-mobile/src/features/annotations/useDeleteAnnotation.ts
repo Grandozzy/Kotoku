@@ -8,7 +8,9 @@ export function useDeleteAnnotation(agreementId: number) {
     mutationFn: ({ annotationId, partyId }: { annotationId: number; partyId: number }) =>
       deleteAnnotation(agreementId, annotationId, partyId),
     onError: (error) => {
-      console.error("Delete annotation failed:", error);
+      if (__DEV__) {
+        console.error("Delete annotation failed:", error);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["annotations", agreementId] });

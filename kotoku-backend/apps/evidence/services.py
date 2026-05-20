@@ -1,6 +1,7 @@
 import re
 import uuid
 
+from botocore.exceptions import ClientError
 from django.db import transaction
 
 from apps.agreements.domain.enums import AgreementStatus
@@ -131,6 +132,7 @@ class EvidenceService:
         evidence_type: str,
         mime_type: str,
         size_bytes: int,
+        checksum_sha256: str,
     ) -> dict:
         """Issue a presigned PUT URL and create a pending EvidenceItem.
 
@@ -169,7 +171,7 @@ class EvidenceService:
 
         storage = S3StorageClient()
         upload_url, headers = storage.generate_presigned_upload_url(
-            file_key, mime_type, expires_in=900
+            file_key, mime_type, checksum_sha256, expires_in=900
         )
 
         # Find the matching party for this account (best-effort; null if not found).
@@ -185,6 +187,7 @@ class EvidenceService:
             mime_type=mime_type,
             size_bytes=size_bytes,
             file_key=file_key,
+            file_hash=checksum_sha256,
             upload_status=EvidenceItem.UploadStatus.PENDING,
         )
 
@@ -198,6 +201,7 @@ class EvidenceService:
                 "evidence_type": evidence_type,
                 "mime_type": mime_type,
                 "size_bytes": size_bytes,
+                "checksum_sha256": checksum_sha256,
             },
         )
 
@@ -216,6 +220,7 @@ class EvidenceService:
         file_key: str,
         evidence_type: str,
         mime_type: str,
+        checksum_sha256: str,
     ) -> EvidenceItem:
         """Confirm that the client has uploaded the file and finalise the record.
 
@@ -242,10 +247,31 @@ class EvidenceService:
             raise DomainError(
                 "mime_type does not match the original upload request."
             )
+        if item.file_hash != checksum_sha256:
+            raise DomainError(
+                "checksum_sha256 does not match the original upload request."
+            )
 
-        item.storage_url = S3StorageClient().build_object_url(file_key)
+        try:
+            object_meta = S3StorageClient().head_object(file_key)
+        except ClientError:
+            raise DomainError(
+                "Uploaded file could not be verified in storage."
+            ) from None
+
+        actual_size = object_meta.get("content_length")
+        actual_mime = object_meta.get("content_type", "")
+        actual_metadata = object_meta.get("metadata", {})
+        actual_checksum = actual_metadata.get("sha256", "")
+        if item.size_bytes is not None and actual_size != item.size_bytes:
+            raise DomainError("Uploaded file size does not match the original upload request.")
+        if actual_mime and actual_mime != item.mime_type:
+            raise DomainError("Uploaded file content type does not match the original upload request.")
+        if actual_checksum != item.file_hash:
+            raise DomainError("Uploaded file checksum does not match the original upload request.")
+
         item.upload_status = EvidenceItem.UploadStatus.CONFIRMED
-        item.save(update_fields=["storage_url", "upload_status"])
+        item.save(update_fields=["upload_status"])
 
         AuditService.record_event(
             event_type="evidence.confirmed",

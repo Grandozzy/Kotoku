@@ -7,6 +7,15 @@ from apps.parties.models import Party
 from common.exceptions import DomainError
 
 
+def _require_identity_fields(party_data: dict, *, role: str) -> None:
+    id_type = party_data.get("id_type")
+    id_number = party_data.get("id_number")
+    if not id_type or not str(id_type).strip():
+        raise DomainError(f"Identity document type is required for role '{role}'.")
+    if not id_number or not str(id_number).strip():
+        raise DomainError(f"Identity document number is required for role '{role}'.")
+
+
 class PartyService:
     @staticmethod
     @transaction.atomic
@@ -38,9 +47,10 @@ class PartyService:
 
         phones = [p["phone"] for p in parties_data]
         if initiator_account.phone not in phones:
-            raise DomainError(
-                "At least one party must match your account phone number."
-            )
+            raise DomainError("At least one party must match your account phone number.")
+
+        for p in parties_data:
+            _require_identity_fields(p, role=p["role"])
 
         Party.objects.filter(agreement=agreement).delete()
         parties = [
@@ -49,8 +59,8 @@ class PartyService:
                 role=p["role"],
                 display_name=p["full_name"],
                 phone=p["phone"],
-                id_type=p.get("id_type", ""),
-                id_number=p.get("id_number", ""),
+                id_type=p["id_type"],
+                id_number=p["id_number"].strip(),
             )
             for p in parties_data
         ]
@@ -91,7 +101,7 @@ class PartyService:
             except Party.DoesNotExist:
                 raise DomainError(
                     f"No party with role '{role}' exists on this agreement."
-                )
+                ) from None
             update_fields = []
             if "full_name" in patch:
                 party.display_name = patch["full_name"]
@@ -100,10 +110,18 @@ class PartyService:
                 party.phone = patch["phone"]
                 update_fields.append("phone")
             if "id_type" in patch:
+                _require_identity_fields(
+                    {"id_type": patch["id_type"], "id_number": party.id_number},
+                    role=role,
+                )
                 party.id_type = patch["id_type"]
                 update_fields.append("id_type")
             if "id_number" in patch:
-                party.id_number = patch["id_number"]
+                _require_identity_fields(
+                    {"id_type": party.id_type, "id_number": patch["id_number"]},
+                    role=role,
+                )
+                party.id_number = patch["id_number"].strip()
                 update_fields.append("id_number")
             if update_fields:
                 update_fields.append("updated_at")

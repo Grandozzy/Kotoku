@@ -7,6 +7,7 @@ _VAULT_VISIBLE_STATUSES = (
     AgreementStatus.SEALED,
     AgreementStatus.REOPEN_REQUESTED,
     AgreementStatus.ACTIVE,
+    AgreementStatus.CLOSED,
 )
 
 

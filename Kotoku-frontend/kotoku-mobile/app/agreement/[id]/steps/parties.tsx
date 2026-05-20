@@ -2,7 +2,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Controller, useForm } from "react-hook-form";
 import { Pressable, ScrollView, Text, View } from "react-native";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { z } from "zod";
 
 import { Button, TextInput } from "@/components/ui";
@@ -12,6 +12,7 @@ import {
 } from "@/features/agreements/agreementStore";
 import { useTemplate } from "@/features/agreements/useAgreementDraft";
 import { setParties } from "@/api/agreements";
+import { getApiErrorMessage } from "@/lib/errorHandler";
 
 const partySchema = z.object({
   fullName: z.string().min(2, "Full name is required"),
@@ -23,7 +24,7 @@ const partySchema = z.object({
       (v) => /^(\+\d{10,15}|\d{10,15})$/.test(v.replace(/\s/g, "")),
       "Enter a valid phone number (e.g. +233501234567 or 0501234567)",
     ),
-  idType: z.enum(["ghana_card", "passport", "other"]),
+  idType: z.enum(["ghana_card", "passport", "national_id"]),
   idNumber: z.string().min(3, "ID number is required"),
 });
 
@@ -37,28 +38,22 @@ type PartiesFormValues = z.infer<typeof partiesSchema>;
 const ID_TYPE_OPTIONS: { value: IdType; label: string }[] = [
   { value: "ghana_card", label: "Ghana Card" },
   { value: "passport", label: "Passport" },
-  { value: "other", label: "Other" },
+  { value: "national_id", label: "National ID Card" },
 ];
 
 export default function PartiesStep() {
   const router = useRouter();
   const { id, scenarioId: urlScenarioId } = useLocalSearchParams<{ id: string; scenarioId?: string }>();
   const storeScenarioId = useAgreementStore((s) => s.scenarioId);
-  const scenarioId = storeScenarioId ?? urlScenarioId;
+  const scenarioId = storeScenarioId ?? urlScenarioId ?? null;
   const agreementId = Number(id);
   const { partyA, partyB, setPartyA, setPartyB, nextStep } =
     useAgreementStore();
   const template = useTemplate(scenarioId);
 
-  // Log only when scenarioId changes
-  const prevScenarioId = useRef(scenarioId);
-  if (scenarioId !== prevScenarioId.current) {
-    console.log("[Parties] scenarioId:", scenarioId, "template:", !!template);
-    prevScenarioId.current = scenarioId;
-  }
-
   const [roleA, roleB] = template?.partyRoles ?? ["Buyer", "Seller"];
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const roleEnum = (label: string) => label.toLowerCase();
 
@@ -76,6 +71,7 @@ export default function PartiesStep() {
   });
 
   const onSubmit = async (values: PartiesFormValues) => {
+    setSaveError(null);
     setPartyA(values.partyA);
     setPartyB(values.partyB);
     setSaving(true);
@@ -96,7 +92,11 @@ export default function PartiesStep() {
           id_number: values.partyB.idNumber,
         },
       ]);
-    } catch {}
+    } catch (error) {
+      setSaveError(getApiErrorMessage(error, "Could not save parties. Check your access and party details."));
+      setSaving(false);
+      return;
+    }
     setSaving(false);
     nextStep();
     router.push(`/agreement/${id}/steps/details?scenarioId=${scenarioId}`);
@@ -135,6 +135,11 @@ export default function PartiesStep() {
           />
         </View>
       </View>
+      {saveError && (
+        <Text className="text-sm text-semantic-error text-center">
+          {saveError}
+        </Text>
+      )}
     </ScrollView>
   );
 }

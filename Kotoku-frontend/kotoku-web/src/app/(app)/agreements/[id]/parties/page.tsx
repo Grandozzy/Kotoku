@@ -9,7 +9,7 @@ import { SCENARIO_MAP, ROLE_LABEL, ID_TYPE_LABEL } from "@/constants/scenarios";
 import type { PartyInput, PartyRole, IdType } from "@/types/party";
 
 const ROLES: PartyRole[] = ["buyer", "seller", "landlord", "tenant", "witness"];
-const ID_TYPES: IdType[] = ["ghana_card", "passport", "other"];
+const ID_TYPES: IdType[] = ["ghana_card", "passport", "national_id"];
 
 const EMPTY_PARTY: PartyInput = {
   role: "buyer",

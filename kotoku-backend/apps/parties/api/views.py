@@ -22,8 +22,20 @@ class PartiesView(APIView):
     def _get_agreement(self, agreement_id: int, account_id: int):
         """Ownership-scoped agreement lookup; raises 404 if not found or not owned."""
         try:
-            return AgreementSelector.get_agreement_detail(
+            return AgreementSelector.get_owned_agreement_detail(
                 agreement_id, account_id=account_id
+            )
+        except Agreement.DoesNotExist:
+            raise Http404 from None
+
+    def _get_visible_agreement(
+        self, agreement_id: int, account_id: int, account_phone: str
+    ):
+        try:
+            return AgreementSelector.get_agreement_detail(
+                agreement_id,
+                account_id=account_id,
+                account_phone=account_phone,
             )
         except Agreement.DoesNotExist:
             raise Http404 from None
@@ -54,6 +66,10 @@ class PartiesView(APIView):
 
     def get(self, request, agreement_id: int):
         """List all parties for an agreement."""
-        self._get_agreement(agreement_id, account_id=request.user.account.pk)
+        self._get_visible_agreement(
+            agreement_id,
+            account_id=request.user.account.pk,
+            account_phone=request.user.account.phone,
+        )
         parties = PartySelector.list_parties(agreement_id=agreement_id)
         return ok({"parties": PartyOutputSerializer(parties, many=True).data})

@@ -42,3 +42,7 @@ yarn-error.log*
 next-env.d.ts
 recovery-codes.txt
 *.recovery-codes*
+
+# Sentry CLI auth (never commit — contains secrets)
+.sentryclirc
+sentry.properties

@@ -7,6 +7,15 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { agreementsApi } from "@/api/agreements";
 import { consentApi } from "@/api/consent";
 import { usePlan, useInvalidatePlan } from "@/hooks/usePlan";
+import { useSessionStore } from "@/store/sessionStore";
+
+function formatValidationErrors(errors: { field: string; message: string }[]) {
+  if (errors.length === 0) return "Agreement is not ready for consent.";
+  return errors
+    .slice(0, 4)
+    .map((e) => `${e.field}: ${e.message}`)
+    .join(" ");
+}
 
 export default function ConsentPage() {
   const { id } = useParams<{ id: string }>();
@@ -15,6 +24,7 @@ export default function ConsentPage() {
   const queryClient = useQueryClient();
   const { data: planData } = usePlan();
   const invalidatePlan = useInvalidatePlan();
+  const authenticatedPhone = useSessionStore((s) => s.phone);
 
   const { data: agreement } = useQuery({
     queryKey: ["agreements", agreementId],
@@ -28,12 +38,17 @@ export default function ConsentPage() {
     refetchInterval: 8000, // poll while waiting for counterparty
   });
 
-  const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
   const [requestSent, setRequestSent] = useState(false);
 
   const requestMutation = useMutation({
-    mutationFn: () => consentApi.requestOtps(agreementId),
+    mutationFn: async () => {
+      const validation = await agreementsApi.validate(agreementId);
+      if (!validation.valid) {
+        throw new Error(formatValidationErrors(validation.errors));
+      }
+      return consentApi.requestOtps(agreementId);
+    },
     onSuccess: () => {
       setRequestSent(true);
       refetchStatus();
@@ -41,7 +56,12 @@ export default function ConsentPage() {
   });
 
   const confirmMutation = useMutation({
-    mutationFn: () => consentApi.confirm(agreementId, phone, otp),
+    mutationFn: () => {
+      if (!authenticatedPhone) {
+        throw new Error("Sign in again before confirming consent.");
+      }
+      return consentApi.confirm(agreementId, authenticatedPhone, otp);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["agreements", agreementId] });
       queryClient.invalidateQueries({ queryKey: ["consent-status", agreementId] });
@@ -69,6 +89,11 @@ export default function ConsentPage() {
 
   const records = consentStatus?.records ?? [];
   const allConsented = consentStatus?.all_consented ?? false;
+  const ownRecord = records.find((r) => r.party_phone === authenticatedPhone);
+  const ownParty = parties.find((p) => p.phone === authenticatedPhone);
+  const waitingForOthers = records.some(
+    (r) => r.party_phone !== authenticatedPhone && !r.granted
+  );
 
   return (
     <div className="flex flex-col gap-6">
@@ -77,6 +102,14 @@ export default function ConsentPage() {
         Both parties must confirm via SMS OTP before the agreement can be sealed.
         No one can seal alone.
       </p>
+      <div className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+        <p className="font-semibold">Each party confirms from their own account.</p>
+        <p className="mt-1 text-xs text-blue-700">
+          After OTPs are sent, the second party must sign in with their own phone
+          number on their device or invite link, then enter only the OTP sent to
+          that phone. Kotoku will reject attempts to confirm another party&apos;s code.
+        </p>
+      </div>
 
       {capReached && (
         <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-4 text-sm">
@@ -151,7 +184,7 @@ export default function ConsentPage() {
           <p className="text-sm font-semibold">Step 1 — Send OTPs to all parties</p>
           <p className="text-xs text-neutral-500">
             This sends an SMS OTP to each party&apos;s phone number. Each party must
-            confirm independently.
+            confirm independently from the account registered to that same phone.
           </p>
           <button
             onClick={() => requestMutation.mutate()}
@@ -162,7 +195,9 @@ export default function ConsentPage() {
           </button>
           {requestMutation.isError && (
             <p className="text-sm text-red-600">
-              Could not send OTPs. Make sure all parties have valid phone numbers.
+              {requestMutation.error instanceof Error
+                ? requestMutation.error.message
+                : "Could not send OTPs. Make sure all parties have valid phone numbers."}
             </p>
           )}
         </div>
@@ -173,18 +208,31 @@ export default function ConsentPage() {
         <div className="rounded-2xl border border-neutral-100 p-5 flex flex-col gap-4">
           <p className="text-sm font-semibold">Step 2 — Confirm your OTP</p>
           <p className="text-xs text-neutral-500">
-            Each party enters their phone number and the 8-digit code from their
-            SMS. Counterparties can confirm on their own device.
+            You are signed in as {authenticatedPhone ?? "this account"}. Enter only
+            the OTP sent to that phone. Ask the counterparty to open Kotoku on
+            their own device/account to confirm their code.
           </p>
-          <div className="grid grid-cols-2 gap-3">
+          {ownRecord && (
+            <div className="rounded-xl bg-neutral-50 px-3 py-2 text-xs text-neutral-600">
+              Confirming for {ownParty?.display_name ?? "your party"} ·{" "}
+              {ownRecord.party_phone}
+            </div>
+          )}
+          {!ownRecord && (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+              This signed-in phone is not one of the pending parties on this
+              agreement. Sign in with the party phone that received the OTP.
+            </div>
+          )}
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             <div>
-              <label className="text-xs font-medium text-neutral-600">Your phone number</label>
+              <label className="text-xs font-medium text-neutral-600">Signed-in phone</label>
               <input
                 type="tel"
                 placeholder="+233XXXXXXXXX"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                value={authenticatedPhone ?? ""}
+                readOnly
+                className="mt-1 w-full rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm text-neutral-500"
               />
             </div>
             <div>
@@ -203,7 +251,13 @@ export default function ConsentPage() {
           <div className="flex gap-3 items-center">
             <button
               onClick={() => confirmMutation.mutate()}
-              disabled={confirmMutation.isPending || !phone || otp.length < 8}
+              disabled={
+                confirmMutation.isPending ||
+                !authenticatedPhone ||
+                !ownRecord ||
+                ownRecord.granted ||
+                otp.length < 4
+              }
               className="px-5 py-2.5 rounded-full bg-neutral-900 text-white text-sm font-medium disabled:opacity-50 hover:bg-neutral-700 transition-colors"
             >
               {confirmMutation.isPending ? "Confirming…" : "Confirm consent"}
@@ -230,8 +284,9 @@ export default function ConsentPage() {
       {/* Waiting for counterparty */}
       {requestSent && !allConsented && records.some((r) => r.granted) && (
         <div className="rounded-xl bg-blue-50 px-4 py-3 text-sm text-blue-700">
-          Waiting for the other party to confirm on their device. This page checks
-          automatically every few seconds.
+          {waitingForOthers
+            ? "Waiting for the other party to confirm on their device. This page checks automatically every few seconds."
+            : "Your confirmation is recorded. This page checks automatically every few seconds."}
         </div>
       )}
     </div>

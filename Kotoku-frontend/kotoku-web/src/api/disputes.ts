@@ -3,8 +3,12 @@ import type { Dispute, DisputeCreate } from "@/types/dispute";
 
 export const disputesApi = {
   list: (agreementId: number) =>
-    api.get<{ results: Dispute[] }>(`/api/agreements/${agreementId}/disputes/`),
+    api
+      .get<{ disputes: Dispute[] }>(`/api/agreements/${agreementId}/disputes/`)
+      .then((r) => r.disputes),
 
   create: (agreementId: number, data: DisputeCreate) =>
-    api.post<Dispute>(`/api/agreements/${agreementId}/disputes/`, data),
+    api
+      .post<{ dispute: Dispute }>(`/api/agreements/${agreementId}/disputes/`, data)
+      .then((r) => r.dispute),
 };

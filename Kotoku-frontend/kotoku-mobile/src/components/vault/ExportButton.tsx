@@ -43,8 +43,7 @@ export function ExportButton({
         dialogTitle: "Save agreement PDF",
         UTI: "com.adobe.pdf",
       });
-    } catch (err) {
-      console.warn("[DEBUG] SAVE ERROR:", err);
+    } catch {
       setSaveError("Could not save to device. Please try again.");
     } finally {
       setSaving(false);

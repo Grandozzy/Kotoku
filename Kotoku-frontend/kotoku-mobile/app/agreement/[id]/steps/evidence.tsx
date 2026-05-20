@@ -13,7 +13,7 @@ export default function EvidenceStep() {
   const router = useRouter();
   const { id, scenarioId: urlScenarioId } = useLocalSearchParams<{ id: string; scenarioId?: string }>();
   const storeScenarioId = useAgreementStore((s) => s.scenarioId);
-  const scenarioId = storeScenarioId ?? urlScenarioId;
+  const scenarioId = storeScenarioId ?? urlScenarioId ?? null;
   const { nextStep, prevStep, stepIndex } = useAgreementStore();
   const template = useTemplate(scenarioId);
   const agreementId = Number(id);
@@ -29,7 +29,10 @@ export default function EvidenceStep() {
   const uploadedPhotoCount = photoSlots.filter(
     (s) => items[s.id]?.uploadStatus === "uploaded",
   ).length;
-  const canProceed = uploadedPhotoCount >= minimumPhotoCount;
+  const requiredPhotosUploaded = photoSlots
+    .filter((s) => s.required)
+    .every((s) => items[s.id]?.uploadStatus === "uploaded");
+  const canProceed = uploadedPhotoCount >= minimumPhotoCount && requiredPhotosUploaded;
 
   const handleNext = () => {
     nextStep();
@@ -102,7 +105,7 @@ export default function EvidenceStep() {
 
       {!canProceed && (
         <Text className="text-xs text-ink-muted text-center">
-          Upload at least {minimumPhotoCount} photo{minimumPhotoCount !== 1 ? "s" : ""} to continue.
+          Upload at least {minimumPhotoCount} photo{minimumPhotoCount !== 1 ? "s" : ""}, including all required ID photos, to continue.
         </Text>
       )}
 

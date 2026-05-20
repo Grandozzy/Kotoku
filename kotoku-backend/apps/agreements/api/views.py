@@ -1,7 +1,8 @@
 from django.http import Http404
-from rest_framework_simplejwt.authentication import JWTAuthentication
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
+from rest_framework_simplejwt.authentication import JWTAuthentication
 
 from apps.agreements.api.serializers import (
     AgreementCreateSerializer,
@@ -35,12 +36,14 @@ class AgreementCollectionView(APIView):
         paginator = DefaultPagination()
         page = paginator.paginate_queryset(qs, request)
         serializer = AgreementListSerializer(page, many=True)
-        return ok({
-            "results": serializer.data,
-            "count": paginator.page.paginator.count,
-            "next": paginator.get_next_link(),
-            "previous": paginator.get_previous_link(),
-        })
+        return ok(
+            {
+                "results": serializer.data,
+                "count": paginator.page.paginator.count,
+                "next": paginator.get_next_link(),
+                "previous": paginator.get_previous_link(),
+            }
+        )
 
     def post(self, request):
         serializer = AgreementCreateSerializer(data=request.data)
@@ -52,9 +55,7 @@ class AgreementCollectionView(APIView):
             scenario_template=serializer.validated_data.get("scenario_template", ""),
             created_by=account,
         )
-        return ok(
-            {"agreement": AgreementDetailSerializer(agreement).data}, status_code=201
-        )
+        return ok({"agreement": AgreementDetailSerializer(agreement).data}, status_code=201)
 
 
 class AgreementDetailView(APIView):
@@ -78,11 +79,13 @@ class AgreementDetailView(APIView):
         return ok({"agreement": AgreementDetailSerializer(agreement).data})
 
     def patch(self, request, agreement_id: int):
-        agreement = self._get_agreement(
-            agreement_id,
-            account_id=request.user.account.pk,
-            account_phone=request.user.account.phone,
-        )
+        try:
+            agreement = AgreementSelector.get_owned_agreement_detail(
+                agreement_id,
+                account_id=request.user.account.pk,
+            )
+        except Agreement.DoesNotExist:
+            raise Http404 from None
         serializer = AgreementUpdateSerializer(data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         if agreement.status == AgreementStatus.DRAFT:
@@ -106,10 +109,9 @@ class ValidateView(APIView):
 
     def post(self, request, agreement_id: int):
         try:
-            agreement = AgreementSelector.get_agreement_detail(
+            agreement = AgreementSelector.get_owned_agreement_detail(
                 agreement_id,
                 account_id=request.user.account.pk,
-                account_phone=request.user.account.phone,
             )
         except Agreement.DoesNotExist:
             raise Http404 from None
@@ -118,8 +120,7 @@ class ValidateView(APIView):
             {
                 "valid": result.valid,
                 "errors": [
-                    {"code": e.code, "message": e.message, "field": e.field}
-                    for e in result.errors
+                    {"code": e.code, "message": e.message, "field": e.field} for e in result.errors
                 ],
             }
         )
@@ -131,10 +132,9 @@ class SealView(APIView):
 
     def post(self, request, agreement_id: int):
         try:
-            AgreementSelector.get_agreement_detail(
+            AgreementSelector.get_owned_agreement_detail(
                 agreement_id,
                 account_id=request.user.account.pk,
-                account_phone=request.user.account.phone,
             )
         except Agreement.DoesNotExist:
             raise Http404 from None
@@ -145,21 +145,22 @@ class SealView(APIView):
 
 # ── Sprint 6: Bilateral reopen flow ────────────────────────────────────────── #
 
+
 class ReopenRequestView(APIView):
     """POST /agreements/{id}/reopen-request/
 
     Transitions a SEALED agreement to REOPEN_REQUESTED and immediately
     issues reopen-consent OTPs to all parties.
     """
+
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
     def post(self, request, agreement_id: int):
         try:
-            AgreementSelector.get_agreement_detail(
+            AgreementSelector.get_owned_agreement_detail(
                 agreement_id,
                 account_id=request.user.account.pk,
-                account_phone=request.user.account.phone,
             )
         except Agreement.DoesNotExist:
             raise Http404 from None
@@ -175,15 +176,15 @@ class ReopenOtpRequestView(APIView):
     Re-issues reopen OTPs to all parties (e.g. after expiry).
     Agreement must already be in REOPEN_REQUESTED status.
     """
+
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
     def post(self, request, agreement_id: int):
         try:
-            AgreementSelector.get_agreement_detail(
+            AgreementSelector.get_owned_agreement_detail(
                 agreement_id,
                 account_id=request.user.account.pk,
-                account_phone=request.user.account.phone,
             )
         except Agreement.DoesNotExist:
             raise Http404 from None
@@ -200,6 +201,7 @@ class ReopenOtpConfirmView(APIView):
     A party confirms their reopen OTP. When the last party confirms, the
     agreement automatically transitions REOPEN_REQUESTED → ACTIVE.
     """
+
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
@@ -217,11 +219,15 @@ class ReopenOtpConfirmView(APIView):
         otp_code = request.data.get("otp_code", "").strip()
         if not phone or not otp_code:
             from common.exceptions import DomainError as _DomainError  # noqa: PLC0415
+
             raise _DomainError("Both 'phone' and 'otp_code' are required.")
+        account_phone = request.user.account.phone
+        if phone != account_phone:
+            raise PermissionDenied("Reopen confirmation must match the authenticated phone.")
 
         record = ConsentService.confirm_reopen_by_phone(
             agreement_id=agreement_id,
-            party_phone=phone,
+            party_phone=account_phone,
             otp_code=otp_code,
         )
         agreement = AgreementSelector.get_agreement_detail(
@@ -229,10 +235,12 @@ class ReopenOtpConfirmView(APIView):
             account_id=request.user.account.pk,
             account_phone=request.user.account.phone,
         )
-        return ok({
-            "granted": record.granted,
-            "agreement_status": agreement.status,
-        })
+        return ok(
+            {
+                "granted": record.granted,
+                "agreement_status": agreement.status,
+            }
+        )
 
 
 class PendingActionsView(APIView):
@@ -278,7 +286,9 @@ class PendingActionsView(APIView):
 
         action_required = list(pending_consent_qs) + list(reopen_requested_qs)
 
-        return ok({
-            "action_required": AgreementListSerializer(action_required, many=True).data,
-            "drafts": AgreementListSerializer(drafts, many=True).data,
-        })
+        return ok(
+            {
+                "action_required": AgreementListSerializer(action_required, many=True).data,
+                "drafts": AgreementListSerializer(drafts, many=True).data,
+            }
+        )

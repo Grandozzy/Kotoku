@@ -42,7 +42,7 @@ export async function getDispute(disputeId: number): Promise<Dispute> {
 
 export async function createDispute(
   agreementId: number,
-  payload: { raised_by_party_id: number; reason: string },
+  payload: { reason: string },
 ): Promise<Dispute> {
   const res = await apiClient.post<ApiResponse<DisputeDetailResponse>>(
     `/agreements/${agreementId}/disputes/`,

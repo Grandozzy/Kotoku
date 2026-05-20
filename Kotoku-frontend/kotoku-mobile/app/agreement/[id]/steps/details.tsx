@@ -22,7 +22,7 @@ function buildDetailsSchema(template: {
       if (def.type === "boolean") {
         shape[key] = z.boolean().refine((v) => v === true, "Required");
       } else if (def.type === "number" || def.type === "currency") {
-        shape[key] = z.number({ required_error: "Required", invalid_type_error: "Enter a number" }).min(0.01, "Required");
+        shape[key] = z.coerce.number("Enter a number").min(0.01, "Required");
       } else {
         shape[key] = z.string().min(1, "Required");
       }
@@ -43,7 +43,7 @@ export default function DetailsStep() {
   const router = useRouter();
   const { id, scenarioId: urlScenarioId } = useLocalSearchParams<{ id: string; scenarioId?: string }>();
   const storeScenarioId = useAgreementStore((s) => s.scenarioId);
-  const scenarioId = storeScenarioId ?? urlScenarioId;
+  const scenarioId = storeScenarioId ?? urlScenarioId ?? null;
   const { subjectData, setSubjectData, nextStep, prevStep, stepIndex } =
     useAgreementStore();
   const template = useTemplate(scenarioId);

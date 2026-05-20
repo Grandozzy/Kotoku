@@ -30,7 +30,7 @@ class EvidenceUploadUrlView(APIView):
 
     def _get_agreement(self, agreement_id: int, account_id: int):
         try:
-            return AgreementSelector.get_agreement_detail(
+            return AgreementSelector.get_owned_agreement_detail(
                 agreement_id, account_id=account_id
             )
         except Agreement.DoesNotExist:
@@ -52,8 +52,9 @@ class EvidenceUploadUrlView(APIView):
             **serializer.validated_data,
         )
         logger.info(
-            "[EVIDENCE] upload_url issued key=%s",
-            result["file_key"],
+            "[EVIDENCE] upload_url issued agreement=%s evidence_id=%s",
+            agreement_id,
+            result["evidence_id"],
         )
         return ok(result, status_code=201)
 
@@ -67,8 +68,20 @@ class EvidenceCollectionView(APIView):
 
     def _get_agreement(self, agreement_id: int, account_id: int):
         try:
-            return AgreementSelector.get_agreement_detail(
+            return AgreementSelector.get_owned_agreement_detail(
                 agreement_id, account_id=account_id
+            )
+        except Agreement.DoesNotExist:
+            raise Http404 from None
+
+    def _get_visible_agreement(
+        self, agreement_id: int, account_id: int, account_phone: str
+    ):
+        try:
+            return AgreementSelector.get_agreement_detail(
+                agreement_id,
+                account_id=account_id,
+                account_phone=account_phone,
             )
         except Agreement.DoesNotExist:
             raise Http404 from None
@@ -78,10 +91,9 @@ class EvidenceCollectionView(APIView):
         serializer = ConfirmUploadSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         logger.info(
-            "[EVIDENCE] confirm_upload agreement=%s evidence_type=%s key=%s",
+            "[EVIDENCE] confirm_upload agreement=%s evidence_type=%s",
             agreement_id,
             serializer.validated_data["evidence_type"],
-            serializer.validated_data["file_key"],
         )
         item = EvidenceService.confirm_upload(
             agreement_id=agreement_id,
@@ -91,7 +103,11 @@ class EvidenceCollectionView(APIView):
         return ok({"evidence": EvidenceItemSerializer(item).data}, status_code=201)
 
     def get(self, request, agreement_id: int):
-        self._get_agreement(agreement_id, account_id=request.user.account.pk)
+        self._get_visible_agreement(
+            agreement_id,
+            account_id=request.user.account.pk,
+            account_phone=request.user.account.phone,
+        )
         items = EvidenceSelector.list_confirmed_evidence(agreement_id=agreement_id)
         logger.info("[EVIDENCE] list_evidence agreement=%s count=%s", agreement_id, len(items))
         return ok({"evidence": EvidenceItemSerializer(items, many=True).data})

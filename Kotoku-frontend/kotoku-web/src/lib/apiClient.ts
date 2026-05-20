@@ -1,6 +1,7 @@
 import { useSessionStore } from "@/store/sessionStore";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+type ApiEnvelope<T> = { status: "ok"; data: T };
 
 // Enforce HTTPS in production. If the env var is misconfigured as http://,
 // tokens would flow in plaintext — fail loudly rather than silently.
@@ -22,23 +23,18 @@ async function refreshAccessToken(): Promise<string | null> {
   if (refreshPromise) return refreshPromise;
 
   refreshPromise = (async () => {
-    const { refreshToken, setAccessToken, clearSession } = useSessionStore.getState();
-    if (!refreshToken) {
-      clearSession();
-      return null;
-    }
+    const { setAccessToken, clearSession } = useSessionStore.getState();
     try {
       const res = await fetch(`${BASE_URL}/api/auth/token/refresh/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ refresh: refreshToken }),
+        credentials: "include",
       });
       if (!res.ok) {
         clearSession();
         return null;
       }
       const body = await res.json();
-      // simplejwt with ROTATE_REFRESH_TOKENS returns a new access + refresh
       const newAccess: string = body.data?.access ?? body.access;
       setAccessToken(newAccess);
       return newAccess;
@@ -66,7 +62,11 @@ async function request<T>(
   };
   if (token) headers["Authorization"] = `Bearer ${token}`;
 
-  const res = await fetch(`${BASE_URL}${path}`, { ...options, headers });
+  const res = await fetch(`${BASE_URL}${path}`, {
+    ...options,
+    headers,
+    credentials: "include",
+  });
 
   if (res.status === 401 && _retry) {
     const newToken = await refreshAccessToken();
@@ -84,7 +84,17 @@ async function request<T>(
   }
 
   if (res.status === 204) return undefined as unknown as T;
-  return res.json() as Promise<T>;
+  const body = (await res.json()) as T | ApiEnvelope<T>;
+  if (
+    body &&
+    typeof body === "object" &&
+    "status" in body &&
+    "data" in body &&
+    body.status === "ok"
+  ) {
+    return body.data;
+  }
+  return body as T;
 }
 
 export const api = {

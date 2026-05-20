@@ -23,7 +23,7 @@ export function AddNoteSheet({ agreementId, authorPartyId, visible, onClose }: P
     if (!body.trim() || !authorPartyId) return;
     try {
       await mutation.mutateAsync({
-        author_party_id: authorPartyId,
+        authorPartyId,
         body: body.trim(),
       });
       setBody("");

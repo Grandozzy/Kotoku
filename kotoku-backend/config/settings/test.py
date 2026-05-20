@@ -1,6 +1,7 @@
 from .base import *  # noqa: F403
 
 DEBUG = False
+SECRET_KEY = "kotoku-test-secret-key-minimum-32-bytes-2026"
 PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
 DATABASES["default"] = {  # type: ignore[index]
     "ENGINE": "django.db.backends.sqlite3",

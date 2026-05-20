@@ -20,7 +20,8 @@ def _account(email="notify@test.com", phone="+233555000111"):
 
 
 class TestNotificationService:
-    def test_creates_notification_record(self, db):
+    @patch("apps.notifications.services.dispatch_notification.delay", return_value=None)
+    def test_creates_notification_record(self, mock_delay, db):
         account = _account()
         notification = NotificationService.send_notification(
             account_id=account.pk,
@@ -31,18 +32,23 @@ class TestNotificationService:
         assert notification.account_id == account.pk
         assert notification.channel == Notification.Channel.SMS
         assert notification.body == "Hello from Kotoku"
+        assert notification.status == Notification.Status.PENDING
+        mock_delay.assert_called_once_with(notification.pk)
 
-    def test_notification_sent_status_in_stub_mode(self, db):
+    @patch("apps.notifications.services.dispatch_notification.delay", return_value=None)
+    def test_notification_queued_status_in_stub_mode(self, mock_delay, db):
         account = _account()
         notification = NotificationService.send_notification(
             account_id=account.pk,
             channel=Notification.Channel.SMS,
             body="Test message",
         )
-        assert notification.status == Notification.Status.SENT
-        assert notification.sent_at is not None
+        assert notification.status == Notification.Status.PENDING
+        assert notification.sent_at is None
+        mock_delay.assert_called_once_with(notification.pk)
 
-    def test_emits_audit_event(self, db):
+    @patch("apps.notifications.services.dispatch_notification.delay", return_value=None)
+    def test_emits_audit_event(self, mock_delay, db):
         account = _account()
         NotificationService.send_notification(
             account_id=account.pk,
@@ -54,26 +60,15 @@ class TestNotificationService:
             entity_type="notification",
         ).exists()
 
-    @patch("apps.notifications.providers.sms_provider.SmsNotificationProvider.send", return_value=False)
-    def test_failed_status_when_provider_fails(self, mock_send, db):
+    @patch("apps.notifications.services.dispatch_notification.delay", side_effect=Exception("broker error"))
+    def test_raises_when_queueing_fails(self, mock_delay, db):
         account = _account()
-        notification = NotificationService.send_notification(
-            account_id=account.pk,
-            channel=Notification.Channel.SMS,
-            body="Will fail",
-        )
-        assert notification.status == Notification.Status.FAILED
-        assert notification.sent_at is None
-
-    @patch("apps.notifications.providers.sms_provider.SmsNotificationProvider.send", side_effect=Exception("network error"))
-    def test_failed_status_on_exception(self, mock_send, db):
-        account = _account()
-        notification = NotificationService.send_notification(
-            account_id=account.pk,
-            channel=Notification.Channel.SMS,
-            body="Boom",
-        )
-        assert notification.status == Notification.Status.FAILED
+        with pytest.raises(Exception, match="broker error"):
+            NotificationService.send_notification(
+                account_id=account.pk,
+                channel=Notification.Channel.SMS,
+                body="Boom",
+            )
 
     def test_raises_on_nonexistent_account(self, db):
         with pytest.raises(Account.DoesNotExist):
@@ -84,9 +79,12 @@ class TestNotificationService:
             )
 
     def test_raises_on_unknown_channel(self, db):
-        from apps.notifications.services import _get_provider
         with pytest.raises(ValueError, match="No provider registered"):
-            _get_provider("UNKNOWN_CHANNEL")
+            NotificationService.send_notification(
+                account_id=_account().pk,
+                channel="UNKNOWN_CHANNEL",
+                body="Nope",
+            )
 
 
 class TestDispatchTask:

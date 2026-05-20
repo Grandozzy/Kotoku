@@ -6,6 +6,7 @@ import { Scale } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { agreementsApi } from "@/api/agreements";
 import { disputesApi } from "@/api/disputes";
+import { useSessionStore } from "@/store/sessionStore";
 import type { Dispute } from "@/types/dispute";
 
 const STATUS_STYLES: Record<string, string> = {
@@ -82,6 +83,7 @@ export default function DisputePage() {
   const { id } = useParams<{ id: string }>();
   const agreementId = Number(id);
   const queryClient = useQueryClient();
+  const authenticatedPhone = useSessionStore((s) => s.phone);
 
   const { data: agreement } = useQuery({
     queryKey: ["agreements", agreementId],
@@ -94,22 +96,19 @@ export default function DisputePage() {
     enabled: !!agreement?.sealed_at,
   });
 
-  const disputes = disputeData?.results ?? [];
+  const disputes = disputeData ?? [];
 
-  const [partyId, setPartyId] = useState<number | "">("");
   const [reason, setReason] = useState("");
   const [showForm, setShowForm] = useState(false);
 
   const raiseMutation = useMutation({
     mutationFn: () =>
       disputesApi.create(agreementId, {
-        raised_by_party_id: Number(partyId),
         reason,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["disputes", agreementId] });
       setReason("");
-      setPartyId("");
       setShowForm(false);
     },
   });
@@ -119,6 +118,7 @@ export default function DisputePage() {
   const canRaiseDispute = ["sealed", "reopen_requested", "closed", "archived", "expired"].includes(
     agreement.status
   );
+  const ownParty = agreement.parties.find((p) => p.phone === authenticatedPhone);
 
   return (
     <div className="flex flex-col gap-6">
@@ -150,23 +150,17 @@ export default function DisputePage() {
             permanently alongside the sealed agreement as part of the evidence pack.
           </p>
 
-          <div>
-            <label className="text-xs font-medium text-neutral-600">
-              Raising party
-            </label>
-            <select
-              value={partyId}
-              onChange={(e) => setPartyId(e.target.value === "" ? "" : Number(e.target.value))}
-              className="mt-1 w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400"
-            >
-              <option value="">Select party…</option>
-              {agreement.parties.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.display_name} ({p.role})
-                </option>
-              ))}
-            </select>
-          </div>
+          {ownParty ? (
+            <div className="rounded-xl bg-neutral-50 px-3 py-2 text-xs text-neutral-600">
+              Raising as {ownParty.display_name} ({ownParty.role}) from the
+              signed-in phone {authenticatedPhone}.
+            </div>
+          ) : (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+              Sign in with a phone number listed on this agreement before raising
+              a dispute. Kotoku will reject disputes opened for another party.
+            </div>
+          )}
 
           <div>
             <label className="text-xs font-medium text-neutral-600">
@@ -192,7 +186,7 @@ export default function DisputePage() {
               onClick={() => raiseMutation.mutate()}
               disabled={
                 raiseMutation.isPending ||
-                !partyId ||
+                !ownParty ||
                 reason.trim().length < 10
               }
               className="px-5 py-2.5 rounded-full bg-red-600 text-white text-sm font-medium disabled:opacity-50 hover:bg-red-700"
@@ -208,7 +202,9 @@ export default function DisputePage() {
           </div>
           {raiseMutation.isError && (
             <p className="text-sm text-red-600">
-              Could not raise dispute. Check the reason length and try again.
+              {raiseMutation.error instanceof Error
+                ? raiseMutation.error.message
+                : "Could not raise dispute. Check the signed-in party and try again."}
             </p>
           )}
         </div>

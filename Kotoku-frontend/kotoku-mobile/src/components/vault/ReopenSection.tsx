@@ -11,6 +11,7 @@ import {
   useRequestReopen,
   useResendReopenOtp,
 } from "@/features/vault/useReopen";
+import { useSessionStore } from "@/store/sessionStore";
 import { colors } from "@/theme/tokens";
 import type { AgreementStatus, PartySummary } from "@/types/vault";
 
@@ -30,6 +31,7 @@ export function ReopenSection({
   const [confirmedA, setConfirmedA] = useState(false);
   const [confirmedB, setConfirmedB] = useState(false);
   const [reopened, setReopened] = useState(false);
+  const authenticatedPhone = useSessionStore((s) => s.phone);
 
   const requestReopen = useRequestReopen(agreementId);
   const resendOtp = useResendReopenOtp(agreementId);
@@ -48,6 +50,12 @@ export function ReopenSection({
   const effectiveParties = vaultParties.length >= 2 ? vaultParties : (agreementParties ?? []);
   const partyA = effectiveParties[0];
   const partyB = effectiveParties[1];
+  const currentParty =
+    authenticatedPhone && partyA?.phone === authenticatedPhone
+      ? "A"
+      : authenticatedPhone && partyB?.phone === authenticatedPhone
+        ? "B"
+        : null;
 
   const error: string | undefined =
     requestReopen.isError
@@ -90,6 +98,15 @@ export function ReopenSection({
           Request to reopen this agreement. Both parties must confirm with a
           one-time code before it becomes editable again.
         </Text>
+        <View className="bg-amber-50 border border-amber-100 rounded-xl p-md gap-xs">
+          <Text className="text-xs font-semibold text-amber-900">
+            Confirm reopen from the matching phone account.
+          </Text>
+          <Text className="text-xs text-amber-800 leading-relaxed">
+            The counterparty must sign in on their own device or invite link and
+            enter only the OTP sent to their phone.
+          </Text>
+        </View>
         <Button
           title="Request Reopen"
           variant="secondary"
@@ -114,10 +131,20 @@ export function ReopenSection({
           Confirm Reopen
         </Text>
         <Text className="text-sm text-ink-secondary">
-          Both parties must enter the code sent to their phone.
+          Both parties must enter the code sent to their phone while signed in as
+          that same phone/account.
         </Text>
 
-        {partyA && (
+        {!currentParty && (
+          <View className="bg-amber-50 border border-amber-100 rounded-xl p-md">
+            <Text className="text-xs text-amber-800 leading-relaxed">
+              This signed-in phone is not one of the parties waiting to reopen.
+              Sign in with the phone that received the reopen OTP.
+            </Text>
+          </View>
+        )}
+
+        {partyA && currentParty === "A" && (
           <ReopenPartyBlock
             role={partyA.role}
             phone={partyA.phone}
@@ -145,7 +172,7 @@ export function ReopenSection({
           />
         )}
 
-        {partyB && (
+        {partyB && currentParty === "B" && (
           <ReopenPartyBlock
             role={partyB.role}
             phone={partyB.phone}
@@ -171,6 +198,15 @@ export function ReopenSection({
             error={error}
             disabled={confirmedB}
           />
+        )}
+
+        {currentParty && !allConfirmed && (
+          <View className="bg-blue-50 border border-blue-100 rounded-xl p-md">
+            <Text className="text-xs text-blue-800 leading-relaxed">
+              Only your reopen OTP can be confirmed from this account. The other
+              party must sign in with their own phone and confirm separately.
+            </Text>
+          </View>
         )}
 
         {!allConfirmed && (

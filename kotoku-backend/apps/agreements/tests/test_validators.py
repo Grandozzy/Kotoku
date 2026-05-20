@@ -2,9 +2,10 @@
 
 Unit tests drive the pure validator logic; API tests drive the HTTP layer.
 """
+
 import pytest
-from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.test import APIClient
+from rest_framework_simplejwt.tokens import RefreshToken
 
 from apps.accounts.models import Account, User
 from apps.agreements.domain.validators import (
@@ -23,6 +24,7 @@ _seq = 0
 
 # ── Helpers ───────────────────────────────────────────────────────────────── #
 
+
 def _user_and_account(phone):
     global _seq
     _seq += 1
@@ -32,9 +34,7 @@ def _user_and_account(phone):
 
 
 def _agreement(account, scenario="", title="Test Agreement"):
-    return Agreement.objects.create(
-        title=title, created_by=account, scenario_template=scenario
-    )
+    return Agreement.objects.create(title=title, created_by=account, scenario_template=scenario)
 
 
 def _party(agreement, role, id_type="ghana_card", id_number="GHA-DEFAULT"):
@@ -68,6 +68,7 @@ def _api_client(phone):
 
 # ── Unit tests: core field checks ─────────────────────────────────────────── #
 
+
 @pytest.mark.django_db
 class TestCoreFieldValidation:
     def test_missing_title_raises_error(self):
@@ -94,6 +95,7 @@ class TestCoreFieldValidation:
 
 
 # ── Unit tests: party checks ──────────────────────────────────────────────── #
+
 
 @pytest.mark.django_db
 class TestPartyValidation:
@@ -142,6 +144,7 @@ class TestPartyValidation:
 
 
 # ── Unit tests: used_vehicle_sale evidence ────────────────────────────────── #
+
 
 @pytest.mark.django_db
 class TestUsedVehicleSaleValidation:
@@ -207,6 +210,7 @@ class TestUsedVehicleSaleValidation:
 
 # ── Unit tests: room_rental evidence ─────────────────────────────────────── #
 
+
 @pytest.mark.django_db
 class TestRoomRentalValidation:
     def _base(self):
@@ -248,14 +252,28 @@ class TestRoomRentalValidation:
         a = _agreement(acct, scenario="custom_deal")
         _party(a, "buyer")
         _party(a, "seller")
-        # No scenario-specific checker → only core + party checks run
+        _evidence(a, "buyer_id_photo")
+        _evidence(a, "seller_id_photo")
+        # No scenario-specific checker → vehicle/property checks are skipped
         result = validate_agreement(a)
         codes = {e.code for e in result.errors}
         assert "INSUFFICIENT_VEHICLE_PHOTOS" not in codes
         assert "INSUFFICIENT_PROPERTY_PHOTOS" not in codes
 
+    def test_unknown_scenario_still_requires_party_id_photos(self):
+        _, acct = _user_and_account("+233600300002")
+        a = _agreement(acct, scenario="custom_deal")
+        _party(a, "buyer")
+        _party(a, "seller")
+        _evidence(a, "buyer_id_photo")
+        result = validate_agreement(a)
+        id_errors = [e for e in result.errors if e.code == "MISSING_PARTY_ID_PHOTO"]
+        assert len(id_errors) == 1
+        assert "seller" in id_errors[0].message
+
 
 # ── API tests ─────────────────────────────────────────────────────────────── #
+
 
 @pytest.mark.django_db
 class TestValidateApi:
@@ -324,6 +342,7 @@ class TestValidateApi:
 
 # ── Unit tests: identity baseline ────────────────────────────────────────── #
 
+
 @pytest.mark.django_db
 class TestIdentityBaselineValidation:
     def test_party_without_id_type_fails(self):
@@ -351,8 +370,12 @@ class TestIdentityBaselineValidation:
         _party(a, "seller")
         # Witness with no identity data — should NOT trigger MISSING_PARTY_IDENTITY
         Party.objects.create(
-            agreement=a, role="witness", display_name="Witness",
-            phone="", id_type="", id_number="",
+            agreement=a,
+            role="witness",
+            display_name="Witness",
+            phone="",
+            id_type="",
+            id_number="",
         )
         result = validate_agreement(a)
         id_errors = [e for e in result.errors if e.code == "MISSING_PARTY_IDENTITY"]
@@ -370,3 +393,15 @@ class TestIdentityBaselineValidation:
         result = validate_agreement(a)
         codes = {e.code for e in result.errors}
         assert "MISSING_PARTY_IDENTITY" not in codes
+
+    def test_party_with_national_id_type_no_identity_error(self):
+        _, acct = _user_and_account("+233600500005")
+        a = _agreement(acct, scenario="custom_deal")
+        _party(a, "buyer", id_type="national_id", id_number="NID-BUY-001")
+        _party(a, "seller", id_type="ghana_card", id_number="GHA-SELL-001")
+        _evidence(a, "buyer_id_photo")
+        _evidence(a, "seller_id_photo")
+        result = validate_agreement(a)
+        codes = {e.code for e in result.errors}
+        assert "MISSING_PARTY_IDENTITY" not in codes
+        assert "MISSING_PARTY_ID_PHOTO" not in codes

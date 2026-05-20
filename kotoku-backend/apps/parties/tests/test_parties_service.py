@@ -1,5 +1,4 @@
 import pytest
-from django.db import IntegrityError
 
 from apps.accounts.models import Account, User
 from apps.agreements.domain.enums import AgreementStatus
@@ -27,8 +26,20 @@ def _agreement(account, status=AgreementStatus.DRAFT):
     return a
 
 
-_SELLER = {"role": "seller", "full_name": "Kofi Mensah", "phone": "", "id_type": "ghana_card", "id_number": "GHA-111"}
-_BUYER = {"role": "buyer", "full_name": "Ama Owusu", "phone": "+233200000002", "id_type": "ghana_card", "id_number": "GHA-222"}
+_SELLER = {
+    "role": "seller",
+    "full_name": "Kofi Mensah",
+    "phone": "",
+    "id_type": "ghana_card",
+    "id_number": "GHA-111",
+}
+_BUYER = {
+    "role": "buyer",
+    "full_name": "Ama Owusu",
+    "phone": "+233200000002",
+    "id_type": "ghana_card",
+    "id_number": "GHA-222",
+}
 
 
 def _parties(initiator_phone):
@@ -64,6 +75,31 @@ class TestSetParties:
         assert seller.display_name == "Kofi Mensah"
         assert seller.id_type == "ghana_card"
         assert seller.id_number == "GHA-111"
+
+    def test_accepts_national_id_type(self):
+        acct = _account()
+        agreement = _agreement(acct)
+        data = _parties(acct.phone)
+        data[1] = {**data[1], "id_type": "national_id", "id_number": "NID-222"}
+        PartyService.set_parties(
+            agreement_id=agreement.pk,
+            initiator_account=acct,
+            parties_data=data,
+        )
+        buyer = Party.objects.get(agreement=agreement, role="buyer")
+        assert buyer.id_type == "national_id"
+
+    def test_raises_when_id_number_blank(self):
+        acct = _account()
+        agreement = _agreement(acct)
+        data = _parties(acct.phone)
+        data[1] = {**data[1], "id_number": " "}
+        with pytest.raises(DomainError, match="number is required"):
+            PartyService.set_parties(
+                agreement_id=agreement.pk,
+                initiator_account=acct,
+                parties_data=data,
+            )
 
     def test_replaces_existing_parties(self):
         acct = _account()
@@ -179,6 +215,15 @@ class TestPatchParties:
         buyer = Party.objects.get(agreement=agreement, role="buyer")
         assert buyer.display_name == original_name  # untouched
         assert buyer.id_number == "GHA-UPDATED"
+
+    def test_raises_when_patching_blank_id_number(self):
+        acct, agreement = self._setup()
+        with pytest.raises(DomainError, match="number is required"):
+            PartyService.patch_parties(
+                agreement_id=agreement.pk,
+                initiator_account=acct,
+                parties_data=[{"role": "buyer", "id_number": " "}],
+            )
 
     def test_raises_for_unknown_role(self):
         acct, agreement = self._setup()

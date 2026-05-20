@@ -34,5 +34,6 @@ export function getApiErrorMessage(
       return firstField[0];
     }
   }
+  if (error instanceof Error && error.message) return error.message;
   return fallback;
 }

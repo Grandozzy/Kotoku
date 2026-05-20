@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { agreementsApi } from "@/api/agreements";
-import { SCENARIO_MAP, SCENARIOS } from "@/constants/scenarios";
+import { SCENARIO_MAP } from "@/constants/scenarios";
 import type { FieldDef } from "@/constants/scenarios";
 
 function groupBySection(fields: FieldDef[]) {
@@ -18,7 +18,6 @@ function groupBySection(fields: FieldDef[]) {
 export default function AgreementDetailPage() {
   const { id } = useParams<{ id: string }>();
   const agreementId = Number(id);
-  const router = useRouter();
   const queryClient = useQueryClient();
 
   const { data: agreement } = useQuery({

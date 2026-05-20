@@ -132,6 +132,15 @@ class TestVaultList:
         assert "retain_until" in entry
         assert entry["pdf_status"] == VaultEntry.PdfStatus.PENDING
 
+    def test_participant_can_list_shared_vault_entry(self):
+        owner_client, acct = _make_client("+233700100010")
+        participant_client, participant_acct = _make_client("+233700100011")
+        _sealed_agreement_with_vault(acct, acct.phone, participant_acct.phone)
+
+        resp = participant_client.get(_LIST_PATH)
+        assert resp.status_code == 200
+        assert resp.json()["data"]["count"] == 1
+
 
 # ──────────────────────────────────────────────────────────────────────────────
 # GET /api/vault/{agreementId}/
@@ -164,6 +173,19 @@ class TestVaultDetail:
     def test_unauthenticated_returns_401(self):
         resp = APIClient().get(_DETAIL_PATH.format(id=1))
         assert resp.status_code == 401
+
+    def test_participant_can_view_shared_vault_entry(self):
+        owner_client, acct = _make_client("+233700200010")
+        participant_client, participant_acct = _make_client("+233700200011")
+        agreement, _ = _sealed_agreement_with_vault(
+            acct,
+            acct.phone,
+            participant_acct.phone,
+        )
+
+        resp = participant_client.get(_DETAIL_PATH.format(id=agreement.pk))
+        assert resp.status_code == 200
+        assert resp.json()["data"]["vault_entry"]["agreement"]["id"] == agreement.pk
 
 
 # ──────────────────────────────────────────────────────────────────────────────

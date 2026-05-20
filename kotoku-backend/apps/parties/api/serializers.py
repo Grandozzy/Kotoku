@@ -10,7 +10,7 @@ class PartyInputSerializer(serializers.Serializer):
     full_name = serializers.CharField(max_length=255)
     phone = serializers.RegexField(_E164, max_length=20)
     id_type = serializers.ChoiceField(choices=Party.IdType.choices)
-    id_number = serializers.CharField(max_length=128)
+    id_number = serializers.CharField(max_length=128, allow_blank=False, trim_whitespace=True)
 
 
 class PartiesSetSerializer(serializers.Serializer):
@@ -19,11 +19,17 @@ class PartiesSetSerializer(serializers.Serializer):
 
 class PartyPatchSerializer(serializers.Serializer):
     """role identifies the party to update; all other fields are optional."""
+
     role = serializers.ChoiceField(choices=Party.Role.choices)
     full_name = serializers.CharField(max_length=255, required=False)
     phone = serializers.RegexField(_E164, max_length=20, required=False)
     id_type = serializers.ChoiceField(choices=Party.IdType.choices, required=False)
-    id_number = serializers.CharField(max_length=128, required=False)
+    id_number = serializers.CharField(
+        max_length=128,
+        required=False,
+        allow_blank=False,
+        trim_whitespace=True,
+    )
 
 
 class PartiesPatchSerializer(serializers.Serializer):

@@ -47,8 +47,29 @@ class S3StorageClient:
             ExpiresIn=expires_in,
         )
 
+    def generate_presigned_view_url(
+        self,
+        key: str,
+        *,
+        content_type: str = "",
+        expires_in: int = 900,
+    ) -> str:
+        client = _get_client(external=True)
+        params = {
+            "Bucket": settings.AWS_STORAGE_BUCKET_NAME,
+            "Key": key,
+            "ResponseContentDisposition": "inline",
+        }
+        if content_type:
+            params["ResponseContentType"] = content_type
+        return client.generate_presigned_url(
+            "get_object",
+            Params=params,
+            ExpiresIn=expires_in,
+        )
+
     def generate_presigned_upload_url(
-        self, key: str, content_type: str, expires_in: int = 900
+        self, key: str, content_type: str, checksum_sha256: str, expires_in: int = 900
     ) -> tuple[str, dict]:
         client = _get_client(external=True)
         url = client.generate_presigned_url(
@@ -57,10 +78,27 @@ class S3StorageClient:
                 "Bucket": settings.AWS_STORAGE_BUCKET_NAME,
                 "Key": key,
                 "ContentType": content_type,
+                "Metadata": {"sha256": checksum_sha256},
             },
             ExpiresIn=expires_in,
         )
-        return url, {"Content-Type": content_type}
+        return url, {
+            "Content-Type": content_type,
+            "x-amz-meta-sha256": checksum_sha256,
+        }
+
+    def head_object(self, key: str) -> dict:
+        client = _get_client()
+        response = client.head_object(
+            Bucket=settings.AWS_STORAGE_BUCKET_NAME,
+            Key=key,
+        )
+        return {
+            "content_length": response.get("ContentLength"),
+            "content_type": response.get("ContentType", ""),
+            "etag": str(response.get("ETag", "")).strip('"'),
+            "metadata": response.get("Metadata", {}),
+        }
 
     def build_object_url(self, key: str) -> str:
         return _build_object_url(key)

@@ -2,7 +2,7 @@ import { create } from "zustand";
 
 import type { ScenarioId } from "@/constants/scenarios";
 
-export type IdType = "ghana_card" | "passport" | "other";
+export type IdType = "ghana_card" | "passport" | "national_id";
 
 export interface PartyDraft {
   fullName: string;
