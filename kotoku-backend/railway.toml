@@ -2,7 +2,7 @@
 builder = "dockerfile"
 
 [deploy]
-startCommand = "DJANGO_SETTINGS_MODULE=config.settings.production python manage.py migrate --noinput && DJANGO_SETTINGS_MODULE=config.settings.production daphne -b 0.0.0.0 -p ${PORT:-8000} config.asgi:application"
+startCommand = "sh scripts/start-railway.sh"
 healthcheckPath = "/api/health/"
 healthcheckTimeout = 120
 restartPolicyType = "on_failure"
