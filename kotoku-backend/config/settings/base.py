@@ -3,7 +3,6 @@ from pathlib import Path
 
 import dj_database_url
 from dotenv import load_dotenv
-from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 load_dotenv(BASE_DIR / ".env")
@@ -262,8 +261,3 @@ if SENTRY_DSN:
     from sentry_sdk.integrations.django import DjangoIntegration
 
     sentry_sdk.init(dsn=SENTRY_DSN, integrations=[DjangoIntegration()], send_default_pii=False)
-
-if not DEBUG and SECRET_KEY == "unsafe-dev-key-change-before-production-min-32-bytes":
-    raise ImproperlyConfigured(
-        "DJANGO_SECRET_KEY must be set explicitly when DJANGO_DEBUG is false."
-    )
