@@ -13,7 +13,7 @@
     "preview": {
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://api-staging.kotoku.app",
+        "EXPO_PUBLIC_API_URL": "https://api.kotoku-app.com",
         "EXPO_PUBLIC_SENTRY_DSN": ""
       },
       "ios": {
