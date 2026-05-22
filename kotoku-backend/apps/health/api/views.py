@@ -21,16 +21,20 @@ def _check_db():
         return False
 
 
-def _check_redis(broker_url):
+def _redis_check_result(broker_url):
+    if not broker_url:
+        logger.warning("Health check: Redis URL not configured")
+        return "skipped"
+
     try:
         client = redis_lib.Redis.from_url(
             broker_url, socket_connect_timeout=_TIMEOUT_SECONDS
         )
         client.ping()
-        return True
+        return "ok"
     except Exception:
         logger.exception("Health check: Redis connection failed")
-        return False
+        return "error"
 
 
 class HealthCheckView(APIView):
@@ -41,13 +45,13 @@ class HealthCheckView(APIView):
         from django.conf import settings
 
         db_ok = _check_db()
-        redis_ok = _check_redis(settings.CELERY_BROKER_URL)
+        redis_status = _redis_check_result(getattr(settings, "CELERY_BROKER_URL", ""))
 
         checks = {
             "database": {"status": "ok" if db_ok else "error"},
-            "redis": {"status": "ok" if redis_ok else "error"},
+            "redis": {"status": redis_status},
         }
-        healthy = db_ok and redis_ok
+        healthy = db_ok
         status_code = 200 if healthy else 503
         return Response(
             {
@@ -67,11 +71,12 @@ class ReadinessView(APIView):
         from django.conf import settings
 
         db_ok = _check_db()
-        redis_ok = _check_redis(settings.CELERY_BROKER_URL)
+        redis_status = _redis_check_result(getattr(settings, "CELERY_BROKER_URL", ""))
+        redis_ok = redis_status == "ok"
 
         checks = {
             "database": {"status": "ok" if db_ok else "error"},
-            "redis": {"status": "ok" if redis_ok else "error"},
+            "redis": {"status": redis_status},
         }
         ready = db_ok and redis_ok
         status_code = 200 if ready else 503
