@@ -208,72 +208,79 @@ class AuthService:
         if cache.get(lock_key):
             raise DomainError("Too many failed OTP attempts. Try again later.")
 
-        record = (
-            OTPRequest.objects.select_for_update()
-            .filter(
-                phone=phone,
-                purpose=OTPRequest.PURPOSE_LOGIN,
-                is_used=False,
-                expires_at__gte=timezone.now(),
-            )
-            .order_by("-created_at")
-            .first()
-        )
-        if record is None:
-            raise DomainError("OTP has expired or was not sent. Please request a new one.")
-
-        if record.attempt_count >= _OTP_MAX_ATTEMPTS:
-            cache.set(lock_key, True, timeout=_OTP_LOCKOUT_SECONDS)
-            raise DomainError("Too many failed OTP attempts. Try again later.")
-
-        if not check_password(otp_code, record.otp_hash):
-            record.attempt_count += 1
-            record.save(update_fields=["attempt_count"])
-            if record.attempt_count >= _OTP_MAX_ATTEMPTS:
-                cache.set(lock_key, True, timeout=_OTP_LOCKOUT_SECONDS)
-            raise DomainError("Invalid OTP code.")
-
-        cache.delete(lock_key)
-        record.is_used = True
-        record.used_at = timezone.now()
-        record.save(update_fields=["is_used", "used_at"])
+        error_message = ""
+        user = None
+        account = None
+        session = None
+        raw_token = ""
 
         with transaction.atomic():
-            user, created = User.objects.get_or_create(phone=phone)
-            if created:
-                account = Account.objects.create(
-                    user=user,
-                    email=f"{phone}@kotoku.app",
+            record = (
+                OTPRequest.objects.select_for_update()
+                .filter(
                     phone=phone,
+                    purpose=OTPRequest.PURPOSE_LOGIN,
+                    is_used=False,
+                    expires_at__gte=timezone.now(),
                 )
+                .order_by("-created_at")
+                .first()
+            )
+            if record is None:
+                error_message = "OTP has expired or was not sent. Please request a new one."
+            elif record.attempt_count >= _OTP_MAX_ATTEMPTS:
+                cache.set(lock_key, True, timeout=_OTP_LOCKOUT_SECONDS)
+                error_message = "Too many failed OTP attempts. Try again later."
+            elif not check_password(otp_code, record.otp_hash):
+                record.attempt_count += 1
+                record.save(update_fields=["attempt_count"])
+                if record.attempt_count >= _OTP_MAX_ATTEMPTS:
+                    cache.set(lock_key, True, timeout=_OTP_LOCKOUT_SECONDS)
+                error_message = "Invalid OTP code."
             else:
-                try:
-                    account = user.account
-                except Account.DoesNotExist:
+                cache.delete(lock_key)
+                record.is_used = True
+                record.used_at = timezone.now()
+                record.save(update_fields=["is_used", "used_at"])
+
+                user, created = User.objects.get_or_create(phone=phone)
+                if created:
                     account = Account.objects.create(
                         user=user,
                         email=f"{phone}@kotoku.app",
                         phone=phone,
                     )
+                else:
+                    try:
+                        account = user.account
+                    except Account.DoesNotExist:
+                        account = Account.objects.create(
+                            user=user,
+                            email=f"{phone}@kotoku.app",
+                            phone=phone,
+                        )
 
-            # New device login revokes all other sessions.
-            revoked = _revoke_all_sessions(user, reason=DeviceSession.REVOKE_NEW_DEVICE)
-            if revoked > 0:
-                logger.info("Revoked %d sessions for %s on new-device OTP login", revoked, phone)
+                # New device login revokes all other sessions.
+                revoked = _revoke_all_sessions(user, reason=DeviceSession.REVOKE_NEW_DEVICE)
+                if revoked > 0:
+                    logger.info("Revoked %d sessions for %s on new-device OTP login", revoked, phone)
 
-            session, raw_token = _create_session(
-                user=user,
-                client_type=client_type,
-                device_fingerprint=device_fingerprint,
-                device_name=device_name,
-            )
+                session, raw_token = _create_session(
+                    user=user,
+                    client_type=client_type,
+                    device_fingerprint=device_fingerprint,
+                    device_name=device_name,
+                )
 
-            AuditService.record_event(
-                event_type="auth.otp_verified",
-                entity_type="user",
-                entity_id=str(user.pk),
-                metadata={"new_user": created, "session_id": session.id},
-            )
+                AuditService.record_event(
+                    event_type="auth.otp_verified",
+                    entity_type="user",
+                    entity_id=str(user.pk),
+                    metadata={"new_user": created, "session_id": session.id},
+                )
+
+        if error_message:
+            raise DomainError(error_message)
         result = _build_token_response(user, session, raw_token)
         result["user"] = user
         result["account"] = account
