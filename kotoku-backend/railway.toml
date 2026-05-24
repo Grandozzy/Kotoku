@@ -2,7 +2,6 @@
 builder = "dockerfile"
 
 [deploy]
-startCommand = "sh scripts/start-railway.sh"
 healthcheckPath = "/api/health/"
 healthcheckTimeout = 120
 restartPolicyType = "on_failure"
