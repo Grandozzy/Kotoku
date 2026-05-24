@@ -129,7 +129,7 @@ SIMPLE_JWT = {
 }
 
 CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", os.getenv("REDIS_URL", "redis://localhost:6379/0"))
-CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", "redis://localhost:6379/1")
+CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", os.getenv("REDIS_URL", "redis://localhost:6379/0"))
 CELERY_TASK_ALWAYS_EAGER = False
 BILLING_ENFORCEMENT_FAIL_OPEN = (
     os.getenv("BILLING_ENFORCEMENT_FAIL_OPEN", "false").lower() == "true"
