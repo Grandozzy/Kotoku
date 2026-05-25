@@ -18,4 +18,4 @@ RUN pip install --upgrade pip \
 
 USER app
 
-CMD ["daphne", "-b", "0.0.0.0", "-p", "8000", "config.asgi:application"]
+CMD ["sh", "scripts/start-railway.sh"]
