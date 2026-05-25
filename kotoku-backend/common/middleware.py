@@ -7,9 +7,10 @@ RequestIdMiddleware
   response header so clients can correlate their own logs.
 """
 import uuid
+import re
 
 from django.conf import settings
-from django.http import HttpResponse
+from django.http import HttpResponse, HttpResponseNotFound
 
 from common.logging import clear_request_id, set_request_id
 
@@ -56,3 +57,25 @@ class FirstPartyCorsMiddleware:
             if settings.CORS_ALLOW_CREDENTIALS:
                 response["Access-Control-Allow-Credentials"] = "true"
         return response
+
+
+class ProbeShieldMiddleware:
+    """Short-circuit common internet scanner probes before they hit Django views."""
+
+    _probe_patterns = (
+        re.compile(r"^/(?:.*?/)?\.env(?:[.\w-]*)?$", re.IGNORECASE),
+        re.compile(r"^/\.aws/(?:config|credentials)$", re.IGNORECASE),
+        re.compile(r"^/(?:_phpinfo|phpinfo|info|test|server[-_]?info)(?:\.php)?$", re.IGNORECASE),
+        re.compile(r"^/(?:xmlrpc\.php|wp(?:/|$)|wordpress(?:/|$)|wp-config(?:\.php(?:\.\w+)?)?)", re.IGNORECASE),
+        re.compile(r"^/(?:_profiler|xampp|laravel|vendor|storage|docker|config)(?:/|$)", re.IGNORECASE),
+    )
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        path = request.path.rstrip("/") or "/"
+        lowered = path.lower()
+        if any(pattern.match(lowered) for pattern in self._probe_patterns):
+            return HttpResponseNotFound()
+        return self.get_response(request)

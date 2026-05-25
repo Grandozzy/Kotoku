@@ -1,4 +1,6 @@
-from django.http import JsonResponse
+from django.conf import settings
+from django.contrib import admin
+from django.http import HttpResponse, JsonResponse
 from django.urls import include, path
 
 from apps.accounts.api.views import MeView
@@ -8,8 +10,19 @@ def root(_: object) -> JsonResponse:
     return JsonResponse({"service": "kotoku-backend", "status": "ok"})
 
 
+def robots(_: object) -> HttpResponse:
+    return HttpResponse("User-agent: *\nDisallow: /\n", content_type="text/plain")
+
+
+def favicon(_: object) -> HttpResponse:
+    return HttpResponse(status=204)
+
+
 urlpatterns = [
     path("", root, name="root"),
+    path("robots.txt", robots, name="robots-txt"),
+    path("favicon.ico", favicon, name="favicon-ico"),
+    path(settings.ADMIN_URL_PATH, admin.site.urls),
     path("api/me/", MeView.as_view(), name="me"),
     path("api/accounts/", include("apps.accounts.api.urls")),
     path("api/auth/", include("apps.auth.api.urls")),

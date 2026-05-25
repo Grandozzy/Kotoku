@@ -98,3 +98,24 @@ class TestAccountServiceCreateAccount:
             email="actor@test.com", phone="+233510002003", actor="admin"
         )
         assert account.pk is not None
+
+
+@pytest.mark.django_db
+class TestUserManager:
+    def test_create_user_without_password_sets_unusable_password(self):
+        user = User.objects.create_user(phone="+233510003001")
+        assert user.has_usable_password() is False
+
+    def test_create_user_with_password_sets_usable_password(self):
+        user = User.objects.create_user(phone="+233510003002", password="Secret123!")
+        assert user.has_usable_password() is True
+        assert user.check_password("Secret123!") is True
+
+    def test_create_superuser_sets_password_and_flags(self):
+        user = User.objects.create_superuser(
+            phone="+233510003003",
+            password="AdminSecret123!",
+        )
+        assert user.is_staff is True
+        assert user.is_superuser is True
+        assert user.check_password("AdminSecret123!") is True

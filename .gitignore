@@ -63,6 +63,8 @@ sprint1-remaining.md
 # Frontend
 node_modules/
 package-lock.json
+!Kotoku-frontend/kotoku-mobile/package-lock.json
+!Kotoku-frontend/kotoku-web/package-lock.json
 .expo/
 dist/
 web-build/

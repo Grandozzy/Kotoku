@@ -14,7 +14,7 @@
       "distribution": "internal",
       "env": {
         "EXPO_PUBLIC_API_URL": "https://api.kotoku-app.com",
-        "EXPO_PUBLIC_SENTRY_DSN": ""
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true"
       },
       "ios": {
         "simulator": false
@@ -27,7 +27,7 @@
       "autoIncrement": true,
       "env": {
         "EXPO_PUBLIC_API_URL": "https://api.kotoku-app.com",
-        "EXPO_PUBLIC_SENTRY_DSN": ""
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true"
       },
       "ios": {
         "image": "latest"
@@ -39,11 +39,7 @@
   },
   "submit": {
     "production": {
-      "ios": {
-        "appleId": "",
-        "ascAppId": "",
-        "appleTeamId": ""
-      },
+      "ios": {},
       "android": {
         "serviceAccountKeyPath": "./google-play-service-account.json",
         "track": "internal"

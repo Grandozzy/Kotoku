@@ -48,6 +48,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "common.middleware.RequestIdMiddleware",
+    "common.middleware.ProbeShieldMiddleware",
     "common.middleware.FirstPartyCorsMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -110,6 +111,13 @@ REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ],
+    "DEFAULT_THROTTLE_RATES": {
+        "auth_ip": os.getenv("THROTTLE_AUTH_IP_RATE", "60/h"),
+        "refresh_ip": os.getenv("THROTTLE_REFRESH_IP_RATE", "120/h"),
+        "send_otp_phone": os.getenv("THROTTLE_SEND_OTP_PHONE_RATE", "3/h"),
+        "verify_otp_phone": os.getenv("THROTTLE_VERIFY_OTP_PHONE_RATE", "20/h"),
+        "pin_verify_phone": os.getenv("THROTTLE_PIN_VERIFY_PHONE_RATE", "30/h"),
+    },
 }
 
 from datetime import timedelta  # noqa: E402
@@ -213,6 +221,28 @@ AUTH_REFRESH_COOKIE_SECURE = os.getenv(
 ).lower() == "true"
 AUTH_WEB_REFRESH_COOKIE_MAX_AGE = int(os.getenv("AUTH_WEB_REFRESH_COOKIE_MAX_AGE", "28800"))
 EVIDENCE_VIEW_URL_TTL_SECONDS = int(os.getenv("EVIDENCE_VIEW_URL_TTL_SECONDS", "900"))
+EMAIL_BACKEND = os.getenv(
+    "EMAIL_BACKEND",
+    "django.core.mail.backends.console.EmailBackend" if DEBUG else "django.core.mail.backends.smtp.EmailBackend",
+)
+EMAIL_HOST = os.getenv("EMAIL_HOST", "localhost")
+EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
+EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "true").lower() == "true"
+EMAIL_USE_SSL = os.getenv("EMAIL_USE_SSL", "false").lower() == "true"
+DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "noreply@kotoku.app")
+SERVER_EMAIL = os.getenv("SERVER_EMAIL", DEFAULT_FROM_EMAIL)
+
+_admin_url_path = os.getenv("DJANGO_ADMIN_PATH", "admin/")
+ADMIN_URL_PATH = _admin_url_path if _admin_url_path.endswith("/") else f"{_admin_url_path}/"
+ADMIN_MFA_CODE_TTL_SECONDS = int(os.getenv("ADMIN_MFA_CODE_TTL_SECONDS", "600"))
+ADMIN_SESSION_TIMEOUT_SECONDS = int(os.getenv("ADMIN_SESSION_TIMEOUT_SECONDS", "3600"))
+ADMIN_LOGIN_MAX_ATTEMPTS = int(os.getenv("ADMIN_LOGIN_MAX_ATTEMPTS", "10"))
+ADMIN_LOGIN_WINDOW_SECONDS = int(os.getenv("ADMIN_LOGIN_WINDOW_SECONDS", "900"))
+ADMIN_MFA_MAX_ATTEMPTS_PER_IP = int(os.getenv("ADMIN_MFA_MAX_ATTEMPTS_PER_IP", "10"))
+ADMIN_MFA_MAX_ATTEMPTS_PER_USER = int(os.getenv("ADMIN_MFA_MAX_ATTEMPTS_PER_USER", "5"))
+ADMIN_MFA_WINDOW_SECONDS = int(os.getenv("ADMIN_MFA_WINDOW_SECONDS", "900"))
 
 _LOG_FORMAT = os.getenv("LOG_FORMAT", "verbose")  # set LOG_FORMAT=json in production
 
@@ -245,6 +275,17 @@ LOGGING = {
         "kotoku": {
             "handlers": ["console", "file"],
             "level": "INFO",
+            "propagate": False,
+        },
+        # Suppress framework-generated 401/404 probe noise in production logs.
+        "django.request": {
+            "handlers": ["console"],
+            "level": "ERROR",
+            "propagate": False,
+        },
+        "django.security.DisallowedHost": {
+            "handlers": ["console"],
+            "level": "ERROR",
             "propagate": False,
         },
         # Surface Celery task logs through our handler so request IDs carry through.

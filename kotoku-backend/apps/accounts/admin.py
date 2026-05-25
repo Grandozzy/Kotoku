@@ -6,6 +6,7 @@ from django.utils.html import format_html
 
 from apps.billing.constants import PLANS, get_plan
 
+from .admin_mfa import install_admin_mfa
 from .models import Account, DeviceSession, User
 
 
@@ -213,3 +214,6 @@ class DeviceSessionAdmin(admin.ModelAdmin):
         url = f"/admin/accounts/user/{obj.user_id}/change/"
         return format_html('<a href="{}">{}</a>', url, obj.user.phone)
     user_phone.short_description = "User"  # type: ignore[attr-defined]
+
+
+install_admin_mfa(admin.site)

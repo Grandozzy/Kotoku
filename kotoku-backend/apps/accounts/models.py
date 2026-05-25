@@ -1,5 +1,6 @@
 import uuid
 
+from django.conf import settings
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.db import models
 from django.utils import timezone
@@ -14,18 +15,27 @@ def _default_otp_id() -> str:
 
 
 class UserManager(BaseUserManager):
-    def create_user(self, phone: str, **extra_fields):
+    def create_user(self, phone: str, password: str | None = None, **extra_fields):
         if not phone:
             raise ValueError("Phone number is required")
         user = self.model(phone=phone, **extra_fields)
-        user.set_unusable_password()
+        if password:
+            user.set_password(password)
+        else:
+            user.set_unusable_password()
         user.save(using=self._db)
         return user
 
-    def create_superuser(self, phone: str, **extra_fields):
+    def create_superuser(self, phone: str, password: str | None = None, **extra_fields):
         extra_fields.setdefault("is_staff", True)
         extra_fields.setdefault("is_superuser", True)
-        return self.create_user(phone, **extra_fields)
+        if extra_fields.get("is_staff") is not True:
+            raise ValueError("Superuser must have is_staff=True.")
+        if extra_fields.get("is_superuser") is not True:
+            raise ValueError("Superuser must have is_superuser=True.")
+        if not password:
+            raise ValueError("Superuser must have a password.")
+        return self.create_user(phone, password=password, **extra_fields)
 
 
 class User(AbstractBaseUser, PermissionsMixin):
@@ -171,6 +181,34 @@ class OTPRequest(models.Model):
 
     def __str__(self) -> str:
         return f"OTP({self.phone} / {self.purpose})"
+
+    @property
+    def is_expired(self) -> bool:
+        return timezone.now() > self.expires_at
+
+
+class AdminMfaCode(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="admin_mfa_codes",
+    )
+    code_hash = models.CharField(max_length=256)
+    sent_to_email = models.EmailField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    used_at = models.DateTimeField(null=True, blank=True)
+    attempt_count = models.IntegerField(default=0)
+
+    class Meta:
+        db_table = "admin_mfa_codes"
+        indexes = [
+            models.Index(fields=["user", "created_at"]),
+            models.Index(fields=["expires_at"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"AdminMfaCode({self.user_id})"
 
     @property
     def is_expired(self) -> bool:

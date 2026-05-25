@@ -11,6 +11,13 @@ from apps.auth.api.serializers import (
     VerifyOtpSerializer,
 )
 from apps.auth.services import AuthService, PinService, TokenService
+from common.throttling import (
+    AuthIpRateThrottle,
+    PinVerifyPhoneRateThrottle,
+    RefreshIpRateThrottle,
+    SendOtpPhoneRateThrottle,
+    VerifyOtpPhoneRateThrottle,
+)
 from common.exceptions import DomainError
 from common.responses import ok
 
@@ -84,6 +91,8 @@ def _web_token_response(result: dict, *, status_code: int = 200):
 
 
 class SendOtpView(APIView):
+    throttle_classes = [AuthIpRateThrottle, SendOtpPhoneRateThrottle]
+
     def post(self, request):
         serializer = SendOtpSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -92,6 +101,8 @@ class SendOtpView(APIView):
 
 
 class VerifyOtpView(APIView):
+    throttle_classes = [AuthIpRateThrottle, VerifyOtpPhoneRateThrottle]
+
     def post(self, request):
         serializer = VerifyOtpSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -120,6 +131,8 @@ class VerifyOtpView(APIView):
 
 class RefreshTokenView(APIView):
     """Custom refresh view that validates against device_sessions (opaque tokens)."""
+    throttle_classes = [RefreshIpRateThrottle]
+
     def post(self, request):
         serializer = RefreshTokenSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -166,6 +179,8 @@ class PinSetupView(APIView):
 
 
 class PinVerifyView(APIView):
+    throttle_classes = [AuthIpRateThrottle, PinVerifyPhoneRateThrottle]
+
     def post(self, request):
         if _client_type(request) == DeviceSession.CLIENT_WEB:
             return ok({"detail": "PIN auth is not available for web sessions."}, status=403)
