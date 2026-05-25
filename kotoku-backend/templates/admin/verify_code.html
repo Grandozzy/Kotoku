@@ -1,9 +1,17 @@
 {% extends "admin/base_site.html" %}
+{% load i18n %}
 
 {% block content %}
 <div id="content-main">
   <h1>{{ title }}</h1>
   <p>{{ subtitle }}</p>
+  {% if messages %}
+    <ul class="messagelist">
+      {% for message in messages %}
+        <li class="{{ message.tags }}">{{ message }}</li>
+      {% endfor %}
+    </ul>
+  {% endif %}
   <form method="post" novalidate>
     {% csrf_token %}
     {{ form.as_p }}
@@ -11,5 +19,12 @@
       <input type="submit" value="Verify and sign in">
     </div>
   </form>
+  <p style="margin-top:1em;">
+    Didn't receive a code?
+    <form method="post" action="{% url 'admin:resend-code' %}" style="display:inline;">
+      {% csrf_token %}
+      <button type="submit" class="button">Resend code</button>
+    </form>
+  </p>
 </div>
 {% endblock %}

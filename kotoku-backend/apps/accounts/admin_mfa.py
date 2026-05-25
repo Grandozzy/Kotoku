@@ -191,6 +191,33 @@ def install_admin_mfa(site: admin.AdminSite) -> None:
         }
         return render(request, "admin/enroll_email.html", context)
 
+    def resend_code_view(request: HttpRequest) -> HttpResponse:
+        user = _pending_user(request)
+        if not user:
+            return redirect("admin:login")
+
+        email = _get_admin_email(user)
+        if not email:
+            return redirect("admin:enroll-email")
+
+        ip_key = f"admin-mfa-resend:{_client_ip(request)}"
+        if not _consume_rate_limit(
+            ip_key,
+            limit=getattr(settings, "ADMIN_MFA_RESEND_LIMIT", 3),
+            ttl_seconds=getattr(settings, "ADMIN_MFA_WINDOW_SECONDS", 900),
+        ):
+            messages.error(request, "Too many resend attempts. Try again later.")
+            return redirect("admin:verify-code")
+
+        try:
+            _issue_code(user, email)
+        except Exception:
+            messages.error(request, "Unable to resend the authentication code.")
+        else:
+            messages.success(request, f"A new code has been sent to {email}.")
+
+        return redirect("admin:verify-code")
+
     def verify_code_view(request: HttpRequest) -> HttpResponse:
         user = _pending_user(request)
         if not user:
@@ -265,6 +292,7 @@ def install_admin_mfa(site: admin.AdminSite) -> None:
         custom_urls = [
             path("enroll-email/", never_cache(csrf_protect(enroll_email_view)), name="enroll-email"),
             path("verify/", never_cache(csrf_protect(verify_code_view)), name="verify-code"),
+            path("resend-code/", never_cache(csrf_protect(resend_code_view)), name="resend-code"),
         ]
         return custom_urls + urls
 
