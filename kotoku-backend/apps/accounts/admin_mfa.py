@@ -7,7 +7,6 @@ from django.contrib.auth import REDIRECT_FIELD_NAME, login as auth_login
 from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth.hashers import check_password, make_password
 from django.core.cache import cache
-from django.core.mail import send_mail
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
 from django.urls import path, reverse
@@ -17,6 +16,7 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import csrf_protect
 
 from .models import Account, AdminMfaCode, User
+from .tasks import send_admin_mfa_email
 
 
 class AdminEmailEnrollmentForm(forms.Form):
@@ -104,16 +104,7 @@ def install_admin_mfa(site: admin.AdminSite) -> None:
             sent_to_email=email,
             expires_at=timezone.now() + timezone.timedelta(seconds=ttl),
         )
-        send_mail(
-            subject="Your Kotoku admin sign-in code",
-            message=(
-                f"Your Kotoku admin sign-in code is {raw_code}.\n\n"
-                f"It expires in {ttl // 60} minutes."
-            ),
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[email],
-            fail_silently=False,
-        )
+        send_admin_mfa_email.delay(to=email, code=raw_code, ttl_seconds=ttl)
 
     def login_view(request: HttpRequest, extra_context=None) -> HttpResponse:
         if request.method == "GET" and site.has_permission(request):
