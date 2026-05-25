@@ -24,6 +24,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "anymail",
     "rest_framework",
     "rest_framework_simplejwt",
     "rest_framework_simplejwt.token_blacklist",
@@ -224,16 +225,13 @@ AUTH_WEB_REFRESH_COOKIE_MAX_AGE = int(os.getenv("AUTH_WEB_REFRESH_COOKIE_MAX_AGE
 EVIDENCE_VIEW_URL_TTL_SECONDS = int(os.getenv("EVIDENCE_VIEW_URL_TTL_SECONDS", "900"))
 EMAIL_BACKEND = os.getenv(
     "EMAIL_BACKEND",
-    "django.core.mail.backends.console.EmailBackend" if DEBUG else "django.core.mail.backends.smtp.EmailBackend",
+    "django.core.mail.backends.console.EmailBackend" if DEBUG else "anymail.backends.resend.EmailBackend",
 )
-EMAIL_HOST = os.getenv("EMAIL_HOST", "localhost")
-EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
-EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
-EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
-EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "true").lower() == "true"
-EMAIL_USE_SSL = os.getenv("EMAIL_USE_SSL", "false").lower() == "true"
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "noreply@kotoku.app")
 SERVER_EMAIL = os.getenv("SERVER_EMAIL", DEFAULT_FROM_EMAIL)
+ANYMAIL = {
+    "RESEND_API_KEY": os.getenv("RESEND_API_KEY", ""),
+}
 
 _admin_url_path = os.getenv("DJANGO_ADMIN_PATH", "admin/")
 ADMIN_URL_PATH = _admin_url_path if _admin_url_path.endswith("/") else f"{_admin_url_path}/"
