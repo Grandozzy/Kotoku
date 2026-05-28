@@ -1,4 +1,4 @@
 #!/bin/sh
 set -eu
 
-exec celery -A config worker --loglevel=info --concurrency=2
+exec celery -A config worker --beat --loglevel=info --concurrency=2
