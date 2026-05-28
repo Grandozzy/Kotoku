@@ -1,0 +1,143 @@
+import uuid
+
+from django.db import models
+
+
+def _default_kotoku_ref() -> str:
+    return f"kotoku_{uuid.uuid4().hex}"
+
+
+class Subscription(models.Model):
+    """
+    One active Paystack subscription per account.
+    Created as 'pending' when the user initiates payment; promoted to 'active'
+    by the charge.success / subscription.create webhook.
+    Account.plan is only updated by a verified webhook — never by a client request.
+    """
+
+    STATUS_PENDING = "pending"
+    STATUS_ACTIVE = "active"
+    STATUS_PAUSED = "paused"
+    STATUS_CANCELLED = "cancelled"
+    STATUS_PAST_DUE = "past_due"
+    STATUS_EXPIRED = "expired"
+
+    STATUS_CHOICES = [
+        (STATUS_PENDING, "Pending"),
+        (STATUS_ACTIVE, "Active"),
+        (STATUS_PAUSED, "Paused"),
+        (STATUS_CANCELLED, "Cancelled"),
+        (STATUS_PAST_DUE, "Past due"),
+        (STATUS_EXPIRED, "Expired"),
+    ]
+
+    account = models.OneToOneField(
+        "accounts.Account",
+        on_delete=models.CASCADE,
+        related_name="subscription",
+    )
+    # Paystack identifiers — blank until confirmed by webhook
+    paystack_sub_id = models.CharField(max_length=100, blank=True, db_index=True)
+    paystack_customer_code = models.CharField(max_length=100, blank=True)
+    paystack_email = models.EmailField()
+    paystack_plan_code = models.CharField(max_length=100, blank=True)
+
+    # Mirrors billing.constants.PLAN_MAP key
+    plan_id = models.CharField(max_length=32)
+
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING, db_index=True)
+    current_period_start = models.DateField(null=True, blank=True)
+    current_period_end = models.DateField(null=True, blank=True)
+    cancel_at_period_end = models.BooleanField(default=False)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "payment_subscriptions"
+        indexes = [
+            models.Index(fields=["status", "current_period_end"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"Subscription({self.account_id} / {self.plan_id} / {self.status})"
+
+    @property
+    def is_active(self) -> bool:
+        return self.status == self.STATUS_ACTIVE
+
+
+class PaymentEvent(models.Model):
+    """
+    Append-only log of every Paystack webhook event received.
+    event_id is the Paystack event ID used for idempotency — never process the same event twice.
+    Processing is always delegated to a Celery task; the webhook view only records and dispatches.
+    """
+
+    event_id = models.CharField(max_length=255, unique=True)
+    event_type = models.CharField(max_length=100, db_index=True)
+    payload = models.JSONField()
+    received_at = models.DateTimeField(auto_now_add=True)
+    processed = models.BooleanField(default=False, db_index=True)
+    # Set when the Celery task raises an exception during processing
+    error = models.TextField(blank=True)
+
+    class Meta:
+        db_table = "payment_events"
+        indexes = [
+            models.Index(fields=["received_at"]),
+        ]
+        # Prevent any update/delete at the model layer by convention — never call .delete()
+        # or bulk_update on this model. Treated as append-only like AuditLog.
+
+    def __str__(self) -> str:
+        return f"PaymentEvent({self.event_type} / {self.event_id})"
+
+
+class Invoice(models.Model):
+    """
+    Record of each billing cycle charge.
+    Populated from Paystack invoice.update and charge.success events.
+    """
+
+    STATUS_PENDING = "pending"
+    STATUS_PAID = "paid"
+    STATUS_FAILED = "failed"
+
+    STATUS_CHOICES = [
+        (STATUS_PENDING, "Pending"),
+        (STATUS_PAID, "Paid"),
+        (STATUS_FAILED, "Failed"),
+    ]
+
+    account = models.ForeignKey(
+        "accounts.Account",
+        on_delete=models.CASCADE,
+        related_name="invoices",
+    )
+    subscription = models.ForeignKey(
+        Subscription,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="invoices",
+    )
+    paystack_ref = models.CharField(max_length=255, unique=True)
+    # Paystack amounts are in the smallest currency unit (kobo for GHS)
+    amount_kobo = models.IntegerField()
+    currency = models.CharField(max_length=10, default="GHS")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING, db_index=True)
+    period_start = models.DateField(null=True, blank=True)
+    period_end = models.DateField(null=True, blank=True)
+    paid_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "payment_invoices"
+        indexes = [
+            models.Index(fields=["account", "status"]),
+            models.Index(fields=["created_at"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"Invoice({self.paystack_ref} / {self.status})"

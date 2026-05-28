@@ -6,6 +6,7 @@ from apps.accounts.models import Account
 class Notification(models.Model):
     class Channel(models.TextChoices):
         SMS = "sms", "SMS"
+        EMAIL = "email", "Email"
         WHATSAPP = "whatsapp", "WhatsApp"
         IN_APP = "in_app", "In-App"
 
@@ -20,6 +21,7 @@ class Notification(models.Model):
         related_name="notifications",
     )
     channel = models.CharField(max_length=10, choices=Channel.choices)
+    subject = models.CharField(max_length=255, blank=True)  # used by email channel
     body = models.TextField()
     status = models.CharField(
         max_length=10,

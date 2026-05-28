@@ -9,18 +9,25 @@ logger = logging.getLogger(__name__)
 
 
 class NotificationService:
+    _SUPPORTED_CHANNELS = {Notification.Channel.SMS, Notification.Channel.EMAIL}
+
     @staticmethod
     def send_notification(
         *,
         account_id: int,
         channel: str,
         body: str,
+        subject: str = "",
         destination: str = "",
     ) -> Notification:
+        if channel not in NotificationService._SUPPORTED_CHANNELS:
+            raise ValueError(f"No provider registered for channel: {channel}")
+
         account = Account.objects.get(pk=account_id)
         notification = Notification.objects.create(
             account=account,
             channel=channel,
+            subject=subject,
             body=body,
             status=Notification.Status.PENDING,
         )
@@ -30,8 +37,6 @@ class NotificationService:
             entity_id=str(notification.pk),
             metadata={"channel": channel},
         )
-        if channel != Notification.Channel.SMS:
-            raise ValueError(f"No provider registered for channel: {channel}")
         if destination:
             logger.info(
                 "Notification %s queued; explicit destination provided but account-bound dispatch will use account contact.",

@@ -5,6 +5,7 @@ from django.utils import timezone
 
 from apps.audit.services import AuditService
 from apps.notifications.models import Notification
+from apps.notifications.providers.email_provider import EmailNotificationProvider
 from apps.notifications.providers.sms_provider import SmsNotificationProvider
 
 logger = logging.getLogger(__name__)
@@ -26,13 +27,19 @@ def dispatch_notification(notification_id: int) -> None:
 
     if notification.channel == Notification.Channel.SMS:
         provider = SmsNotificationProvider()
+        to = notification.account.phone or notification.account.email
+    elif notification.channel == Notification.Channel.EMAIL:
+        provider = EmailNotificationProvider()
+        to = notification.account.email
     else:
         logger.warning("No provider for channel %s", notification.channel)
         return
 
-    to = notification.account.phone or notification.account.email
     try:
-        success = provider.send(to=to, body=notification.body)
+        if notification.channel == Notification.Channel.EMAIL:
+            success = provider.send(to=to, body=notification.body, subject=notification.subject)
+        else:
+            success = provider.send(to=to, body=notification.body)
         notification.status = (
             Notification.Status.SENT if success else Notification.Status.FAILED
         )

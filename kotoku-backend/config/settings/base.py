@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     "apps.health",
     "apps.templates",
     "apps.billing",
+    "apps.payments",
 ]
 
 MIDDLEWARE = [
@@ -165,6 +166,10 @@ CELERY_BEAT_SCHEDULE = {
         "task": "apps.auth.tasks.cleanup_expired_device_sessions",
         "schedule": 86400,  # daily
     },
+    "expire-lapsed-subscriptions": {
+        "task": "apps.payments.tasks.expire_lapsed_subscriptions",
+        "schedule": 86400,  # daily
+    },
 }
 
 CACHES = {
@@ -199,6 +204,20 @@ SMS_API_KEY = os.getenv("SMS_API_KEY", "")
 SMS_USERNAME = _SMS_USERNAME
 SMS_SENDER_ID = os.getenv("SMS_SENDER_ID", "")
 SMS_BACKEND = os.getenv("SMS_BACKEND", "africastalking")
+
+PAYSTACK_SECRET_KEY = os.getenv("PAYSTACK_SECRET_KEY", "")
+PAYSTACK_PUBLIC_KEY = os.getenv("PAYSTACK_PUBLIC_KEY", "")
+PAYSTACK_WEBHOOK_SECRET = os.getenv("PAYSTACK_WEBHOOK_SECRET", "")
+# Map billing plan IDs → Paystack plan codes.
+# Set each via env var after creating plans in the Paystack dashboard.
+PAYSTACK_PLAN_CODES: dict[str, str] = {
+    "personal_basic":      os.getenv("PAYSTACK_PLAN_CODE_PERSONAL_BASIC", ""),
+    "personal_plus":       os.getenv("PAYSTACK_PLAN_CODE_PERSONAL_PLUS", ""),
+    "personal_protect":    os.getenv("PAYSTACK_PLAN_CODE_PERSONAL_PROTECT", ""),
+    "enterprise_standard": os.getenv("PAYSTACK_PLAN_CODE_ENTERPRISE_STANDARD", ""),
+    "enterprise_plus":     os.getenv("PAYSTACK_PLAN_CODE_ENTERPRISE_PLUS", ""),
+}
+PAYSTACK_CALLBACK_URL = os.getenv("PAYSTACK_CALLBACK_URL", "")
 
 SENTRY_DSN = os.getenv("SENTRY_DSN", "")
 OTEL_EXPORTER_OTLP_ENDPOINT = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "")
