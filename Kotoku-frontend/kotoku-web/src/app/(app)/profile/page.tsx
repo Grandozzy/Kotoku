@@ -20,15 +20,11 @@ interface MeData {
 }
 
 function fetchMe() {
-  return api
-    .get<{ status: string; data: MeData }>("/api/me/")
-    .then((r) => r.data);
+  return api.get<MeData>("/api/me/");
 }
 
 function patchMe(payload: { full_name?: string; email?: string }) {
-  return api
-    .patch<{ status: string; data: MeData }>("/api/me/", payload)
-    .then((r) => r.data);
+  return api.patch<MeData>("/api/me/", payload);
 }
 
 // ── Inline editable row ───────────────────────────────────────────────────────
@@ -38,12 +34,14 @@ function EditableField({
   value,
   placeholder,
   onSave,
+  isSaving = false,
   type = "text",
 }: {
   label: string;
   value: string;
   placeholder: string;
   onSave: (v: string) => void;
+  isSaving?: boolean;
   type?: string;
 }) {
   const [editing, setEditing] = useState(false);
@@ -81,12 +79,15 @@ function EditableField({
       ) : (
         <button
           onClick={() => { setDraft(value); setEditing(true); }}
-          className="flex items-center gap-2 flex-1 justify-end group text-right"
+          disabled={isSaving}
+          className="flex items-center gap-2 flex-1 justify-end group text-right disabled:opacity-60"
         >
           <span className={`text-sm font-medium ${value ? "text-neutral-800" : "text-neutral-400"}`}>
-            {value || placeholder}
+            {isSaving ? "Saving…" : (value || placeholder)}
           </span>
-          <Pencil size={13} className="text-neutral-300 group-hover:text-neutral-500 transition-colors shrink-0" strokeWidth={2} />
+          {!isSaving && (
+            <Pencil size={13} className="text-neutral-300 group-hover:text-neutral-500 transition-colors shrink-0" strokeWidth={2} />
+          )}
         </button>
       )}
     </div>
@@ -108,7 +109,7 @@ export default function ProfilePage() {
 
   const updateMutation = useMutation({
     mutationFn: patchMe,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["me"] }),
+    onSuccess: (data) => queryClient.setQueryData(["me"], data),
   });
 
   const fullName = me?.full_name ?? "";
@@ -159,6 +160,7 @@ export default function ProfilePage() {
             label="Full name"
             value={fullName}
             placeholder="Add your name"
+            isSaving={updateMutation.isPending && "full_name" in (updateMutation.variables ?? {})}
             onSave={(v) => updateMutation.mutate({ full_name: v })}
           />
           <EditableField
@@ -166,6 +168,7 @@ export default function ProfilePage() {
             value={email}
             placeholder="Add email (optional)"
             type="email"
+            isSaving={updateMutation.isPending && "email" in (updateMutation.variables ?? {})}
             onSave={(v) => updateMutation.mutate({ email: v })}
           />
         </div>
