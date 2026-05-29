@@ -145,7 +145,7 @@ export default function HomeScreen() {
         <EmptyState
           icon={Handshake}
           title="Your first agreement is one tap away"
-          body="Seal a deal with anyone — record evidence, collect consent via SMS, and create a tamper-proof vault entry in under five minutes."
+          body="Seal a deal with anyone. Record evidence, collect consent via SMS, and create a tamper-proof vault entry in under five minutes."
           action={{
             label: "New agreement",
             onPress: () => router.push("/agreement/new"),
@@ -188,9 +188,9 @@ function ActionCard({ item }: { item: { id: number; title: string; status: strin
 
   const label =
     item.status === "reopen_requested"
-      ? "Reopen requested — enter your code"
+      ? "Reopen requested. Enter your code."
       : item.status === "pending_consent"
-        ? "Pending your consent — enter code"
+        ? "Pending your consent. Enter your code."
         : item.status;
 
   return (

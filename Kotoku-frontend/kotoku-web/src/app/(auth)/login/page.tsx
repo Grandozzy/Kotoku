@@ -1,17 +1,32 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ShieldCheck } from "lucide-react";
 import { authApi } from "@/api/auth";
+import { useSessionStore } from "@/store/sessionStore";
 import { KotokuLogo } from "@/components/brand/KotokuLogo";
 
 export default function LoginPage() {
   const router = useRouter();
+  const accessToken = useSessionStore((s) => s.accessToken);
+  const hasHydrated = useSessionStore((s) => s.hasHydrated);
+  const isAuthenticated = useSessionStore((s) => s.isAuthenticated);
+  const isBootstrapping = useSessionStore((s) => s.isBootstrapping);
+  const isRecoveringSession = hasHydrated && isAuthenticated && !accessToken;
   const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!hasHydrated || isBootstrapping || isRecoveringSession) return;
+    if (isAuthenticated) router.replace("/dashboard");
+  }, [hasHydrated, isAuthenticated, isBootstrapping, isRecoveringSession, router]);
+
+  if (!hasHydrated || isBootstrapping || isRecoveringSession || isAuthenticated) {
+    return null;
+  }
 
   async function handleSubmit(e: React.SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();

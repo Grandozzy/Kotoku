@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useEffect, useState, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ShieldCheck } from "lucide-react";
@@ -12,11 +12,25 @@ function VerifyForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const phone = searchParams.get("phone") ?? "";
+  const accessToken = useSessionStore((s) => s.accessToken);
+  const hasHydrated = useSessionStore((s) => s.hasHydrated);
+  const isAuthenticated = useSessionStore((s) => s.isAuthenticated);
+  const isBootstrapping = useSessionStore((s) => s.isBootstrapping);
   const setSession = useSessionStore((s) => s.setSession);
+  const isRecoveringSession = hasHydrated && isAuthenticated && !accessToken;
 
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!hasHydrated || isBootstrapping || isRecoveringSession) return;
+    if (isAuthenticated) router.replace("/dashboard");
+  }, [hasHydrated, isAuthenticated, isBootstrapping, isRecoveringSession, router]);
+
+  if (!hasHydrated || isBootstrapping || isRecoveringSession || isAuthenticated) {
+    return null;
+  }
 
   async function handleSubmit(e: React.SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();

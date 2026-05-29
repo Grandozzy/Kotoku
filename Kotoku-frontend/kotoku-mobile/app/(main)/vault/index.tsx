@@ -49,7 +49,7 @@ export default function VaultScreen() {
         <EmptyState
           icon={Lock}
           title="Your vault is empty"
-          body="Sealed agreements are stored here — tamper-proof, hashed, and retrievable any time. Seal your first agreement to get started."
+          body="Sealed agreements are stored here. They are tamper-proof, hashed, and retrievable any time. Seal your first agreement to get started."
         />
       )}
 

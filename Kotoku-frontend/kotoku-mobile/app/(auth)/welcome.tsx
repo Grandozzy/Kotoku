@@ -23,12 +23,12 @@ const STEPS = [
   {
     Icon: MessageSquare,
     title: "Confirm",
-    body: "Both parties receive an SMS OTP. No one can seal alone — each confirmation is linked to a verified phone number.",
+    body: "Both parties receive an SMS OTP. No one can seal alone, and each confirmation is linked to a verified phone number.",
   },
   {
     Icon: ShieldCheck,
     title: "Seal",
-    body: "A tamper-evident vault entry is created — hashed, timestamped, and retrievable any time.",
+    body: "A tamper-evident vault entry is created. It is hashed, timestamped, and retrievable any time.",
   },
 ];
 
@@ -63,7 +63,7 @@ export default function WelcomeScreen() {
           </Text>
         </View>
         <Text className="text-md text-ink-secondary text-center leading-relaxed px-md mt-xs">
-          Capture photos, agree on terms, and seal the deal — with bilateral SMS
+          Capture photos, agree on terms, and seal the deal with bilateral SMS
           confirmation and a tamper-proof vault. In under five minutes.
         </Text>
       </View>
@@ -109,7 +109,7 @@ export default function WelcomeScreen() {
             Legal standing
           </Text>
           <Text className="text-sm font-semibold text-white leading-snug">
-            Your sealed record is admissible evidence — not just a screenshot.
+            Your sealed record is admissible evidence and not just a screenshot.
           </Text>
           <Text className="text-xs text-white/60 leading-relaxed">
             Recognised under Ghana's Electronic Transactions Act (Act 772), Section 12.

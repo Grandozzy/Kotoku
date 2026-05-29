@@ -24,7 +24,7 @@ export default function HowItWorksPage() {
           {
             number: "01",
             title: "Create the agreement",
-            body: "Choose a scenario — used vehicle sale, room rental, or custom. Give the agreement a clear title. This creates a draft that only you can see until parties are added.",
+            body: "Choose a scenario such as used vehicle sale, room rental, or custom. Give the agreement a clear title. This creates a draft that only you can see until parties are added.",
             detail:
               "The scenario sets which template fields appear (make, model, year for a vehicle; address, monthly rent, deposit for a room) and which evidence is required before sealing.",
           },
@@ -88,7 +88,7 @@ export default function HowItWorksPage() {
         <div className="rounded-2xl bg-neutral-900 text-white px-8 py-8 text-center">
           <p className="text-2xl font-bold mb-2">Record it today. Rest easy tomorrow.</p>
           <p className="text-neutral-400 mb-6">
-            Good agreements make good friends — but sealed agreements make better ones.
+            Good agreements make good friends, but sealed agreements make better ones.
           </p>
           <Link
             href="/login"

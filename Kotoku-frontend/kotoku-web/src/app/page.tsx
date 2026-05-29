@@ -9,6 +9,7 @@ import {
   Users,
 } from "lucide-react";
 import { PublicNav } from "@/components/layout/PublicNav";
+import { LandingPageGate } from "@/components/layout/LandingPageGate";
 import { KotokuLogo } from "@/components/brand/KotokuLogo";
 
 const STEPS = [
@@ -28,7 +29,7 @@ const STEPS = [
     Icon: ShieldCheck,
     step: "03",
     title: "Seal",
-    body: "A tamper-evident vault entry is created — hashed, timestamped, and retrievable any time. Download the PDF or share the link.",
+    body: "A tamper-evident vault entry is created. It is hashed, timestamped, and retrievable any time. Download the PDF or share the link.",
   },
 ];
 
@@ -57,8 +58,9 @@ const USE_CASES = [
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen flex flex-col bg-white">
-      <PublicNav />
+    <LandingPageGate>
+      <div className="min-h-screen flex flex-col bg-white">
+        <PublicNav />
 
       {/* Hero */}
       <section className="flex-1 flex flex-col items-center justify-center text-center px-6 py-24">
@@ -72,7 +74,7 @@ export default function LandingPage() {
           <span className="text-blue-600">Take evidence for it.</span>
         </h1>
         <p className="mt-6 text-lg text-neutral-500 max-w-xl leading-relaxed">
-          Capture photos, agree on terms, and seal the deal — with bilateral SMS
+          Capture photos, agree on terms, and seal the deal with bilateral SMS
           confirmation and a tamper-proof vault. In under five minutes, on any device.
         </p>
         <div className="mt-10 flex flex-col sm:flex-row gap-3 items-center">
@@ -150,7 +152,7 @@ export default function LandingPage() {
             Legal standing
           </div>
           <h2 className="text-2xl font-bold leading-snug">
-            Your sealed record is admissible evidence — not just a screenshot.
+            Your sealed record is admissible evidence and not just a screenshot.
           </h2>
           <p className="mt-4 text-neutral-400 text-sm leading-relaxed">
             Kotoku&apos;s seal hash, OTP consent records, and immutable vault satisfy the
@@ -189,15 +191,16 @@ export default function LandingPage() {
       </section>
 
       {/* Footer */}
-      <footer className="px-6 py-8 border-t border-neutral-100 flex flex-col sm:flex-row justify-between items-center gap-4 text-sm text-neutral-400">
-        <div className="flex items-center gap-2">
-          <KotokuLogo variant="icon" size={20} />
-          <span>© {new Date().getFullYear()} Kotoku. All rights reserved.</span>
-        </div>
-        <span className="italic">
-          &ldquo;Keep all your agreements in Kotoku. Take them out tomorrow if you need to.&rdquo;
-        </span>
-      </footer>
-    </div>
+        <footer className="px-6 py-8 border-t border-neutral-100 flex flex-col sm:flex-row justify-between items-center gap-4 text-sm text-neutral-400">
+          <div className="flex items-center gap-2">
+            <KotokuLogo variant="icon" size={20} />
+            <span>© {new Date().getFullYear()} Kotoku. All rights reserved.</span>
+          </div>
+          <span className="italic">
+            &ldquo;Keep all your agreements in Kotoku. Take them out tomorrow if you need to.&rdquo;
+          </span>
+        </footer>
+      </div>
+    </LandingPageGate>
   );
 }

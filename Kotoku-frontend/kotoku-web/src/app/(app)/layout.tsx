@@ -18,13 +18,18 @@ const NAV = [
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
+  const accessToken = useSessionStore((s) => s.accessToken);
+  const hasHydrated = useSessionStore((s) => s.hasHydrated);
   const isAuthenticated = useSessionStore((s) => s.isAuthenticated);
+  const isBootstrapping = useSessionStore((s) => s.isBootstrapping);
+  const isRecoveringSession = hasHydrated && isAuthenticated && !accessToken;
 
   useEffect(() => {
+    if (!hasHydrated || isBootstrapping || isRecoveringSession) return;
     if (!isAuthenticated) router.replace("/login");
-  }, [isAuthenticated, router]);
+  }, [hasHydrated, isAuthenticated, isBootstrapping, isRecoveringSession, router]);
 
-  if (!isAuthenticated) return null;
+  if (!hasHydrated || isBootstrapping || isRecoveringSession || !isAuthenticated) return null;
 
   return (
     <div className="min-h-screen flex flex-col">
