@@ -12,7 +12,7 @@ const NAV = [
   { href: "/dashboard", label: "Home",    Icon: Home },
   { href: "/vault",     label: "Vault",   Icon: Lock },
   { href: "/profile",   label: "Profile", Icon: User },
-  { href: "/pricing",   label: "Pricing", Icon: Zap },
+  { href: "/plans",     label: "Plans",   Icon: Zap },
 ];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {

@@ -192,7 +192,7 @@ export default function ProfilePage() {
               <span className="text-sm font-medium text-neutral-800">{planName}</span>
             </div>
             <Link
-              href="/pricing"
+              href="/plans"
               className="text-xs text-blue-600 font-medium hover:underline"
             >
               View plans
@@ -244,7 +244,7 @@ export default function ProfilePage() {
                 Upgrade to <strong>{plan.recommended_upgrades[0].name}</strong> for more seals and longer retention.
               </span>
               <Link
-                href="/pricing"
+                href="/plans"
                 className="text-xs font-semibold text-amber-700 hover:underline shrink-0"
               >
                 Upgrade →
@@ -259,7 +259,7 @@ export default function ProfilePage() {
         {[
           { label: "How Kotoku works", href: "/how-it-works" },
           { label: "Ghana Digital Evidence Law", href: "/legal" },
-          { label: "Pricing", href: "/pricing" },
+          { label: "Plans & pricing", href: "/plans" },
         ].map(({ label, href }) => (
           <Link
             key={href}
