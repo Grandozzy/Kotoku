@@ -58,6 +58,7 @@ class InitiateView(APIView):
         result = PaymentService.initiate_subscription(
             account=account,
             plan_id=serializer.validated_data["plan_id"],
+            callback_url=serializer.validated_data.get("callback_url") or None,
         )
         return ok({
             "authorization_url": result.authorization_url,

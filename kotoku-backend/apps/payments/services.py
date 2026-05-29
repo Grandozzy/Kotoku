@@ -16,7 +16,11 @@ logger = logging.getLogger("kotoku")
 class PaymentService:
 
     @staticmethod
-    def initiate_subscription(account, plan_id: str) -> InitializeResult:
+    def initiate_subscription(
+        account,
+        plan_id: str,
+        callback_url: str | None = None,
+    ) -> InitializeResult:
         """
         Begin a Paystack checkout for the given plan.
 
@@ -57,7 +61,7 @@ class PaymentService:
                 amount_kobo=plan.price_ghs * 100,
                 plan_code=plan_code,
                 reference=reference,
-                callback_url=getattr(settings, "PAYSTACK_CALLBACK_URL", ""),
+                callback_url=callback_url or getattr(settings, "PAYSTACK_CALLBACK_URL", ""),
                 metadata={
                     "account_id": account.id,
                     "plan_id": plan_id,

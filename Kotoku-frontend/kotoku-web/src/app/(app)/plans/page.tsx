@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { ArrowLeft, Check, ShieldCheck, Users } from "lucide-react";
+import { ArrowLeft, Check, Loader2, ShieldCheck, Users } from "lucide-react";
 import { usePlan } from "@/hooks/usePlan";
+import { paymentsApi } from "@/api/payments";
 
 // ── Plan data ─────────────────────────────────────────────────────────────────
 
@@ -107,10 +108,14 @@ function PlanCard({
   plan,
   currentPlanId,
   recommendedUpgradeIds,
+  onAction,
+  isActing,
 }: {
   plan: PlanDef;
   currentPlanId: string | null;
   recommendedUpgradeIds: string[];
+  onAction: (planId: string) => void;
+  isActing: boolean;
 }) {
   const isCurrent = plan.id === currentPlanId;
   const isRecommended = recommendedUpgradeIds.includes(plan.id);
@@ -191,13 +196,19 @@ function PlanCard({
         ))}
       </ul>
 
-      {/* TODO: wire to POST /api/payments/initiate/ with plan_id */}
       {isCurrent ? (
         <span className={ctaStyle}>{ctaLabel}</span>
       ) : (
-        <Link href={`/profile?upgrade=${plan.id}`} className={ctaStyle}>
+        <button
+          onClick={() => onAction(plan.id)}
+          disabled={isActing}
+          className={`${ctaStyle} disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2`}
+        >
+          {isActing ? (
+            <Loader2 size={13} className="animate-spin" strokeWidth={2} />
+          ) : null}
           {ctaLabel}
-        </Link>
+        </button>
       )}
     </div>
   );
@@ -215,11 +226,30 @@ export default function PlansPage() {
   );
 
   const [tab, setTab] = useState<PlanFamily>("personal");
+  const [actingPlanId, setActingPlanId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   // Auto-select tab to match the user's current plan family once loaded.
   useEffect(() => {
     if (currentFamily) setTab(currentFamily);
   }, [currentFamily]);
+
+  async function handleAction(planId: string) {
+    setActingPlanId(planId);
+    setError(null);
+    try {
+      const callbackUrl = `${window.location.origin}/payment/callback`;
+      const { authorization_url } = await paymentsApi.initiate(planId, callbackUrl);
+      window.location.href = authorization_url;
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Could not start payment. Please try again."
+      );
+      setActingPlanId(null);
+    }
+  }
 
   const visiblePlans = PLANS.filter((p) => p.family === tab);
 
@@ -269,6 +299,12 @@ export default function PlansPage() {
       </div>
 
       {/* Plan cards */}
+      {error && (
+        <div className="rounded-xl bg-red-50 border border-red-100 px-4 py-3 text-sm text-red-600">
+          {error}
+        </div>
+      )}
+
       {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           {[0, 1, 2].map((i) => (
@@ -292,6 +328,8 @@ export default function PlansPage() {
               plan={plan}
               currentPlanId={currentPlanId}
               recommendedUpgradeIds={recommendedUpgradeIds}
+              onAction={handleAction}
+              isActing={actingPlanId === plan.id}
             />
           ))}
         </div>
