@@ -204,7 +204,11 @@ export default function ProfileScreen() {
 
       {/* Plan card */}
       <Card elevation="sm" padded={false}>
-        <View className="px-lg py-md flex-row items-center justify-between border-b border-border-subtle">
+        <Pressable
+          className="px-lg py-md flex-row items-center justify-between border-b border-border-subtle active:opacity-70"
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          onPress={() => router.push((plan?.flags.show_upgrade_recommendation ? "/(main)/plans" : "/(main)/subscription") as any)}
+        >
           <View className="flex-row items-center gap-sm">
             <View className="w-8 h-8 rounded-lg bg-brand-primary/10 items-center justify-center">
               <ShieldCheck size={ICON_SIZE} color={colors.brandPrimary} strokeWidth={ICON_STROKE} />
@@ -212,7 +216,7 @@ export default function ProfileScreen() {
             <Text className="text-md font-medium text-ink-primary">{planName}</Text>
           </View>
           <ChevronRight size={16} color={colors.inkMuted} strokeWidth={ICON_STROKE} />
-        </View>
+        </Pressable>
 
         {showUsage && (
           <View className="px-lg py-md gap-xs border-b border-border-subtle">

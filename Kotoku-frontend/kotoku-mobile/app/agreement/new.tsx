@@ -60,10 +60,8 @@ export default function NewAgreementScreen() {
             {upgrade && (
               <Pressable
                 className="bg-brand-primary rounded-xl py-md items-center active:opacity-70"
-                onPress={() => {
-                  // Deep link to pricing page — handled by web or future in-app billing screen
-                  router.back();
-                }}
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                onPress={() => router.push("/(main)/plans" as any)}
               >
                 <Text className="text-white font-semibold text-md">
                   View upgrade options

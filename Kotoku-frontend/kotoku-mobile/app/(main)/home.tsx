@@ -85,7 +85,11 @@ export default function HomeScreen() {
 
       {/* Upgrade banner — shown when cap reached or business misuse suspected */}
       {showUpgradeBanner && (
-        <View className="bg-amber-50 border border-amber-200 rounded-xl px-lg py-md flex-row items-start gap-sm">
+        <Pressable
+          className="bg-amber-50 border border-amber-200 rounded-xl px-lg py-md flex-row items-start gap-sm active:opacity-70"
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          onPress={() => router.push("/(main)/plans" as any)}
+        >
           <TrendingUp size={16} color="#d97706" strokeWidth={2} style={{ marginTop: 2 }} />
           <View className="flex-1">
             <Text className="text-sm font-semibold text-amber-800">
@@ -104,7 +108,7 @@ export default function HomeScreen() {
               </Text>
             )}
           </View>
-        </View>
+        </Pressable>
       )}
 
       {isLoading && (
