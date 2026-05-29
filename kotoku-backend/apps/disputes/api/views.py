@@ -58,7 +58,6 @@ class DisputeCollectionView(APIView):
                 {"status": "error", "message": "Authenticated user is not a verified party on this agreement."},
                 status=403,
             )
-
         party_id = request.data.get("raised_by_party_id")
         if party_id and str(party_id) != str(caller_party.pk):
             return Response(

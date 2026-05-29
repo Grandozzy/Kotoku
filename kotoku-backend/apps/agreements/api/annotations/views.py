@@ -21,6 +21,21 @@ def _caller_party(agreement_id: int, phone: str):
     return Party.objects.filter(agreement_id=agreement_id, phone=phone).first()
 
 
+def _acting_party(agreement, account, requested_party_id: int | None):
+    from apps.parties.models import Party  # noqa: PLC0415
+
+    caller_party = _caller_party(agreement.pk, account.phone)
+    if requested_party_id is None:
+        return caller_party
+
+    requested_party = Party.objects.filter(pk=requested_party_id, agreement_id=agreement.pk).first()
+    if agreement.created_by_id == account.pk:
+        return requested_party
+    if caller_party and requested_party and caller_party.pk == requested_party.pk:
+        return caller_party
+    return None
+
+
 class AnnotationCollectionView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
@@ -45,27 +60,22 @@ class AnnotationCollectionView(APIView):
         return ok({"annotations": AnnotationSerializer(annotations, many=True).data})
 
     def post(self, request, agreement_id: int):
-        self._get_agreement(
+        agreement = self._get_agreement(
             agreement_id,
             request.user.account.pk,
             request.user.account.phone,
         )
         serializer = AnnotationCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        caller_party = _caller_party(agreement_id, request.user.account.phone)
-        if caller_party is None:
+        actor_party = _acting_party(agreement, request.user.account, serializer.validated_data["author_party_id"])
+        if actor_party is None:
             return Response(
-                {"status": "error", "message": "Authenticated user is not a verified party on this agreement."},
-                status=403,
-            )
-        if serializer.validated_data["author_party_id"] != caller_party.pk:
-            return Response(
-                {"status": "error", "message": "Annotations can only be created for the authenticated party."},
+                {"status": "error", "message": "Annotations can only be created for an allowed party on this agreement."},
                 status=403,
             )
         annotation = AnnotationService.create(
             agreement_id=agreement_id,
-            author_party_id=caller_party.pk,
+            author_party_id=actor_party.pk,
             body=serializer.validated_data["body"],
         )
         return ok({"annotation": AnnotationSerializer(annotation).data}, status_code=201)
@@ -91,14 +101,20 @@ class AnnotationDetailView(APIView):
             request.user.account.pk,
             request.user.account.phone,
         )
-        caller_party = _caller_party(agreement_id, request.user.account.phone)
-        if caller_party is None:
+        agreement = Agreement.objects.get(pk=agreement_id)
+        party_id = request.query_params.get("party_id")
+        actor_party = _acting_party(
+            agreement,
+            request.user.account,
+            int(party_id) if party_id else None,
+        )
+        if actor_party is None:
             return Response(
-                {"status": "error", "message": "Authenticated user is not a verified party on this agreement."},
+                {"status": "error", "message": "Annotations can only be managed for an allowed party on this agreement."},
                 status=403,
             )
         try:
-            AnnotationService.delete(annotation_id, caller_party.pk)
+            AnnotationService.delete(annotation_id, actor_party.pk)
         except DomainError as e:
             return Response({"status": "error", "message": str(e)}, status=400)
         return ok(None)
@@ -109,10 +125,16 @@ class AnnotationDetailView(APIView):
             request.user.account.pk,
             request.user.account.phone,
         )
-        caller_party = _caller_party(agreement_id, request.user.account.phone)
-        if caller_party is None:
+        agreement = Agreement.objects.get(pk=agreement_id)
+        party_id = request.query_params.get("party_id")
+        actor_party = _acting_party(
+            agreement,
+            request.user.account,
+            int(party_id) if party_id else None,
+        )
+        if actor_party is None:
             return Response(
-                {"status": "error", "message": "Authenticated user is not a verified party on this agreement."},
+                {"status": "error", "message": "Annotations can only be managed for an allowed party on this agreement."},
                 status=403,
             )
         body = request.data.get("body")
@@ -121,7 +143,7 @@ class AnnotationDetailView(APIView):
         try:
             annotation = AnnotationService.update(
                 annotation_id=annotation_id,
-                actor_party_id=caller_party.pk,
+                actor_party_id=actor_party.pk,
                 body=body,
             )
         except DomainError as e:

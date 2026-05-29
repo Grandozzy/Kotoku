@@ -21,6 +21,9 @@ CACHES = {
     }
 }
 
+STATIC_ROOT = BASE_DIR / "output" / "static-test"  # type: ignore[name-defined]
+STATIC_ROOT.mkdir(parents=True, exist_ok=True)
+
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,

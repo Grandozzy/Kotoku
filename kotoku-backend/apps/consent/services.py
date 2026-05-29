@@ -24,6 +24,17 @@ _OTP_MAX_ATTEMPTS = 3
 _OTP_LOCKOUT_SECONDS = 900  # 15 minutes
 
 
+def get_sms_gateway():
+    """
+    Compatibility wrapper for consent-flow tests and direct OTP issuance.
+
+    Some integration tests patch this symbol to capture OTPs synchronously.
+    """
+    from apps.notifications.providers.sms_provider import SmsNotificationProvider  # noqa: PLC0415
+
+    return SmsNotificationProvider()
+
+
 def generate_otp(length: int = 8) -> str:
     return "".join(secrets.choice("0123456789") for _ in range(length))
 
@@ -63,7 +74,7 @@ class ConsentService:
             )
             phone = party.phone
             if phone:
-                send_sms_message.delay(
+                get_sms_gateway().send(
                     to=phone,
                     body=(
                         f"Your Kotoku {sms_label} code is {otp_code}. "

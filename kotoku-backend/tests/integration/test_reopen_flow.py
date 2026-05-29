@@ -91,8 +91,9 @@ def _otp_capture(to, body):
 class TestBilateralReopenFlow:
     def test_full_reopen_both_parties_confirm_returns_active(self):
         acct, client = _make_account("00010001")
+        buyer_acct, buyer_client = _make_account("00010002")
         seller_phone = acct.phone
-        buyer_phone = "+233900010002"
+        buyer_phone = buyer_acct.phone
         agr = _sealed_agreement(acct, seller_phone, buyer_phone)
 
         otp_map = {}
@@ -125,8 +126,13 @@ class TestBilateralReopenFlow:
             entity_id=str(agr.pk),
         ).exists()
 
+        clients_by_phone = {
+            seller_phone: client,
+            buyer_phone: buyer_client,
+        }
+
         for phone, otp in otp_map.items():
-            resp = client.post(
+            resp = clients_by_phone[phone].post(
                 _REOPEN_OTP_CONFIRM.format(id=agr.pk),
                 data={"phone": phone, "otp_code": otp},
                 format="json",

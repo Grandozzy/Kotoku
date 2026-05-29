@@ -5,8 +5,8 @@ from django.conf import settings
 from django.db import transaction
 
 from apps.billing.constants import PLAN_MAP
-from apps.payments.models import Subscription
-from apps.payments.selectors import get_subscription_for_account
+from apps.payments.models import Subscription, SubscriptionCheckout
+from apps.payments.selectors import get_open_checkout_for_account, get_subscription_for_account
 from common.exceptions import DomainError
 from infrastructure.paystack.client import InitializeResult, PaystackError, get_paystack_client
 
@@ -40,6 +40,13 @@ class PaymentService:
         if existing and existing.status == Subscription.STATUS_ACTIVE and existing.plan_id == plan_id:
             raise DomainError("You already have an active subscription for this plan.")
 
+        open_checkout = get_open_checkout_for_account(account)
+        if open_checkout:
+            raise DomainError(
+                "A payment session is already in progress for this account. "
+                "Please complete it or wait a moment before starting another."
+            )
+
         reference = f"kotoku_{uuid.uuid4().hex}"
 
         # Call Paystack outside any DB transaction — never hold a lock during network I/O.
@@ -66,29 +73,35 @@ class PaymentService:
                 "Payment gateway error. Please try again or contact support."
             ) from exc
 
-        # Persist the pending subscription inside a transaction with a lock.
+        # Persist the pending checkout inside a transaction with a lock.
         with transaction.atomic():
-            try:
-                sub = Subscription.objects.select_for_update().get(account=account)
-                # Re-check under lock — another request may have activated a subscription
-                # between our advisory check and now.
-                if sub.status == Subscription.STATUS_ACTIVE and sub.plan_id == plan_id:
-                    raise DomainError("You already have an active subscription for this plan.")
-                sub.plan_id = plan_id
-                sub.paystack_plan_code = plan_code
-                sub.paystack_email = account.email
-                sub.status = Subscription.STATUS_PENDING
-                sub.save(update_fields=[
-                    "plan_id", "paystack_plan_code", "paystack_email", "status", "updated_at",
-                ])
-            except Subscription.DoesNotExist:
-                Subscription.objects.create(
-                    account=account,
-                    plan_id=plan_id,
-                    paystack_plan_code=plan_code,
-                    paystack_email=account.email,
-                    status=Subscription.STATUS_PENDING,
+            current = (
+                Subscription.objects.select_for_update()
+                .filter(account=account, status__in=Subscription.CURRENT_STATUSES)
+                .order_by("-created_at", "-id")
+                .first()
+            )
+            if current and current.status == Subscription.STATUS_ACTIVE and current.plan_id == plan_id:
+                raise DomainError("You already have an active subscription for this plan.")
+            existing_checkout = (
+                SubscriptionCheckout.objects.select_for_update()
+                .filter(account=account, status__in=SubscriptionCheckout.OPEN_STATUSES)
+                .first()
+            )
+            if existing_checkout:
+                raise DomainError(
+                    "A payment session is already in progress for this account. "
+                    "Please complete it or wait a moment before starting another."
                 )
+            SubscriptionCheckout.objects.create(
+                account=account,
+                reference=result.reference,
+                target_plan_id=plan_id,
+                status=SubscriptionCheckout.STATUS_PENDING,
+                replaces_subscription=current,
+                authorization_url=result.authorization_url,
+                access_code=result.access_code,
+            )
 
         return result
 
@@ -102,6 +115,13 @@ class PaymentService:
         """
         sub = get_subscription_for_account(account)
         if not sub:
+            any_subscription = (
+                Subscription.objects.filter(account=account)
+                .order_by("-created_at", "-id")
+                .first()
+            )
+            if any_subscription:
+                raise DomainError("No active subscription to cancel.")
             raise DomainError("No subscription found.")
         if sub.status != Subscription.STATUS_ACTIVE:
             raise DomainError("No active subscription to cancel.")

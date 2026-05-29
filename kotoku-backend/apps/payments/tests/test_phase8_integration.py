@@ -30,7 +30,7 @@ from rest_framework.test import APIClient
 from apps.accounts.models import Account, User
 from apps.agreements.models import Agreement
 from apps.billing.services import BillingService
-from apps.payments.models import PaymentEvent, Subscription
+from apps.payments.models import PaymentEvent, Subscription, SubscriptionCheckout
 from apps.payments.tasks import expire_lapsed_subscriptions
 from common.exceptions import DomainError
 
@@ -97,16 +97,17 @@ def test_valid_webhook_charge_success_promotes_plan(mock_email, mock_sms):
     Account.plan is promoted and Subscription is active.
     """
     account = _make_account(plan="personal_basic")
-    Subscription.objects.create(
+    SubscriptionCheckout.objects.create(
         account=account,
-        plan_id="personal_plus",
-        paystack_plan_code="PLN_personal_plus",
-        paystack_email=account.email,
-        status=Subscription.STATUS_PENDING,
+        reference="kotoku_e2e_charge_001",
+        target_plan_id="personal_plus",
+        status=SubscriptionCheckout.STATUS_PENDING,
     )
 
+    payload = _charge_success_payload(account, "personal_plus", "e2e_charge_001")
+    payload["data"]["reference"] = "kotoku_e2e_charge_001"
     resp = _post_webhook(
-        _charge_success_payload(account, "personal_plus", "e2e_charge_001")
+        payload
     )
 
     assert resp.status_code == 200
@@ -114,7 +115,7 @@ def test_valid_webhook_charge_success_promotes_plan(mock_email, mock_sms):
     account.refresh_from_db()
     assert account.plan == "personal_plus"
 
-    sub = Subscription.objects.get(account=account)
+    sub = Subscription.objects.get(account=account, plan_id="personal_plus")
     assert sub.status == Subscription.STATUS_ACTIVE
 
     event = PaymentEvent.objects.get(event_id="e2e_charge_001")
@@ -159,15 +160,15 @@ def test_replayed_webhook_does_not_double_promote(mock_email, mock_sms):
     Account.plan ends up promoted exactly once.
     """
     account = _make_account(plan="personal_basic")
-    Subscription.objects.create(
+    SubscriptionCheckout.objects.create(
         account=account,
-        plan_id="personal_plus",
-        paystack_plan_code="PLN_personal_plus",
-        paystack_email=account.email,
-        status=Subscription.STATUS_PENDING,
+        reference="kotoku_e2e_replay_001",
+        target_plan_id="personal_plus",
+        status=SubscriptionCheckout.STATUS_PENDING,
     )
 
     payload = _charge_success_payload(account, "personal_plus", "e2e_replay_001")
+    payload["data"]["reference"] = "kotoku_e2e_replay_001"
 
     # First delivery.
     resp1 = _post_webhook(payload)
@@ -217,7 +218,7 @@ def test_subscription_disable_webhook_plan_not_immediately_downgraded(mock_email
     assert resp.status_code == 200
 
     account.refresh_from_db()
-    sub = Subscription.objects.get(account=account)
+    sub = Subscription.objects.get(account=account, paystack_sub_id="SUB_e2e_dis")
 
     # Plan still active until period end.
     assert account.plan == "personal_plus"

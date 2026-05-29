@@ -124,7 +124,7 @@ class TestDisputeOnSealedAgreement:
             data={"raised_by_party_id": outsider.pk, "reason": "I am not a party here at all."},
             format="json",
         )
-        assert resp.status_code == 400
+        assert resp.status_code == 403
 
     def test_cannot_dispute_non_sealed_agreement(self):
         acct, client = _make_account("00030001")
@@ -146,10 +146,11 @@ class TestDisputeOnSealedAgreement:
 
     def test_dispute_has_correct_fields(self):
         acct, client = _make_account("00040001")
-        agr = _sealed_agreement(acct, acct.phone, "+233B00040002")
+        buyer_acct, buyer_client = _make_account("00040002")
+        agr = _sealed_agreement(acct, acct.phone, buyer_acct.phone)
         buyer = agr.parties.get(role="buyer")
 
-        resp = client.post(
+        resp = buyer_client.post(
             _DISPUTES_PATH.format(id=agr.pk),
             data={
                 "raised_by_party_id": buyer.pk,

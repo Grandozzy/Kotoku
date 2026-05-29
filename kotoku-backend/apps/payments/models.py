@@ -9,10 +9,11 @@ def _default_kotoku_ref() -> str:
 
 class Subscription(models.Model):
     """
-    One active Paystack subscription per account.
-    Created as 'pending' when the user initiates payment; promoted to 'active'
-    by the charge.success / subscription.create webhook.
-    Account.plan is only updated by a verified webhook — never by a client request.
+    One Paystack subscription contract over its lifetime.
+
+    Accounts may have multiple Subscription rows over time as plans are upgraded,
+    replaced, cancelled, and expired. Account.plan remains a denormalized projection
+    of the current verified plan and is only updated by webhook-driven task logic.
     """
 
     STATUS_PENDING = "pending"
@@ -21,6 +22,7 @@ class Subscription(models.Model):
     STATUS_CANCELLED = "cancelled"
     STATUS_PAST_DUE = "past_due"
     STATUS_EXPIRED = "expired"
+    STATUS_REPLACED = "replaced"
 
     STATUS_CHOICES = [
         (STATUS_PENDING, "Pending"),
@@ -29,12 +31,15 @@ class Subscription(models.Model):
         (STATUS_CANCELLED, "Cancelled"),
         (STATUS_PAST_DUE, "Past due"),
         (STATUS_EXPIRED, "Expired"),
+        (STATUS_REPLACED, "Replaced"),
     ]
 
-    account = models.OneToOneField(
+    CURRENT_STATUSES = [STATUS_ACTIVE, STATUS_PAST_DUE, STATUS_CANCELLED]
+
+    account = models.ForeignKey(
         "accounts.Account",
         on_delete=models.CASCADE,
-        related_name="subscription",
+        related_name="subscriptions",
     )
     # Paystack identifiers — blank until confirmed by webhook
     paystack_sub_id = models.CharField(max_length=100, blank=True, db_index=True)
@@ -49,6 +54,13 @@ class Subscription(models.Model):
     current_period_start = models.DateField(null=True, blank=True)
     current_period_end = models.DateField(null=True, blank=True)
     cancel_at_period_end = models.BooleanField(default=False)
+    replaced_by = models.ForeignKey(
+        "self",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="replaces",
+    )
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -56,6 +68,7 @@ class Subscription(models.Model):
     class Meta:
         db_table = "payment_subscriptions"
         indexes = [
+            models.Index(fields=["account", "status"]),
             models.Index(fields=["status", "current_period_end"]),
         ]
 
@@ -65,6 +78,71 @@ class Subscription(models.Model):
     @property
     def is_active(self) -> bool:
         return self.status == self.STATUS_ACTIVE
+
+
+class SubscriptionCheckout(models.Model):
+    """
+    One initiated checkout flow, keyed by the Paystack transaction reference.
+
+    This is the authoritative pending state for new purchases and plan switches.
+    It prevents the current active provider subscription row from being reused
+    as the target state of a new checkout.
+    """
+
+    STATUS_PENDING = "pending"
+    STATUS_CHARGED = "charged"
+    STATUS_PROVIDER_CREATED = "provider_created"
+    STATUS_CANCELLED = "cancelled"
+    STATUS_FAILED = "failed"
+    STATUS_SUPERSEDED = "superseded"
+
+    STATUS_CHOICES = [
+        (STATUS_PENDING, "Pending"),
+        (STATUS_CHARGED, "Charged"),
+        (STATUS_PROVIDER_CREATED, "Provider created"),
+        (STATUS_CANCELLED, "Cancelled"),
+        (STATUS_FAILED, "Failed"),
+        (STATUS_SUPERSEDED, "Superseded"),
+    ]
+
+    OPEN_STATUSES = [STATUS_PENDING, STATUS_CHARGED]
+
+    account = models.ForeignKey(
+        "accounts.Account",
+        on_delete=models.CASCADE,
+        related_name="subscription_checkouts",
+    )
+    reference = models.CharField(max_length=255, unique=True)
+    target_plan_id = models.CharField(max_length=32)
+    status = models.CharField(max_length=32, choices=STATUS_CHOICES, default=STATUS_PENDING, db_index=True)
+    replaces_subscription = models.ForeignKey(
+        Subscription,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="replacement_checkouts",
+    )
+    activated_subscription = models.ForeignKey(
+        Subscription,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="activation_checkouts",
+    )
+    authorization_url = models.TextField(blank=True)
+    access_code = models.CharField(max_length=255, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "payment_subscription_checkouts"
+        indexes = [
+            models.Index(fields=["account", "status"]),
+            models.Index(fields=["created_at"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"SubscriptionCheckout({self.account_id} / {self.target_plan_id} / {self.status})"
 
 
 class PaymentEvent(models.Model):

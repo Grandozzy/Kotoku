@@ -18,7 +18,8 @@ from django.db import transaction
 
 from apps.audit.services import AuditService
 from apps.notifications.models import Notification
-from apps.payments.models import Invoice, PaymentEvent, Subscription
+from apps.payments.models import Invoice, PaymentEvent, Subscription, SubscriptionCheckout
+from infrastructure.paystack.client import PaystackError, get_paystack_client
 
 logger = logging.getLogger("kotoku")
 
@@ -27,15 +28,80 @@ logger = logging.getLogger("kotoku")
 
 
 def _find_subscription_by_customer_code(customer_code: str) -> Subscription | None:
-    return Subscription.objects.filter(paystack_customer_code=customer_code).first()
+    return (
+        Subscription.objects.filter(paystack_customer_code=customer_code)
+        .exclude(status=Subscription.STATUS_REPLACED)
+        .order_by("-created_at", "-id")
+        .first()
+    )
 
 
 def _find_subscription_by_sub_id(sub_id: str) -> Subscription | None:
-    return Subscription.objects.filter(paystack_sub_id=sub_id).first()
+    return (
+        Subscription.objects.filter(paystack_sub_id=sub_id)
+        .exclude(status=Subscription.STATUS_REPLACED)
+        .order_by("-created_at", "-id")
+        .first()
+    )
 
 
 def _find_subscription_by_email(email: str) -> Subscription | None:
-    return Subscription.objects.filter(paystack_email=email).first()
+    return (
+        Subscription.objects.filter(paystack_email=email)
+        .exclude(status=Subscription.STATUS_REPLACED)
+        .order_by("-created_at", "-id")
+        .first()
+    )
+
+
+def _find_checkout_by_reference(reference: str) -> SubscriptionCheckout | None:
+    return SubscriptionCheckout.objects.filter(reference=reference).first()
+
+
+def _find_checkout_for_activated_subscription(sub: Subscription) -> SubscriptionCheckout | None:
+    return (
+        SubscriptionCheckout.objects.filter(activated_subscription=sub)
+        .order_by("-created_at", "-id")
+        .first()
+    )
+
+
+def _find_open_checkout_by_email(email: str) -> SubscriptionCheckout | None:
+    return (
+        SubscriptionCheckout.objects.filter(
+            account__email=email,
+            status__in=SubscriptionCheckout.OPEN_STATUSES + [SubscriptionCheckout.STATUS_PROVIDER_CREATED],
+        )
+        .order_by("-created_at", "-id")
+        .first()
+    )
+
+
+def _cancel_replaced_subscription(old_sub: Subscription, new_sub: Subscription) -> None:
+    if old_sub.status == Subscription.STATUS_REPLACED:
+        return
+
+    if old_sub.paystack_sub_id:
+        try:
+            client = get_paystack_client()
+            paystack_data = client.fetch_subscription(old_sub.paystack_sub_id)
+            email_token = paystack_data.get("email_token", "")
+            if email_token:
+                client.cancel_subscription(
+                    subscription_code=old_sub.paystack_sub_id,
+                    email_token=email_token,
+                )
+        except PaystackError:
+            logger.exception(
+                "Failed to cancel replaced Paystack subscription sub=%s replacement=%s",
+                old_sub.pk,
+                new_sub.pk,
+            )
+
+    old_sub.status = Subscription.STATUS_REPLACED
+    old_sub.cancel_at_period_end = False
+    old_sub.replaced_by = new_sub
+    old_sub.save(update_fields=["status", "cancel_at_period_end", "replaced_by", "updated_at"])
 
 
 def _parse_date(value: str | None) -> date | None:
@@ -93,9 +159,15 @@ def _handle_charge_success(data: dict) -> None:
         logger.info("charge.success has no plan — one-time charge, skipping")
         return
 
+    reference = data.get("reference", "")
     metadata = data.get("metadata") or {}
     account_id = metadata.get("account_id")
     plan_id = metadata.get("plan_id")
+    checkout = _find_checkout_by_reference(reference) if reference else None
+
+    if checkout:
+        account_id = checkout.account_id
+        plan_id = checkout.target_plan_id
 
     if not account_id or not plan_id:
         logger.error("charge.success missing account_id/plan_id in metadata: %s", metadata)
@@ -113,18 +185,44 @@ def _handle_charge_success(data: dict) -> None:
         return
 
     with transaction.atomic():
-        try:
-            sub = Subscription.objects.select_for_update().get(account=account)
-        except Subscription.DoesNotExist:
-            # Should not happen — initiate creates a pending row — but handle gracefully.
-            sub = Subscription(account=account, paystack_email=customer_email)
+        sub = None
+        locked_checkout = None
+        next_status = Subscription.STATUS_ACTIVE
+        if checkout:
+            locked_checkout = SubscriptionCheckout.objects.select_for_update().get(pk=checkout.pk)
+            if locked_checkout.replaces_subscription_id:
+                next_status = Subscription.STATUS_PENDING
+            if locked_checkout.activated_subscription_id:
+                sub = Subscription.objects.select_for_update().get(pk=locked_checkout.activated_subscription_id)
 
-        sub.plan_id = plan_id
-        sub.status = Subscription.STATUS_ACTIVE
-        sub.paystack_customer_code = customer_code
-        if customer_email:
-            sub.paystack_email = customer_email
-        sub.save()
+        if sub is None:
+            sub = Subscription.objects.create(
+                account=account,
+                plan_id=plan_id,
+                paystack_plan_code=plan_info.get("plan_code", ""),
+                paystack_email=customer_email or account.email,
+                paystack_customer_code=customer_code,
+                status=next_status,
+                cancel_at_period_end=False,
+            )
+        else:
+            sub.plan_id = plan_id
+            if plan_info.get("plan_code"):
+                sub.paystack_plan_code = plan_info.get("plan_code", "")
+            sub.status = next_status
+            sub.paystack_customer_code = customer_code
+            sub.cancel_at_period_end = False
+            if customer_email:
+                sub.paystack_email = customer_email
+            sub.save(update_fields=[
+                "plan_id", "paystack_plan_code", "status", "paystack_customer_code",
+                "paystack_email", "cancel_at_period_end", "updated_at",
+            ])
+
+        if locked_checkout:
+            locked_checkout.status = SubscriptionCheckout.STATUS_CHARGED
+            locked_checkout.activated_subscription = sub
+            locked_checkout.save(update_fields=["status", "activated_subscription", "updated_at"])
 
         # Promote Account.plan — only verified webhook does this.
         if account.plan != plan_id:
@@ -160,12 +258,28 @@ def _handle_subscription_create(data: dict) -> None:
     sub_code = data.get("subscription_code", "")
     customer = data.get("customer") or {}
     customer_code = customer.get("customer_code", "")
-    email_token = data.get("email_token", "")
     next_payment = data.get("next_payment_date")
     start = data.get("start") or data.get("createdAt")
+    customer_email = customer.get("email", "")
 
-    sub = (_find_subscription_by_customer_code(customer_code)
-           or _find_subscription_by_email(customer.get("email", "")))
+    sub = (
+        Subscription.objects.filter(
+            paystack_customer_code=customer_code,
+            paystack_sub_id="",
+        )
+        .exclude(status=Subscription.STATUS_REPLACED)
+        .order_by("-created_at", "-id")
+        .first()
+        or Subscription.objects.filter(
+            paystack_email=customer_email,
+            paystack_sub_id="",
+        )
+        .exclude(status=Subscription.STATUS_REPLACED)
+        .order_by("-created_at", "-id")
+        .first()
+        or _find_subscription_by_customer_code(customer_code)
+        or _find_subscription_by_email(customer_email)
+    )
 
     if not sub:
         logger.error("subscription.create: no Subscription for customer_code=%s", customer_code)
@@ -177,10 +291,23 @@ def _handle_subscription_create(data: dict) -> None:
         sub.status = Subscription.STATUS_ACTIVE
         sub.current_period_start = _parse_date(start)
         sub.current_period_end = _parse_date(next_payment)
+        sub.cancel_at_period_end = False
         sub.save(update_fields=[
             "paystack_sub_id", "status",
-            "current_period_start", "current_period_end", "updated_at",
+            "current_period_start", "current_period_end", "cancel_at_period_end", "updated_at",
         ])
+
+        checkout = _find_checkout_for_activated_subscription(sub)
+        if not checkout and customer_email:
+            checkout = _find_open_checkout_by_email(customer_email)
+        if checkout:
+            checkout = SubscriptionCheckout.objects.select_for_update().get(pk=checkout.pk)
+            checkout.activated_subscription = sub
+            checkout.status = SubscriptionCheckout.STATUS_PROVIDER_CREATED
+            checkout.save(update_fields=["activated_subscription", "status", "updated_at"])
+            if checkout.replaces_subscription_id:
+                old_sub = Subscription.objects.select_for_update().get(pk=checkout.replaces_subscription_id)
+                _cancel_replaced_subscription(old_sub, sub)
 
     AuditService.record_event(
         event_type="payment.subscription_created",
@@ -241,6 +368,7 @@ def _handle_invoice_payment_failed(data: dict) -> None:
     with transaction.atomic():
         sub = Subscription.objects.select_for_update().get(pk=sub.pk)
         sub.status = Subscription.STATUS_PAST_DUE
+        sub.cancel_at_period_end = False
         sub.save(update_fields=["status", "updated_at"])
 
     # Record failed invoice
@@ -307,8 +435,9 @@ def _handle_invoice_update(data: dict) -> None:
         if period_start:
             sub.current_period_start = period_start
         sub.status = Subscription.STATUS_ACTIVE
+        sub.cancel_at_period_end = False
         sub.save(update_fields=[
-            "current_period_start", "current_period_end", "status", "updated_at",
+            "current_period_start", "current_period_end", "status", "cancel_at_period_end", "updated_at",
         ])
 
     Invoice.objects.update_or_create(

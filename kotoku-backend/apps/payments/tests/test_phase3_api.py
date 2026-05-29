@@ -20,7 +20,7 @@ from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import AccessToken
 
 from apps.accounts.models import Account, User
-from apps.payments.models import Subscription
+from apps.payments.models import Subscription, SubscriptionCheckout
 from infrastructure.paystack.client import InitializeResult, PaystackError
 
 _CONFIG_URL = "/api/payments/config/"
@@ -108,11 +108,12 @@ def test_initiate_happy_path(mock_factory):
     assert data["access_code"] == "acc_test"
     assert data["reference"] == "kotoku_xyz"
 
-    # Subscription row created in pending state
-    sub = Subscription.objects.get(account=account)
-    assert sub.status == Subscription.STATUS_PENDING
-    assert sub.plan_id == "personal_plus"
-    assert sub.paystack_plan_code == "PLN_plus"
+    checkout = SubscriptionCheckout.objects.get(account=account, reference="kotoku_xyz")
+    assert checkout.status == SubscriptionCheckout.STATUS_PENDING
+    assert checkout.target_plan_id == "personal_plus"
+    assert checkout.authorization_url == "https://checkout.paystack.com/abc"
+    assert checkout.access_code == "acc_test"
+    assert not Subscription.objects.filter(account=account).exists()
 
 
 @pytest.mark.django_db
@@ -174,12 +175,13 @@ def test_initiate_rejects_duplicate_active_same_plan(mock_factory):
 @override_settings(PAYSTACK_PLAN_CODES=_PLAN_CODES)
 @patch("apps.payments.services.get_paystack_client")
 def test_initiate_allows_upgrade_from_active_different_plan(mock_factory):
-    mock_factory.return_value = _mock_client()
+    mock_factory.return_value = _mock_client(reference="kotoku_upgrade")
     account, client = _make_account_client()
-    Subscription.objects.create(
+    active_sub = Subscription.objects.create(
         account=account,
         plan_id="personal_basic",
         paystack_plan_code="PLN_basic",
+        paystack_sub_id="SUB_old_active",
         paystack_email=account.email,
         status=Subscription.STATUS_ACTIVE,
     )
@@ -188,6 +190,28 @@ def test_initiate_allows_upgrade_from_active_different_plan(mock_factory):
     resp = client.post(_INITIATE_URL, {"plan_id": "personal_plus"}, format="json")
 
     assert resp.status_code == 201
+    checkout = SubscriptionCheckout.objects.get(reference="kotoku_upgrade")
+    assert checkout.replaces_subscription == active_sub
+    assert checkout.target_plan_id == "personal_plus"
+
+
+@pytest.mark.django_db
+@override_settings(PAYSTACK_PLAN_CODES=_PLAN_CODES)
+@patch("apps.payments.services.get_paystack_client")
+def test_initiate_rejects_when_checkout_already_open(mock_factory):
+    mock_factory.return_value = _mock_client()
+    account, client = _make_account_client()
+    SubscriptionCheckout.objects.create(
+        account=account,
+        reference="kotoku_existing",
+        target_plan_id="personal_plus",
+        status=SubscriptionCheckout.STATUS_PENDING,
+    )
+
+    resp = client.post(_INITIATE_URL, {"plan_id": "enterprise_standard"}, format="json")
+
+    assert resp.status_code == 400
+    assert "already in progress" in resp.json()["message"]
 
 
 @pytest.mark.django_db
@@ -250,12 +274,11 @@ def test_subscription_status_active():
 @pytest.mark.django_db
 def test_subscription_status_pending():
     account, client = _make_account_client()
-    Subscription.objects.create(
+    SubscriptionCheckout.objects.create(
         account=account,
-        plan_id="personal_basic",
-        paystack_plan_code="PLN_basic",
-        paystack_email=account.email,
-        status=Subscription.STATUS_PENDING,
+        reference="kotoku_pending_001",
+        target_plan_id="personal_basic",
+        status=SubscriptionCheckout.STATUS_PENDING,
     )
 
     resp = client.get(_SUBSCRIPTION_URL)
@@ -294,7 +317,7 @@ def test_cancel_happy_path(mock_factory):
     assert resp.status_code == 200
     assert "cancelled at the end" in resp.json()["data"]["detail"]
 
-    sub = Subscription.objects.get(account=account)
+    sub = Subscription.objects.get(account=account, paystack_sub_id="SUB_abc123")
     assert sub.cancel_at_period_end is True
     assert sub.status == Subscription.STATUS_ACTIVE  # not downgraded yet
 
@@ -319,6 +342,38 @@ def test_cancel_calls_paystack_with_correct_args(mock_factory):
     mock.fetch_subscription.assert_called_once_with("SUB_xyz")
     mock.cancel_subscription.assert_called_once_with(
         subscription_code="SUB_xyz",
+        email_token="tok_email_xyz",
+    )
+
+
+@pytest.mark.django_db
+@patch("apps.payments.services.get_paystack_client")
+def test_cancel_targets_current_subscription_when_switch_checkout_pending(mock_factory):
+    mock = _mock_client()
+    mock_factory.return_value = mock
+    account, client = _make_account_client(plan="personal_basic")
+    current_sub = Subscription.objects.create(
+        account=account,
+        plan_id="personal_basic",
+        paystack_plan_code="PLN_basic",
+        paystack_sub_id="SUB_current_live",
+        paystack_email=account.email,
+        status=Subscription.STATUS_ACTIVE,
+    )
+    SubscriptionCheckout.objects.create(
+        account=account,
+        reference="kotoku_switch_pending",
+        target_plan_id="personal_plus",
+        status=SubscriptionCheckout.STATUS_PENDING,
+        replaces_subscription=current_sub,
+    )
+
+    resp = client.post(_CANCEL_URL)
+
+    assert resp.status_code == 200
+    mock.fetch_subscription.assert_called_once_with("SUB_current_live")
+    mock.cancel_subscription.assert_called_once_with(
+        subscription_code="SUB_current_live",
         email_token="tok_email_xyz",
     )
 

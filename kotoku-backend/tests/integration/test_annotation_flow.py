@@ -119,7 +119,7 @@ class TestPostSealAnnotationFlow:
             data={"author_party_id": outsider.pk, "body": "Should fail."},
             format="json",
         )
-        assert resp.status_code == 400
+        assert resp.status_code == 403
 
     def test_cannot_annotate_non_sealed_agreement(self):
         acct, client = _make_account("00030001")

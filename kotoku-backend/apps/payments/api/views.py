@@ -139,9 +139,21 @@ class WebhookView(APIView):
             logger.error("Webhook payload missing event id: %s", payload)
             return HttpResponse(status=400)
 
-        # Step 4: idempotency check — return 200 so Paystack doesn't retry.
-        if PaymentEvent.objects.filter(event_id=event_id).exists():
-            logger.info("Webhook event_id=%s already recorded — skipping", event_id)
+        # Step 4: idempotency check.
+        existing = PaymentEvent.objects.filter(event_id=event_id).first()
+        if existing:
+            if existing.processed:
+                logger.info("Webhook event_id=%s already processed — skipping", event_id)
+                return HttpResponse(status=200)
+            try:
+                process_payment_event.delay(event_id)
+            except Exception:
+                logger.exception(
+                    "Webhook event_id=%s exists but could not be re-dispatched",
+                    event_id,
+                )
+                return HttpResponse(status=503)
+            logger.info("Webhook event_id=%s already recorded but unprocessed — re-dispatched", event_id)
             return HttpResponse(status=200)
 
         # Step 5: persist the event row.
@@ -153,6 +165,10 @@ class WebhookView(APIView):
         )
 
         # Step 6: dispatch to Celery and return immediately.
-        process_payment_event.delay(event_id)
+        try:
+            process_payment_event.delay(event_id)
+        except Exception:
+            logger.exception("Webhook event_id=%s type=%s dispatch failed", event_id, event_type)
+            return HttpResponse(status=503)
         logger.info("Webhook event_id=%s type=%s accepted", event_id, event_type)
         return HttpResponse(status=200)

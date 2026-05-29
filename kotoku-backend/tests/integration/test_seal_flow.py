@@ -59,8 +59,9 @@ def _otp_capture(to, body):
 class TestFullSealFlow:
     def test_complete_seal_to_vault_and_pdf_export(self):
         acct, client = _make_account("00010001")
+        buyer_acct, buyer_client = _make_account("00010002")
         seller_phone = acct.phone
-        buyer_phone = "+233800010002"
+        buyer_phone = buyer_acct.phone
 
         resp = client.post(
             _AGREEMENTS_PATH,
@@ -112,8 +113,13 @@ class TestFullSealFlow:
         agr = Agreement.objects.get(pk=agreement_id)
         assert agr.status == AgreementStatus.PENDING_CONSENT
 
+        clients_by_phone = {
+            seller_phone: client,
+            buyer_phone: buyer_client,
+        }
+
         for phone, otp in otp_map.items():
-            resp = client.post(
+            resp = clients_by_phone[phone].post(
                 _CONFIRM_PATH.format(id=agreement_id),
                 data={"party_phone": phone, "otp_code": otp},
                 format="json",

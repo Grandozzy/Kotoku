@@ -23,7 +23,7 @@ from rest_framework.test import APIClient
 
 from apps.accounts.models import Account, User
 from apps.audit.models import AuditLog
-from apps.payments.models import Invoice, PaymentEvent, Subscription
+from apps.payments.models import Invoice, PaymentEvent, Subscription, SubscriptionCheckout
 from apps.payments.tasks import process_payment_event
 
 _WEBHOOK_URL = "/api/payments/webhook/"
@@ -124,6 +124,23 @@ def test_webhook_idempotent_replay_returns_200(mock_task):
 
 @pytest.mark.django_db
 @override_settings(PAYSTACK_WEBHOOK_SECRET=_WEBHOOK_SECRET)
+@patch("apps.payments.api.views.process_payment_event")
+def test_webhook_replays_unprocessed_event(mock_task):
+    PaymentEvent.objects.create(
+        event_id="evt_retry_001",
+        event_type="charge.success",
+        payload={},
+        processed=False,
+    )
+    client = APIClient()
+    payload = _make_event("charge.success", {}, "evt_retry_001")
+    resp = _post_webhook(client, payload)
+    assert resp.status_code == 200
+    mock_task.delay.assert_called_once_with("evt_retry_001")
+
+
+@pytest.mark.django_db
+@override_settings(PAYSTACK_WEBHOOK_SECRET=_WEBHOOK_SECRET)
 def test_webhook_missing_event_id_returns_400():
     client = APIClient()
     body = json.dumps({"event": "charge.success", "data": {}}).encode()
@@ -144,12 +161,11 @@ def test_webhook_missing_event_id_returns_400():
 @patch("apps.payments.tasks._notify")
 def test_charge_success_activates_plan(mock_notify):
     account = _make_account(plan="personal_basic")
-    Subscription.objects.create(
+    SubscriptionCheckout.objects.create(
         account=account,
-        plan_id="personal_plus",
-        paystack_plan_code="PLN_plus",
-        paystack_email=account.email,
-        status=Subscription.STATUS_PENDING,
+        reference="kotoku_ref001",
+        target_plan_id="personal_plus",
+        status=SubscriptionCheckout.STATUS_PENDING,
     )
 
     payload = _make_event("charge.success", {
@@ -166,12 +182,15 @@ def test_charge_success_activates_plan(mock_notify):
     process_payment_event("evt_charge_001")
 
     account.refresh_from_db()
-    sub = Subscription.objects.get(account=account)
+    sub = Subscription.objects.get(account=account, plan_id="personal_plus")
+    checkout = SubscriptionCheckout.objects.get(reference="kotoku_ref001")
     event.refresh_from_db()
 
     assert account.plan == "personal_plus"
     assert sub.status == Subscription.STATUS_ACTIVE
     assert sub.paystack_customer_code == "CUS_abc"
+    assert checkout.status == SubscriptionCheckout.STATUS_CHARGED
+    assert checkout.activated_subscription == sub
     assert event.processed is True
     assert AuditLog.objects.filter(event_type="payment.plan_activated").exists()
     mock_notify.assert_called_once()
@@ -208,6 +227,13 @@ def test_subscription_create_stores_sub_id_and_period():
         paystack_customer_code="CUS_abc",
         status=Subscription.STATUS_ACTIVE,
     )
+    checkout = SubscriptionCheckout.objects.create(
+        account=account,
+        reference="kotoku_ref_subcreate",
+        target_plan_id="personal_plus",
+        status=SubscriptionCheckout.STATUS_CHARGED,
+        activated_subscription=sub,
+    )
 
     payload = _make_event("subscription.create", {
         "subscription_code": "SUB_xyz123",
@@ -228,6 +254,81 @@ def test_subscription_create_stores_sub_id_and_period():
     assert sub.current_period_end == date(2026, 6, 27)
     assert sub.current_period_start == date(2026, 5, 27)
     assert sub.status == Subscription.STATUS_ACTIVE
+    assert sub.cancel_at_period_end is False
+    checkout.refresh_from_db()
+    assert checkout.status == SubscriptionCheckout.STATUS_PROVIDER_CREATED
+
+
+@pytest.mark.django_db
+@patch("apps.payments.tasks.get_paystack_client")
+def test_plan_switch_creates_new_subscription_and_replaces_old(mock_factory):
+    mock_client = MagicMock()
+    mock_client.fetch_subscription.return_value = {"email_token": "tok_old"}
+    mock_client.cancel_subscription.return_value = True
+    mock_factory.return_value = mock_client
+
+    account = _make_account(plan="personal_basic")
+    old_sub = Subscription.objects.create(
+        account=account,
+        plan_id="personal_basic",
+        paystack_plan_code="PLN_basic",
+        paystack_sub_id="SUB_old_001",
+        paystack_email=account.email,
+        paystack_customer_code="CUS_switch",
+        status=Subscription.STATUS_ACTIVE,
+    )
+    SubscriptionCheckout.objects.create(
+        account=account,
+        reference="kotoku_switch_001",
+        target_plan_id="personal_plus",
+        status=SubscriptionCheckout.STATUS_PENDING,
+        replaces_subscription=old_sub,
+    )
+
+    PaymentEvent.objects.create(
+        event_id="evt_switch_charge_001",
+        event_type="charge.success",
+        payload=_make_event("charge.success", {
+            "reference": "kotoku_switch_001",
+            "plan": {"plan_code": "PLN_plus"},
+            "customer": {"customer_code": "CUS_switch", "email": account.email},
+            "metadata": {"account_id": account.id, "plan_id": "personal_plus"},
+        }, "evt_switch_charge_001"),
+        processed=False,
+    )
+    process_payment_event("evt_switch_charge_001")
+
+    new_sub = Subscription.objects.exclude(pk=old_sub.pk).get(account=account)
+    assert new_sub.plan_id == "personal_plus"
+    assert new_sub.status == Subscription.STATUS_PENDING
+
+    PaymentEvent.objects.create(
+        event_id="evt_switch_subcreate_001",
+        event_type="subscription.create",
+        payload=_make_event("subscription.create", {
+            "subscription_code": "SUB_new_001",
+            "customer": {"customer_code": "CUS_switch", "email": account.email},
+            "next_payment_date": "2026-06-27T00:00:00.000Z",
+            "start": "2026-05-27T00:00:00.000Z",
+        }, "evt_switch_subcreate_001"),
+        processed=False,
+    )
+    process_payment_event("evt_switch_subcreate_001")
+
+    old_sub.refresh_from_db()
+    new_sub.refresh_from_db()
+    checkout = SubscriptionCheckout.objects.get(reference="kotoku_switch_001")
+
+    assert old_sub.status == Subscription.STATUS_REPLACED
+    assert old_sub.replaced_by == new_sub
+    assert new_sub.paystack_sub_id == "SUB_new_001"
+    assert checkout.activated_subscription == new_sub
+    assert checkout.status == SubscriptionCheckout.STATUS_PROVIDER_CREATED
+    mock_client.fetch_subscription.assert_called_once_with("SUB_old_001")
+    mock_client.cancel_subscription.assert_called_once_with(
+        subscription_code="SUB_old_001",
+        email_token="tok_old",
+    )
 
 
 # ── process_payment_event — subscription.disable ─────────────────────────────
@@ -314,6 +415,7 @@ def test_invoice_update_paid_extends_period():
         paystack_email=account.email,
         status=Subscription.STATUS_ACTIVE,
         current_period_end=date(2026, 5, 31),
+        cancel_at_period_end=True,
     )
 
     payload = _make_event("invoice.update", {
@@ -335,6 +437,7 @@ def test_invoice_update_paid_extends_period():
     sub.refresh_from_db()
     assert sub.current_period_end == date(2026, 6, 30)
     assert sub.status == Subscription.STATUS_ACTIVE
+    assert sub.cancel_at_period_end is False
     assert Invoice.objects.filter(paystack_ref="inv_renew_001", status=Invoice.STATUS_PAID).exists()
 
 

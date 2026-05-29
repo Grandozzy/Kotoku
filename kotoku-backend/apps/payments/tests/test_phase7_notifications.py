@@ -25,7 +25,7 @@ import pytest
 
 from apps.accounts.models import Account, User
 from apps.notifications.models import Notification
-from apps.payments.models import PaymentEvent, Subscription
+from apps.payments.models import PaymentEvent, Subscription, SubscriptionCheckout
 from apps.payments.tasks import expire_lapsed_subscriptions, process_payment_event
 
 _seq = 0
@@ -83,16 +83,15 @@ _patch_email = patch("apps.notifications.providers.email_provider.EmailNotificat
 @_patch_email
 def test_charge_success_sends_sms_and_email(mock_email, mock_sms):
     account = _make_account(plan="personal_basic")
-    Subscription.objects.create(
+    SubscriptionCheckout.objects.create(
         account=account,
-        plan_id="personal_plus",
-        paystack_plan_code="PLN_plus",
-        paystack_email=account.email,
-        paystack_customer_code="CUS_notif",
-        status=Subscription.STATUS_PENDING,
+        reference="kotoku_notif_charge_001",
+        target_plan_id="personal_plus",
+        status=SubscriptionCheckout.STATUS_PENDING,
     )
 
     _create_event("evt_n_charge_001", "charge.success", {
+        "reference": "kotoku_notif_charge_001",
         "plan": {"plan_code": "PLN_plus"},
         "customer": {"customer_code": "CUS_notif", "email": account.email},
         "metadata": {"account_id": account.id, "plan_id": "personal_plus"},
@@ -111,16 +110,15 @@ def test_charge_success_sends_sms_and_email(mock_email, mock_sms):
 @_patch_email
 def test_charge_success_email_has_subject(mock_email, mock_sms):
     account = _make_account(plan="personal_basic")
-    Subscription.objects.create(
+    SubscriptionCheckout.objects.create(
         account=account,
-        plan_id="personal_plus",
-        paystack_plan_code="PLN_plus",
-        paystack_email=account.email,
-        paystack_customer_code="CUS_notif2",
-        status=Subscription.STATUS_PENDING,
+        reference="kotoku_notif_charge_002",
+        target_plan_id="personal_plus",
+        status=SubscriptionCheckout.STATUS_PENDING,
     )
 
     _create_event("evt_n_charge_002", "charge.success", {
+        "reference": "kotoku_notif_charge_002",
         "plan": {"plan_code": "PLN_plus"},
         "customer": {"customer_code": "CUS_notif2", "email": account.email},
         "metadata": {"account_id": account.id, "plan_id": "personal_plus"},
@@ -277,16 +275,15 @@ def test_charge_success_no_email_address_skips_email(mock_email, mock_sms):
     account.email = ""
     account.save(update_fields=["email", "updated_at"])
 
-    Subscription.objects.create(
+    SubscriptionCheckout.objects.create(
         account=account,
-        plan_id="personal_plus",
-        paystack_plan_code="PLN_plus",
-        paystack_email="fallback@test.com",
-        paystack_customer_code="CUS_noemail",
-        status=Subscription.STATUS_PENDING,
+        reference="kotoku_notif_noemail_001",
+        target_plan_id="personal_plus",
+        status=SubscriptionCheckout.STATUS_PENDING,
     )
 
     _create_event("evt_n_noemail_001", "charge.success", {
+        "reference": "kotoku_notif_noemail_001",
         "plan": {"plan_code": "PLN_plus"},
         "customer": {"customer_code": "CUS_noemail", "email": "fallback@test.com"},
         "metadata": {"account_id": account.id, "plan_id": "personal_plus"},
