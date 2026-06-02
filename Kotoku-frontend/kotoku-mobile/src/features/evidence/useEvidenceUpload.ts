@@ -11,6 +11,14 @@ import { getApiErrorMessage } from "@/lib/errorHandler";
 import type { UploadStatus } from "@/types/evidence";
 
 const MIME_JPEG = "image/jpeg";
+const ALLOWED_MIMES = new Set([
+  "image/jpeg",
+  "image/png",
+  "audio/wav",
+  "audio/ogg",
+  "audio/mpeg",
+  "application/pdf",
+]);
 
 function arrayBufferToHex(buffer: ArrayBuffer): string {
   return Array.from(new Uint8Array(buffer))
@@ -100,6 +108,13 @@ export function useEvidenceUpload(
       const fileBlob = await (await fetch(asset.uri)).blob();
       const checksumSha256 = await sha256Hex(fileBlob);
 
+      // Use the real asset MIME when it's a type the backend accepts; fall back
+      // to image/jpeg so the declared type always matches the uploaded bytes.
+      const mimeType =
+        asset.mimeType && ALLOWED_MIMES.has(asset.mimeType)
+          ? asset.mimeType
+          : MIME_JPEG;
+
       setItems((prev) => ({
         ...prev,
         [slotId]: {
@@ -115,7 +130,7 @@ export function useEvidenceUpload(
       const uploadUrlRes = await getUploadUrl(
         agreementId,
         evidenceType,
-        MIME_JPEG,
+        mimeType,
         sizeBytes || 1,
         checksumSha256,
       );
@@ -126,7 +141,7 @@ export function useEvidenceUpload(
         headers:
           Object.keys(uploadUrlRes.headers ?? {}).length > 0
             ? uploadUrlRes.headers
-            : { "Content-Type": MIME_JPEG },
+            : { "Content-Type": mimeType },
         body: fileBlob,
       });
 
@@ -140,7 +155,7 @@ export function useEvidenceUpload(
         agreementId,
         uploadUrlRes.file_key,
         evidenceType,
-        MIME_JPEG,
+        mimeType,
         checksumSha256,
       );
 

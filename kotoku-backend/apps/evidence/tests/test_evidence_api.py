@@ -5,6 +5,7 @@ real object storage.
 """
 from unittest.mock import patch
 
+from botocore.exceptions import EndpointConnectionError
 import pytest
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.test import APIClient
@@ -225,6 +226,23 @@ class TestUploadUrlApi:
         assert item.uploaded_by is not None
         assert item.uploaded_by.phone == acct.phone
 
+    def test_storage_presign_failure_returns_503(self, mock_presign):
+        mock_presign.side_effect = EndpointConnectionError(endpoint_url="http://storage.local")
+        client, acct = _make_client("+233501400012")
+        agreement = _agreement(acct)
+        resp = client.post(
+            _UPLOAD_URL_PATH.format(id=agreement.pk),
+            {
+                "evidence_type": "vehicle_photo_front",
+                "mime_type": "image/jpeg",
+                "size_bytes": 500,
+                "checksum_sha256": _FAKE_CHECKSUM,
+            },
+            format="json",
+        )
+        assert resp.status_code == 503
+        assert resp.json()["message"] == "Evidence storage is temporarily unavailable. Please try again."
+
 
 @patch(
     "apps.evidence.api.serializers.S3StorageClient.generate_presigned_view_url",
@@ -442,6 +460,24 @@ class TestConfirmUploadApi:
             format="json",
         )
         assert resp.status_code == 400
+
+    def test_storage_verify_failure_returns_503(self, mock_presign, mock_head, mock_view_url):
+        mock_head.side_effect = EndpointConnectionError(endpoint_url="http://storage.local")
+        client, acct = _make_client("+233501500013")
+        agreement = _agreement(acct)
+        file_key = self._request_url(client, agreement.pk)
+        resp = client.post(
+            _EVIDENCE_PATH.format(id=agreement.pk),
+            {
+                "file_key": file_key,
+                "evidence_type": "vehicle_photo_front",
+                "mime_type": "image/jpeg",
+                "checksum_sha256": _FAKE_CHECKSUM,
+            },
+            format="json",
+        )
+        assert resp.status_code == 503
+        assert resp.json()["message"] == "Uploaded file could not be verified in storage. Please try again."
 
 
 @patch(

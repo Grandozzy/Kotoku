@@ -1,7 +1,8 @@
+import logging
 import re
 import uuid
 
-from botocore.exceptions import ClientError
+from botocore.exceptions import BotoCoreError, ClientError
 from django.db import transaction
 
 from apps.agreements.domain.enums import AgreementStatus
@@ -10,8 +11,10 @@ from apps.audit.services import AuditService
 from apps.evidence.models import EvidenceItem
 from apps.evidence.storage import store_evidence
 from apps.parties.models import Party
-from common.exceptions import DomainError
+from common.exceptions import DomainError, ServiceUnavailableError
 from infrastructure.storage.s3 import S3StorageClient
+
+logger = logging.getLogger("kotoku")
 
 _MAX_FILE_SIZE = 50 * 1024 * 1024  # 50 MB
 
@@ -170,9 +173,24 @@ class EvidenceService:
         )
 
         storage = S3StorageClient()
-        upload_url, headers = storage.generate_presigned_upload_url(
-            file_key, mime_type, checksum_sha256, expires_in=900
-        )
+        try:
+            upload_url, headers = storage.generate_presigned_upload_url(
+                file_key, mime_type, checksum_sha256, expires_in=900
+            )
+        except (BotoCoreError, ClientError) as exc:
+            logger.exception(
+                "[EVIDENCE] storage_presign_failed",
+                extra={
+                    "agreement_id": agreement_id,
+                    "evidence_type": evidence_type,
+                    "mime_type": mime_type,
+                    "size_bytes": size_bytes,
+                    "storage_error": exc.__class__.__name__,
+                },
+            )
+            raise ServiceUnavailableError(
+                "Evidence storage is temporarily unavailable. Please try again."
+            ) from None
 
         # Find the matching party for this account (best-effort; null if not found).
         uploaded_by = Party.objects.filter(
@@ -254,20 +272,73 @@ class EvidenceService:
 
         try:
             object_meta = S3StorageClient().head_object(file_key)
-        except ClientError:
-            raise DomainError(
-                "Uploaded file could not be verified in storage."
+        except (BotoCoreError, ClientError) as exc:
+            logger.exception(
+                "[EVIDENCE] storage_verify_failed",
+                extra={
+                    "agreement_id": agreement_id,
+                    "evidence_type": evidence_type,
+                    "file_key": file_key,
+                    "storage_error": exc.__class__.__name__,
+                },
+            )
+            raise ServiceUnavailableError(
+                "Uploaded file could not be verified in storage. Please try again."
             ) from None
 
         actual_size = object_meta.get("content_length")
         actual_mime = object_meta.get("content_type", "")
         actual_metadata = object_meta.get("metadata", {})
         actual_checksum = actual_metadata.get("sha256", "")
+        logger.info(
+            "[EVIDENCE] storage_verify_metadata",
+            extra={
+                "agreement_id": agreement_id,
+                "evidence_type": evidence_type,
+                "file_key": file_key,
+                "expected_size": item.size_bytes,
+                "actual_size": actual_size,
+                "expected_mime": item.mime_type,
+                "actual_mime": actual_mime,
+                "has_expected_checksum": bool(item.file_hash),
+                "has_actual_checksum": bool(actual_checksum),
+            },
+        )
         if item.size_bytes is not None and actual_size != item.size_bytes:
+            logger.warning(
+                "[EVIDENCE] storage_verify_size_mismatch",
+                extra={
+                    "agreement_id": agreement_id,
+                    "evidence_type": evidence_type,
+                    "file_key": file_key,
+                    "expected_size": item.size_bytes,
+                    "actual_size": actual_size,
+                },
+            )
             raise DomainError("Uploaded file size does not match the original upload request.")
         if actual_mime and actual_mime != item.mime_type:
+            logger.warning(
+                "[EVIDENCE] storage_verify_mime_mismatch",
+                extra={
+                    "agreement_id": agreement_id,
+                    "evidence_type": evidence_type,
+                    "file_key": file_key,
+                    "expected_mime": item.mime_type,
+                    "actual_mime": actual_mime,
+                },
+            )
             raise DomainError("Uploaded file content type does not match the original upload request.")
         if actual_checksum != item.file_hash:
+            logger.warning(
+                "[EVIDENCE] storage_verify_checksum_mismatch",
+                extra={
+                    "agreement_id": agreement_id,
+                    "evidence_type": evidence_type,
+                    "file_key": file_key,
+                    "has_expected_checksum": bool(item.file_hash),
+                    "has_actual_checksum": bool(actual_checksum),
+                },
+            )
             raise DomainError("Uploaded file checksum does not match the original upload request.")
 
         item.upload_status = EvidenceItem.UploadStatus.CONFIRMED

@@ -33,7 +33,21 @@ export const evidenceApi = {
   ) => api.post<{ evidence: { id: number } }>(`/api/agreements/${agreementId}/evidence/`, data),
 
   uploadToStorage: async (uploadUrl: string, headers: Record<string, string>, file: File) => {
-    const res = await fetch(uploadUrl, { method: "PUT", headers, body: file });
-    if (!res.ok) throw new Error(`S3 upload failed: ${res.status}`);
+    let res: Response;
+    try {
+      res = await fetch(uploadUrl, { method: "PUT", headers, body: file });
+    } catch {
+      // fetch() itself throws (TypeError) on network errors, CORS preflight
+      // failures, or when the storage host is unreachable.
+      throw new Error(
+        "File upload failed: storage server could not be reached. " +
+          "This may be a network or CORS configuration issue."
+      );
+    }
+    if (!res.ok) {
+      throw new Error(
+        `File upload failed: storage returned ${res.status}. Please try again.`
+      );
+    }
   },
 };
