@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ArrowLeft, Check, Loader2, ShieldCheck, Users } from "lucide-react";
 import { usePlan } from "@/hooks/usePlan";
 import { paymentsApi } from "@/api/payments";
@@ -225,14 +225,10 @@ export default function PlansPage() {
     (u) => u.id
   );
 
-  const [tab, setTab] = useState<PlanFamily>("personal");
+  const [manualTab, setManualTab] = useState<PlanFamily | null>(null);
+  const tab = manualTab ?? currentFamily;
   const [actingPlanId, setActingPlanId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-
-  // Auto-select tab to match the user's current plan family once loaded.
-  useEffect(() => {
-    if (currentFamily) setTab(currentFamily);
-  }, [currentFamily]);
 
   async function handleAction(planId: string) {
     setActingPlanId(planId);
@@ -276,7 +272,7 @@ export default function PlansPage() {
       {/* Tab toggle */}
       <div className="inline-flex bg-neutral-100 rounded-full p-1 gap-1 self-start">
         <button
-          onClick={() => setTab("personal")}
+          onClick={() => setManualTab("personal")}
           className={`px-5 py-1.5 rounded-full text-sm font-medium transition-all ${
             tab === "personal"
               ? "bg-white text-neutral-900 shadow-sm"
@@ -286,7 +282,7 @@ export default function PlansPage() {
           Personal
         </button>
         <button
-          onClick={() => setTab("enterprise")}
+          onClick={() => setManualTab("enterprise")}
           className={`px-5 py-1.5 rounded-full text-sm font-medium transition-all inline-flex items-center gap-1.5 ${
             tab === "enterprise"
               ? "bg-white text-neutral-900 shadow-sm"

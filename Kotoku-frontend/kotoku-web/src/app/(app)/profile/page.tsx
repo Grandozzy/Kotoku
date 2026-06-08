@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Check, ChevronRight, LogOut, Pencil, ShieldCheck, TrendingUp, X } from "lucide-react";
+import { ArrowRight, Check, ChevronRight, LogOut, Pencil, ShieldCheck, TrendingUp, X } from "lucide-react";
 import { useSessionStore } from "@/store/sessionStore";
 import { usePlan } from "@/hooks/usePlan";
 import { api } from "@/lib/apiClient";
