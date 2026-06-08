@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, Check } from "lucide-react";
 import { agreementsApi } from "@/api/agreements";
@@ -19,6 +19,7 @@ function groupBySection(fields: FieldDef[]) {
 export default function AgreementDetailPage() {
   const { id } = useParams<{ id: string }>();
   const agreementId = Number(id);
+  const router = useRouter();
   const queryClient = useQueryClient();
 
   const { data: agreement } = useQuery({
@@ -49,6 +50,13 @@ export default function AgreementDetailPage() {
     : null;
   const fieldData = agreement.field_data ?? {};
   const sections = scenario ? groupBySection(scenario.fields) : null;
+
+  const requiredFields = scenario?.fields.filter((f) => f.required) ?? [];
+  const missingRequired = requiredFields.filter((f) => {
+    const v = fieldData[f.key];
+    return v === undefined || v === null || v === "";
+  });
+  const detailsComplete = missingRequired.length === 0;
 
   function startEdit() {
     setForm({ ...fieldData });
@@ -225,19 +233,47 @@ export default function AgreementDetailPage() {
         </form>
       )}
 
-      {/* Next step nudge */}
-      {!editing && (
-        <div className="rounded-2xl bg-neutral-50 px-5 py-4 text-sm text-neutral-500">
-          {agreement.status === "draft" && agreement.parties.length === 0 && (
-            <span className="inline-flex items-center gap-1">Next: add parties <ArrowRight size={13} strokeWidth={2} /></span>
+      {/* Proceed to Evidence CTA */}
+      {!editing && agreement.status !== "sealed" && (
+        <div>
+          {missingRequired.length > 0 && (
+            <p className="text-xs text-amber-600 mb-3">
+              Required before proceeding:{" "}
+              {missingRequired.map((f) => f.label).join(", ")}
+            </p>
           )}
-          {agreement.parties.length > 0 && agreement.status !== "sealed" && (
-            <span>Parties added. Continue to evidence or consent when ready.</span>
+          {detailsComplete ? (
+            <div className="rounded-xl bg-emerald-50 px-4 py-3 flex items-center justify-between gap-4">
+              <div className="flex items-center gap-1.5 text-sm text-emerald-700">
+                <Check size={14} className="shrink-0" strokeWidth={2.5} />
+                Details complete
+              </div>
+              <button
+                onClick={() => router.push(`/agreements/${agreementId}/evidence`)}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-neutral-900 text-white text-xs font-medium hover:bg-neutral-700 transition-colors shrink-0"
+              >
+                <span>Proceed to Evidence</span>
+                <ArrowRight size={12} />
+              </button>
+            </div>
+          ) : (
+            requiredFields.length > 0 && (
+              <button
+                disabled
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-neutral-900 text-white text-xs font-medium opacity-40 cursor-not-allowed"
+              >
+                <span>Proceed to Evidence</span>
+                <ArrowRight size={12} />
+              </button>
+            )
           )}
           {agreement.status === "sealed" && (
-            <span className="inline-flex items-center gap-1 text-emerald-700 font-medium">
-              <Check size={14} className="shrink-0" strokeWidth={2.5} /> This agreement is sealed and stored in the vault.
-            </span>
+            <div className="rounded-xl bg-emerald-50 px-4 py-3">
+              <span className="inline-flex items-center gap-1.5 text-sm text-emerald-700 font-medium">
+                <Check size={14} className="shrink-0" strokeWidth={2.5} />
+                This agreement is sealed and stored in the vault.
+              </span>
+            </div>
           )}
         </div>
       )}

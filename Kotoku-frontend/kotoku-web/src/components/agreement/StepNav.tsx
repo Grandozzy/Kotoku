@@ -14,14 +14,14 @@ interface Step {
 function getSteps(id: number): Step[] {
   return [
     {
-      href: `/agreements/${id}`,
-      label: "Details",
-      check: () => true,
-    },
-    {
       href: `/agreements/${id}/parties`,
       label: "Parties",
       check: (a) => a.parties.length >= 2,
+    },
+    {
+      href: `/agreements/${id}`,
+      label: "Details",
+      check: () => true,
     },
     {
       href: `/agreements/${id}/evidence`,

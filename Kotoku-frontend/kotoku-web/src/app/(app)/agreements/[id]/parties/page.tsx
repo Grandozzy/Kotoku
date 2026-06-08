@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Check, UserRound } from "lucide-react";
+import { ArrowRight, Check, UserRound } from "lucide-react";
 import { agreementsApi } from "@/api/agreements";
 import { partiesApi } from "@/api/parties";
 import { SCENARIO_MAP, ROLE_LABEL, ID_TYPE_LABEL } from "@/constants/scenarios";
@@ -19,6 +19,42 @@ const EMPTY_PARTY: PartyInput = {
   id_type: "ghana_card",
   id_number: "",
 };
+
+// ── Validation ─────────────────────────────────────────────────────────────
+
+interface PartyFieldErrors {
+  full_name?: string;
+  phone?: string;
+  id_number?: string;
+}
+
+function validateParty(p: PartyInput): PartyFieldErrors {
+  const errors: PartyFieldErrors = {};
+  if (p.full_name.trim().length > 0 && p.full_name.trim().length < 2) {
+    errors.full_name = "At least 2 characters required";
+  }
+  if (p.phone.length > 0) {
+    const norm = p.phone.replace(/\s/g, "");
+    if (!/^(\+\d{10,15}|\d{10,15})$/.test(norm)) {
+      errors.phone = "Enter a valid phone number (e.g. +233501234567 or 0501234567)";
+    }
+  }
+  if (p.id_number.trim().length > 0 && p.id_number.trim().length < 3) {
+    errors.id_number = "ID number too short (min 3 characters)";
+  }
+  return errors;
+}
+
+function isPartyComplete(p: PartyInput): boolean {
+  const norm = p.phone.replace(/\s/g, "");
+  return (
+    p.full_name.trim().length >= 2 &&
+    /^(\+\d{10,15}|\d{10,15})$/.test(norm) &&
+    p.id_number.trim().length >= 3
+  );
+}
+
+// ── PartyCard ───────────────────────────────────────────────────────────────
 
 function PartyCard({
   party,
@@ -53,6 +89,8 @@ function PartyCard({
   );
 }
 
+// ── PartyForm ───────────────────────────────────────────────────────────────
+
 function PartyForm({
   initial,
   allowedRoles,
@@ -67,15 +105,23 @@ function PartyForm({
   onCancel: () => void;
 }) {
   const [form, setForm] = useState<PartyInput>(initial);
+  const [attempted, setAttempted] = useState(false);
 
   function set(key: keyof PartyInput, value: string) {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
-  const valid =
-    form.full_name.trim() &&
-    form.phone.startsWith("+") &&
-    form.id_number.trim();
+  const fieldErrors = validateParty(form);
+  const valid = isPartyComplete(form);
+
+  function handleSave() {
+    setAttempted(true);
+    if (!valid) return;
+    onSave(form);
+  }
+
+  const showError = (key: keyof PartyFieldErrors) =>
+    attempted ? fieldErrors[key] : undefined;
 
   return (
     <div className="rounded-2xl border border-neutral-200 p-5 flex flex-col gap-4">
@@ -96,28 +142,45 @@ function PartyForm({
           </select>
         </div>
         <div>
-          <label className="text-xs font-medium text-neutral-600">Full name</label>
+          <label className="text-xs font-medium text-neutral-600">
+            Full name <span className="text-red-400">*</span>
+          </label>
           <input
             type="text"
             placeholder="As on ID document"
             value={form.full_name}
             onChange={(e) => set("full_name", e.target.value)}
-            className="mt-1 w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            className={`mt-1 w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
+              showError("full_name") ? "border-red-400" : "border-neutral-200"
+            }`}
           />
+          {showError("full_name") && (
+            <p className="mt-1 text-xs text-red-500">{showError("full_name")}</p>
+          )}
         </div>
         <div>
-          <label className="text-xs font-medium text-neutral-600">Phone number</label>
+          <label className="text-xs font-medium text-neutral-600">
+            Phone number <span className="text-red-400">*</span>
+          </label>
           <input
             type="tel"
-            placeholder="+233XXXXXXXXX"
+            placeholder="+233XXXXXXXXX or 0XXXXXXXXX"
             value={form.phone}
             onChange={(e) => set("phone", e.target.value)}
-            className="mt-1 w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            className={`mt-1 w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
+              showError("phone") ? "border-red-400" : "border-neutral-200"
+            }`}
           />
-          <p className="mt-1 text-xs text-neutral-400">E.164 format, e.g. +233241234567</p>
+          {showError("phone") ? (
+            <p className="mt-1 text-xs text-red-500">{showError("phone")}</p>
+          ) : (
+            <p className="mt-1 text-xs text-neutral-400">E.164 or local format</p>
+          )}
         </div>
         <div>
-          <label className="text-xs font-medium text-neutral-600">ID type</label>
+          <label className="text-xs font-medium text-neutral-600">
+            ID type <span className="text-red-400">*</span>
+          </label>
           <select
             value={form.id_type}
             onChange={(e) => set("id_type", e.target.value)}
@@ -131,20 +194,27 @@ function PartyForm({
           </select>
         </div>
         <div className="col-span-2">
-          <label className="text-xs font-medium text-neutral-600">ID number</label>
+          <label className="text-xs font-medium text-neutral-600">
+            ID number <span className="text-red-400">*</span>
+          </label>
           <input
             type="text"
             placeholder="e.g. GHA-123456789-0"
             value={form.id_number}
             onChange={(e) => set("id_number", e.target.value)}
-            className="mt-1 w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            className={`mt-1 w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
+              showError("id_number") ? "border-red-400" : "border-neutral-200"
+            }`}
           />
+          {showError("id_number") && (
+            <p className="mt-1 text-xs text-red-500">{showError("id_number")}</p>
+          )}
         </div>
       </div>
       <div className="flex gap-3">
         <button
-          onClick={() => onSave(form)}
-          disabled={!valid}
+          onClick={handleSave}
+          disabled={attempted && !valid}
           className="px-4 py-2 rounded-full bg-neutral-900 text-white text-sm font-medium disabled:opacity-40 hover:bg-neutral-700 transition-colors"
         >
           Save party
@@ -160,9 +230,12 @@ function PartyForm({
   );
 }
 
+// ── Page ────────────────────────────────────────────────────────────────────
+
 export default function PartiesPage() {
   const { id } = useParams<{ id: string }>();
   const agreementId = Number(id);
+  const router = useRouter();
   const queryClient = useQueryClient();
 
   const { data: agreement } = useQuery({
@@ -170,7 +243,6 @@ export default function PartiesPage() {
     queryFn: () => agreementsApi.get(agreementId),
   });
 
-  // Local draft of parties (before saving)
   const [draftParties, setDraftParties] = useState<PartyInput[] | null>(null);
   const [addingNew, setAddingNew] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
@@ -190,6 +262,8 @@ export default function PartiesPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["agreements", agreementId] });
       setDraftParties(null);
+      // Proceed to Details step
+      router.push(`/agreements/${agreementId}`);
     },
   });
 
@@ -207,6 +281,9 @@ export default function PartiesPage() {
 
   const usedRoles = new Set<PartyRole>(parties.map((p) => p.role));
   const isDirty = draftParties !== null;
+
+  // All parties must be complete (no incomplete entries allowed to save)
+  const allPartiesComplete = parties.length >= 2 && parties.every(isPartyComplete);
 
   function addParty(p: PartyInput) {
     setDraftParties([...parties, p]);
@@ -235,9 +312,14 @@ export default function PartiesPage() {
         )}
       </div>
 
+      <p className="text-sm text-neutral-500">
+        Add at least 2 parties. Each non-witness party must have a full name,
+        phone number, ID type, and ID number before you can proceed.
+      </p>
+
       {parties.length === 0 && !addingNew && (
         <div className="rounded-2xl border border-dashed border-neutral-200 p-8 text-center text-neutral-400">
-          <div className="w-12 h-12 rounded-full bg-neutral-100 flex items-center justify-center mb-2">
+          <div className="w-12 h-12 rounded-full bg-neutral-100 flex items-center justify-center mb-2 mx-auto">
             <UserRound size={22} className="text-neutral-400" strokeWidth={1.5} />
           </div>
           <p className="font-medium text-neutral-600">No parties yet</p>
@@ -298,37 +380,51 @@ export default function PartiesPage() {
           </button>
 
           {isDirty && (
-            <>
-              <button
-                onClick={() => saveMutation.mutate()}
-                disabled={saveMutation.isPending || parties.length < 2}
-                className="px-4 py-2 rounded-full bg-neutral-900 text-white text-sm font-medium disabled:opacity-40 hover:bg-neutral-700 transition-colors"
-              >
-                {saveMutation.isPending ? "Saving…" : "Save parties"}
-              </button>
-              <button
-                onClick={() => setDraftParties(null)}
-                className="text-sm text-neutral-400 hover:text-neutral-600"
-              >
-                Discard changes
-              </button>
-            </>
+            <button
+              onClick={() => setDraftParties(null)}
+              className="text-sm text-neutral-400 hover:text-neutral-600"
+            >
+              Discard changes
+            </button>
           )}
         </div>
       )}
 
       {saveMutation.isError && (
-        <p className="text-sm text-red-600">Could not save parties. Check phone format (+233…) and try again.</p>
-      )}
-      {saveMutation.isSuccess && (
-        <p className="text-sm text-emerald-600">Parties saved.</p>
+        <p className="text-sm text-red-600">
+          Could not save parties. Check phone format and try again.
+        </p>
       )}
 
-      {parties.length >= 2 && !isDirty && (
-        <div className="rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700 flex items-center gap-1.5">
-          <Check size={14} className="shrink-0" strokeWidth={2.5} />
-          {parties.length} parties recorded. Head to Evidence or Consent when ready.
+      {/* Proceed CTA — shown when we have ≥2 complete parties and there are unsaved changes or it's the initial state */}
+      {parties.length >= 2 && allPartiesComplete && !addingNew && editingIndex === null && (
+        <div className="rounded-xl bg-emerald-50 px-4 py-3 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-1.5 text-sm text-emerald-700">
+            <Check size={14} className="shrink-0" strokeWidth={2.5} />
+            {parties.length} parties recorded
+          </div>
+          <button
+            onClick={() => {
+              if (isDirty) {
+                saveMutation.mutate();
+              } else {
+                router.push(`/agreements/${agreementId}`);
+              }
+            }}
+            disabled={saveMutation.isPending}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-neutral-900 text-white text-xs font-medium disabled:opacity-50 hover:bg-neutral-700 transition-colors shrink-0"
+          >
+            {saveMutation.isPending ? "Saving…" : (
+              <><span>Proceed to Details</span><ArrowRight size={12} /></>
+            )}
+          </button>
         </div>
+      )}
+
+      {parties.length >= 2 && !allPartiesComplete && (
+        <p className="text-xs text-amber-600">
+          Some party entries are incomplete. Fill in all required fields for every party before proceeding.
+        </p>
       )}
     </div>
   );

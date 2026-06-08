@@ -1,9 +1,11 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useDropzone } from "react-dropzone";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ArrowRight, Check, CheckCircle2, FileText, Loader2, Paperclip, Upload, XCircle } from "lucide-react";
+import { agreementsApi } from "@/api/agreements";
 import { evidenceApi } from "@/api/evidence";
 
 const EVIDENCE_TYPES = [
@@ -36,7 +38,16 @@ async function sha256Hex(file: File): Promise<string> {
 export default function EvidencePage() {
   const { id } = useParams<{ id: string }>();
   const agreementId = Number(id);
+  const router = useRouter();
   const queryClient = useQueryClient();
+
+  const { data: agreement } = useQuery({
+    queryKey: ["agreements", agreementId],
+    queryFn: () => agreementsApi.get(agreementId),
+  });
+
+  const confirmedCount =
+    agreement?.evidence_items?.filter((e) => e.upload_status === "confirmed").length ?? 0;
 
   const [items, setItems] = useState<UploadItem[]>([]);
   const [selectedType, setSelectedType] = useState(EVIDENCE_TYPES[0].value);
@@ -150,7 +161,12 @@ export default function EvidencePage() {
         }`}
       >
         <input {...getInputProps()} />
-        <p className="text-2xl mb-2">📎</p>
+        <div className="flex justify-center mb-3">
+          {isDragActive
+            ? <Upload size={28} className="text-emerald-500" strokeWidth={1.5} />
+            : <Paperclip size={28} className="text-neutral-400" strokeWidth={1.5} />
+          }
+        </div>
         <p className="text-sm font-medium text-neutral-700">
           {isDragActive ? "Drop files here" : "Drag photos or documents here"}
         </p>
@@ -160,6 +176,22 @@ export default function EvidencePage() {
       </div>
 
       {/* Queue */}
+      {confirmedCount > 0 && (
+        <div className="rounded-xl bg-emerald-50 px-4 py-3 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-1.5 text-sm text-emerald-700">
+            <Check size={14} className="shrink-0" strokeWidth={2.5} />
+            {confirmedCount} file{confirmedCount > 1 ? "s" : ""} confirmed
+          </div>
+          <button
+            onClick={() => router.push(`/agreements/${agreementId}/consent`)}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-neutral-900 text-white text-xs font-medium hover:bg-neutral-700 transition-colors shrink-0"
+          >
+            <span>Proceed to Consent</span>
+            <ArrowRight size={12} />
+          </button>
+        </div>
+      )}
+
       {items.length > 0 && (
         <div className="flex flex-col gap-2">
           {items.map((item, idx) => (
@@ -168,14 +200,16 @@ export default function EvidencePage() {
               className="flex items-center justify-between px-4 py-2.5 rounded-xl border border-neutral-100 bg-white"
             >
               <div className="flex items-center gap-3 min-w-0">
-                <span className="text-xl">
-                  {item.status === "done"
-                    ? "✅"
-                    : item.status === "error"
-                    ? "❌"
-                    : item.status === "uploading"
-                    ? "⏳"
-                    : "📄"}
+                <span className="shrink-0">
+                  {item.status === "done" ? (
+                    <CheckCircle2 size={18} className="text-emerald-500" strokeWidth={2} />
+                  ) : item.status === "error" ? (
+                    <XCircle size={18} className="text-red-500" strokeWidth={2} />
+                  ) : item.status === "uploading" ? (
+                    <Loader2 size={18} className="text-neutral-400 animate-spin" strokeWidth={2} />
+                  ) : (
+                    <FileText size={18} className="text-neutral-400" strokeWidth={1.8} />
+                  )}
                 </span>
                 <div className="min-w-0">
                   <p className="text-sm font-medium truncate">{item.file.name}</p>
