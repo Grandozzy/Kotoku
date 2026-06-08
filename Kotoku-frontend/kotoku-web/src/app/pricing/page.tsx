@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import {
+  ArrowRight,
   Check,
   FileText,
   HardDrive,
@@ -342,7 +343,7 @@ export default function PricingPage() {
                 className="px-8 py-3 rounded-full bg-blue-600 text-white font-semibold hover:bg-blue-700 transition-colors inline-flex items-center gap-2"
               >
                 Get started free
-                <span aria-hidden>→</span>
+                <ArrowRight size={16} />
               </Link>
             </div>
           </div>

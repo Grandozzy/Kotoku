@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Check } from "lucide-react";
 import { PublicNav } from "@/components/layout/PublicNav";
 
 export default function LegalPage() {
@@ -168,7 +169,7 @@ export default function LegalPage() {
               "A structured PDF evidence pack ready for ADR proceedings under Act 798.",
             ].map((point) => (
               <li key={point} className="flex gap-2 text-sm text-neutral-600">
-                <span className="text-emerald-500 shrink-0 mt-0.5">✓</span>
+                <Check size={14} className="text-emerald-500 shrink-0 mt-0.5" strokeWidth={2.5} />
                 {point}
               </li>
             ))}
@@ -197,7 +198,7 @@ export default function LegalPage() {
               "No data is shared with third parties except where required for the SMS OTP delivery.",
             ].map((point) => (
               <li key={point} className="flex gap-2 text-sm text-neutral-600">
-                <span className="text-emerald-500 shrink-0 mt-0.5">✓</span>
+                <Check size={14} className="text-emerald-500 shrink-0 mt-0.5" strokeWidth={2.5} />
                 {point}
               </li>
             ))}

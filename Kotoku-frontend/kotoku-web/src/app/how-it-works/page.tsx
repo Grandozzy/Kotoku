@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 import { PublicNav } from "@/components/layout/PublicNav";
 
 export default function HowItWorksPage() {
@@ -92,9 +93,9 @@ export default function HowItWorksPage() {
           </p>
           <Link
             href="/login"
-            className="inline-block px-6 py-3 rounded-full bg-white text-neutral-900 font-medium hover:bg-neutral-100 transition-colors"
+            className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-white text-neutral-900 font-medium hover:bg-neutral-100 transition-colors"
           >
-            Seal your first agreement →
+            Seal your first agreement <ArrowRight size={16} />
           </Link>
         </div>
       </main>

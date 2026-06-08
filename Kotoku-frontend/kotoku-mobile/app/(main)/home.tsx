@@ -1,5 +1,5 @@
 import { useRouter } from "expo-router";
-import { AlertTriangle, FileText, Handshake, TrendingUp } from "lucide-react-native";
+import { AlertTriangle, ChevronRight, FileText, Handshake, TrendingUp } from "lucide-react-native";
 import { useState } from "react";
 import { Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -203,9 +203,12 @@ function ActionCard({ item }: { item: { id: number; title: string; status: strin
         {item.title}
       </Text>
       <Text className="text-sm text-amber-600 mt-xs">{label}</Text>
-      <Text className="text-xs text-brand-primary mt-xs">
-        {loading ? "Loading…" : "Tap to continue →"}
-      </Text>
+      <View className="flex-row items-center gap-xs mt-xs">
+        <Text className="text-xs text-brand-primary">
+          {loading ? "Loading…" : "Tap to continue"}
+        </Text>
+        {!loading && <ChevronRight size={12} color={colors.brandPrimary} strokeWidth={2} />}
+      </View>
     </Pressable>
   );
 }
@@ -238,7 +241,10 @@ function DraftCard({ item }: { item: { id: number; title: string; updated_at: st
           </Text>
           <Text className="text-xs text-ink-muted mt-xs">{scenarioLabel} · {relativeTime}</Text>
           {partyNames && <Text className="text-xs text-ink-secondary mt-xs">{partyNames}</Text>}
-          <Text className="text-xs text-brand-primary mt-xs">Continue →</Text>
+          <View className="flex-row items-center gap-xs mt-xs">
+            <Text className="text-xs text-brand-primary">Continue</Text>
+            <ChevronRight size={12} color={colors.brandPrimary} strokeWidth={2} />
+          </View>
         </View>
       </View>
     </Pressable>

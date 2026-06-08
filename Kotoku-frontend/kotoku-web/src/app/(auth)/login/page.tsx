@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ShieldCheck } from "lucide-react";
+import { ArrowRight, ShieldCheck } from "lucide-react";
 import { authApi } from "@/api/auth";
 import { useSessionStore } from "@/store/sessionStore";
 import { KotokuLogo } from "@/components/brand/KotokuLogo";
@@ -75,9 +75,9 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading || !phone}
-            className="w-full py-2.5 rounded-full bg-neutral-900 text-white font-medium text-sm disabled:opacity-50 hover:bg-neutral-700 transition-colors"
+            className="inline-flex items-center justify-center gap-1.5 w-full py-2.5 rounded-full bg-neutral-900 text-white font-medium text-sm disabled:opacity-50 hover:bg-neutral-700 transition-colors"
           >
-            {loading ? "Sending…" : "Send code →"}
+            {loading ? "Sending…" : <><span>Send code</span><ArrowRight size={14} /></>}
           </button>
         </form>
       </div>

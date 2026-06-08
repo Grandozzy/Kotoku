@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { ArrowRight, Check } from "lucide-react";
 import { agreementsApi } from "@/api/agreements";
 import { SCENARIO_MAP } from "@/constants/scenarios";
 import type { FieldDef } from "@/constants/scenarios";
@@ -228,14 +229,14 @@ export default function AgreementDetailPage() {
       {!editing && (
         <div className="rounded-2xl bg-neutral-50 px-5 py-4 text-sm text-neutral-500">
           {agreement.status === "draft" && agreement.parties.length === 0 && (
-            <span>Next: add parties →</span>
+            <span className="inline-flex items-center gap-1">Next: add parties <ArrowRight size={13} strokeWidth={2} /></span>
           )}
           {agreement.parties.length > 0 && agreement.status !== "sealed" && (
             <span>Parties added. Continue to evidence or consent when ready.</span>
           )}
           {agreement.status === "sealed" && (
-            <span className="text-emerald-700 font-medium">
-              ✓ This agreement is sealed and stored in the vault.
+            <span className="inline-flex items-center gap-1 text-emerald-700 font-medium">
+              <Check size={14} className="shrink-0" strokeWidth={2.5} /> This agreement is sealed and stored in the vault.
             </span>
           )}
         </div>

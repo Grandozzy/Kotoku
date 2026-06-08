@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { ArrowRight, Check } from "lucide-react";
 import { agreementsApi } from "@/api/agreements";
 import { consentApi } from "@/api/consent";
 import { usePlan, useInvalidatePlan } from "@/hooks/usePlan";
@@ -122,9 +123,9 @@ export default function ConsentPage() {
           </p>
           <Link
             href="/pricing"
-            className="inline-block mt-3 px-4 py-1.5 rounded-full border border-red-300 text-red-700 text-xs font-semibold hover:bg-red-100 transition-colors"
+            className="inline-flex items-center gap-1 mt-3 px-4 py-1.5 rounded-full border border-red-300 text-red-700 text-xs font-semibold hover:bg-red-100 transition-colors"
           >
-            View upgrade options →
+            View upgrade options <ArrowRight size={11} strokeWidth={2.5} />
           </Link>
         </div>
       )}
@@ -155,8 +156,8 @@ export default function ConsentPage() {
                     <p className="text-xs text-neutral-400 mt-0.5">{r.party_phone}</p>
                   </div>
                   {r.granted ? (
-                    <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700">
-                      ✓ Confirmed
+                    <span className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700">
+                      <Check size={11} strokeWidth={2.5} /> Confirmed
                       {r.granted_at && (
                         <> · {new Date(r.granted_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}</>
                       )}
@@ -171,8 +172,8 @@ export default function ConsentPage() {
             })}
           </div>
           {allConsented && (
-            <div className="px-4 py-3 bg-emerald-50 border-t border-emerald-100 text-sm text-emerald-700 font-medium">
-              ✓ All parties confirmed — sealing agreement…
+            <div className="px-4 py-3 bg-emerald-50 border-t border-emerald-100 text-sm text-emerald-700 font-medium flex items-center gap-1.5">
+              <Check size={14} className="shrink-0" strokeWidth={2.5} /> All parties confirmed — sealing agreement…
             </div>
           )}
         </div>
@@ -276,7 +277,9 @@ export default function ConsentPage() {
             </p>
           )}
           {confirmMutation.isSuccess && (
-            <p className="text-sm text-emerald-600">✓ Consent confirmed.</p>
+            <p className="text-sm text-emerald-600 flex items-center gap-1">
+              <Check size={14} className="shrink-0" strokeWidth={2.5} /> Consent confirmed.
+            </p>
           )}
         </div>
       )}

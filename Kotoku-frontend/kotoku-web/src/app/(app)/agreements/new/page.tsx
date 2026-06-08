@@ -3,8 +3,15 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation } from "@tanstack/react-query";
+import { ArrowLeft, ArrowRight, Car, Check, ChevronRight, ClipboardList, Home } from "lucide-react";
 import { agreementsApi } from "@/api/agreements";
 import { SCENARIOS } from "@/constants/scenarios";
+import type { ComponentType } from "react";
+
+const SCENARIO_ICON_MAP: Record<string, ComponentType<{ size?: number; className?: string; strokeWidth?: number }>> = {
+  car: Car,
+  home: Home,
+};
 
 type Step = "scenario" | "details";
 
@@ -51,14 +58,14 @@ export default function NewAgreementPage() {
                   : "bg-neutral-100 text-neutral-400"
               }`}
             >
-              {i < ["scenario", "details"].indexOf(step) ? "✓" : i + 1}
+              {i < ["scenario", "details"].indexOf(step) ? <Check size={10} strokeWidth={3} /> : i + 1}
             </div>
             <span
               className={`text-sm ${step === s ? "font-medium text-neutral-900" : "text-neutral-400"}`}
             >
               {s === "scenario" ? "Choose scenario" : "Details"}
             </span>
-            {i < 1 && <span className="text-neutral-200 mx-1">→</span>}
+            {i < 1 && <ChevronRight size={14} className="text-neutral-200 mx-1" strokeWidth={2} />}
           </div>
         ))}
       </div>
@@ -84,7 +91,14 @@ export default function NewAgreementPage() {
                     : "border-neutral-100 hover:border-neutral-200"
                 }`}
               >
-                <span className="text-3xl mt-0.5">{s.icon}</span>
+                {(() => {
+                  const Icon = SCENARIO_ICON_MAP[s.icon];
+                  return Icon ? (
+                    <span className="flex items-center justify-center w-10 h-10 rounded-xl bg-neutral-100 shrink-0">
+                      <Icon size={20} className="text-neutral-600" strokeWidth={1.8} />
+                    </span>
+                  ) : null;
+                })()}
                 <div>
                   <p className="font-semibold text-sm">{s.label}</p>
                   <p className="text-xs text-neutral-500 mt-0.5">{s.description}</p>
@@ -111,7 +125,9 @@ export default function NewAgreementPage() {
                   : "border-neutral-100 hover:border-neutral-200"
               }`}
             >
-              <span className="text-3xl mt-0.5">📋</span>
+              <span className="flex items-center justify-center w-10 h-10 rounded-xl bg-neutral-100 shrink-0">
+                <ClipboardList size={20} className="text-neutral-600" strokeWidth={1.8} />
+              </span>
               <div>
                 <p className="font-semibold text-sm">Custom agreement</p>
                 <p className="text-xs text-neutral-500 mt-0.5">
@@ -123,9 +139,9 @@ export default function NewAgreementPage() {
 
           <button
             onClick={handleScenarioNext}
-            className="px-5 py-2.5 rounded-full bg-neutral-900 text-white text-sm font-medium hover:bg-neutral-700 transition-colors w-fit"
+            className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-full bg-neutral-900 text-white text-sm font-medium hover:bg-neutral-700 transition-colors w-fit"
           >
-            Next →
+            Next <ArrowRight size={14} />
           </button>
         </div>
       )}
@@ -142,9 +158,15 @@ export default function NewAgreementPage() {
 
           {selectedScenario && (
             <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-neutral-50 border border-neutral-100">
-              <span className="text-xl">
-                {SCENARIOS.find((s) => s.id === selectedScenario)?.icon}
-              </span>
+              {(() => {
+                const iconId = SCENARIOS.find((s) => s.id === selectedScenario)?.icon ?? "";
+                const Icon = SCENARIO_ICON_MAP[iconId];
+                return Icon ? (
+                  <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-neutral-200 shrink-0">
+                    <Icon size={16} className="text-neutral-600" strokeWidth={1.8} />
+                  </span>
+                ) : null;
+              })()}
               <div>
                 <p className="text-sm font-medium">
                   {SCENARIOS.find((s) => s.id === selectedScenario)?.label}
@@ -194,15 +216,17 @@ export default function NewAgreementPage() {
             <button
               onClick={() => createMutation.mutate()}
               disabled={createMutation.isPending || !title.trim()}
-              className="px-5 py-2.5 rounded-full bg-neutral-900 text-white text-sm font-medium disabled:opacity-50 hover:bg-neutral-700 transition-colors"
+              className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-full bg-neutral-900 text-white text-sm font-medium disabled:opacity-50 hover:bg-neutral-700 transition-colors"
             >
-              {createMutation.isPending ? "Creating…" : "Create agreement →"}
+              {createMutation.isPending ? "Creating…" : (
+                <><span>Create agreement</span><ArrowRight size={14} /></>
+              )}
             </button>
             <button
               onClick={() => setStep("scenario")}
-              className="px-5 py-2.5 rounded-full border border-neutral-200 text-sm font-medium hover:bg-neutral-50"
+              className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-full border border-neutral-200 text-sm font-medium hover:bg-neutral-50"
             >
-              ← Back
+              <ArrowLeft size={14} /> Back
             </button>
           </div>
           {createMutation.isError && (

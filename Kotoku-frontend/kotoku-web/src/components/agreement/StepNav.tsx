@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Check } from "lucide-react";
 import type { Agreement } from "@/types/agreement";
 
 interface Step {
@@ -80,7 +81,7 @@ export function StepNav({ agreement }: { agreement: Agreement }) {
                   : "bg-neutral-200 text-neutral-500"
               }`}
             >
-              {done === true && !isActive ? "✓" : i + 1}
+              {done === true && !isActive ? <Check size={10} strokeWidth={3} /> : i + 1}
             </span>
             {step.label}
           </Link>

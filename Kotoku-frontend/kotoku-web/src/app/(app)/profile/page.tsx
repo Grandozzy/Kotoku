@@ -245,9 +245,9 @@ export default function ProfilePage() {
               </span>
               <Link
                 href="/plans"
-                className="text-xs font-semibold text-amber-700 hover:underline shrink-0"
+                className="inline-flex items-center gap-1 text-xs font-semibold text-amber-700 hover:underline shrink-0"
               >
-                Upgrade →
+                Upgrade <ArrowRight size={12} strokeWidth={2.5} />
               </Link>
             </div>
           )}

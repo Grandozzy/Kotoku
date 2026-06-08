@@ -1,5 +1,6 @@
 import Link from "next/link";
 import {
+  ArrowRight,
   Briefcase,
   Building2,
   Camera,
@@ -83,7 +84,7 @@ export default function LandingPage() {
             className="px-6 py-3 rounded-full bg-neutral-900 text-white font-medium hover:bg-neutral-700 transition-colors inline-flex items-center gap-2"
           >
             Seal your first agreement
-            <span aria-hidden>→</span>
+            <ArrowRight size={16} />
           </Link>
           <Link
             href="/how-it-works"
@@ -164,7 +165,7 @@ export default function LandingPage() {
             href="/legal"
             className="mt-6 inline-flex items-center gap-1.5 text-sm text-blue-400 hover:text-blue-300 underline"
           >
-            Read the legal reference →
+            Read the legal reference <ArrowRight size={14} />
           </Link>
         </div>
       </section>
@@ -184,7 +185,7 @@ export default function LandingPage() {
               className="px-8 py-3 rounded-full bg-blue-600 text-white font-semibold hover:bg-blue-700 transition-colors inline-flex items-center gap-2"
             >
               Get started free
-              <span aria-hidden>→</span>
+              <ArrowRight size={16} />
             </Link>
           </div>
         </div>

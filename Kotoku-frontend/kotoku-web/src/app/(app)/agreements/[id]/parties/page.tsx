@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Check, UserRound } from "lucide-react";
 import { agreementsApi } from "@/api/agreements";
 import { partiesApi } from "@/api/parties";
 import { SCENARIO_MAP, ROLE_LABEL, ID_TYPE_LABEL } from "@/constants/scenarios";
@@ -236,7 +237,9 @@ export default function PartiesPage() {
 
       {parties.length === 0 && !addingNew && (
         <div className="rounded-2xl border border-dashed border-neutral-200 p-8 text-center text-neutral-400">
-          <p className="text-2xl mb-2">👤</p>
+          <div className="w-12 h-12 rounded-full bg-neutral-100 flex items-center justify-center mb-2">
+            <UserRound size={22} className="text-neutral-400" strokeWidth={1.5} />
+          </div>
           <p className="font-medium text-neutral-600">No parties yet</p>
           <p className="text-sm mt-1">Add at least 2 parties before sealing.</p>
         </div>
@@ -322,8 +325,9 @@ export default function PartiesPage() {
       )}
 
       {parties.length >= 2 && !isDirty && (
-        <div className="rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-          ✓ {parties.length} parties recorded. Head to Evidence or Consent when ready.
+        <div className="rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700 flex items-center gap-1.5">
+          <Check size={14} className="shrink-0" strokeWidth={2.5} />
+          {parties.length} parties recorded. Head to Evidence or Consent when ready.
         </div>
       )}
     </div>

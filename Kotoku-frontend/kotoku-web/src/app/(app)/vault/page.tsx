@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Lock } from "lucide-react";
+import { ChevronRight, Lock } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { vaultApi } from "@/api/vault";
 
@@ -88,7 +88,7 @@ export default function VaultPage() {
                   Export failed
                 </span>
               ) : null}
-              <span className="text-neutral-300 text-sm">→</span>
+              <ChevronRight size={16} className="text-neutral-300" strokeWidth={2} />
             </div>
           </Link>
         ))}

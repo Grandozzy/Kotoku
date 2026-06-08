@@ -3,7 +3,7 @@
 import { useEffect, useState, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ShieldCheck } from "lucide-react";
+import { ArrowLeft, ArrowRight, ShieldCheck } from "lucide-react";
 import { authApi } from "@/api/auth";
 import { useSessionStore } from "@/store/sessionStore";
 import { KotokuLogo } from "@/components/brand/KotokuLogo";
@@ -81,17 +81,17 @@ function VerifyForm() {
           <button
             type="submit"
             disabled={loading || code.length < 8}
-            className="w-full py-2.5 rounded-full bg-neutral-900 text-white font-medium text-sm disabled:opacity-50 hover:bg-neutral-700 transition-colors"
+            className="inline-flex items-center justify-center gap-1.5 w-full py-2.5 rounded-full bg-neutral-900 text-white font-medium text-sm disabled:opacity-50 hover:bg-neutral-700 transition-colors"
           >
-            {loading ? "Verifying…" : "Confirm →"}
+            {loading ? "Verifying…" : <><span>Confirm</span><ArrowRight size={14} /></>}
           </button>
         </form>
 
         <button
           onClick={() => router.back()}
-          className="mt-4 w-full text-center text-sm text-neutral-400 hover:text-neutral-600 transition-colors"
+          className="mt-4 w-full inline-flex items-center justify-center gap-1 text-sm text-neutral-400 hover:text-neutral-600 transition-colors"
         >
-          ← Use a different number
+          <ArrowLeft size={14} /> Use a different number
         </button>
       </div>
 

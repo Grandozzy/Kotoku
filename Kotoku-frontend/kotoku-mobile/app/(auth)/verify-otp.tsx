@@ -1,4 +1,5 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { CheckCircle2 } from "lucide-react-native";
 import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 
@@ -79,19 +80,22 @@ export default function VerifyOtpScreen() {
             onPress={handleResend}
             disabled={isDisabled || resendMutation.isPending}
           >
-            <Text
-              className={
-                resendMutation.isPending
-                  ? "text-sm text-ink-muted"
-                  : "text-sm text-brand-primary font-medium"
-              }
-            >
-              {resendMutation.isPending
-                ? "Sending..."
-                : resendMutation.isSuccess
-                  ? "Code sent ✓"
-                  : "Resend code"}
-            </Text>
+            {resendMutation.isSuccess ? (
+              <View className="flex-row items-center gap-xs">
+                <CheckCircle2 size={14} color="#16a34a" strokeWidth={2} />
+                <Text className="text-sm text-brand-primary font-medium">Code sent</Text>
+              </View>
+            ) : (
+              <Text
+                className={
+                  resendMutation.isPending
+                    ? "text-sm text-ink-muted"
+                    : "text-sm text-brand-primary font-medium"
+                }
+              >
+                {resendMutation.isPending ? "Sending..." : "Resend code"}
+              </Text>
+            )}
           </Pressable>
         </View>
       </View>

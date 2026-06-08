@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Handshake } from "lucide-react";
+import { ArrowRight, Handshake } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { agreementsApi } from "@/api/agreements";
 import { PlanBanner } from "@/components/billing/PlanBanner";
@@ -149,9 +149,9 @@ export default function DashboardPage() {
           </div>
           <Link
             href="/agreements/new"
-            className="px-5 py-2.5 rounded-full bg-neutral-900 text-white text-sm font-medium hover:bg-neutral-700 transition-colors"
+            className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-full bg-neutral-900 text-white text-sm font-medium hover:bg-neutral-700 transition-colors"
           >
-            New agreement →
+            New agreement <ArrowRight size={14} />
           </Link>
         </div>
       )}

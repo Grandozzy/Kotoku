@@ -6,6 +6,7 @@ import { agreementsApi } from "@/api/agreements";
 import { StepNav } from "@/components/agreement/StepNav";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import Link from "next/link";
+import { ChevronLeft } from "lucide-react";
 
 export default function AgreementLayout({
   children,
@@ -54,9 +55,9 @@ export default function AgreementLayout({
         <div className="mt-6 pt-4 border-t border-neutral-100">
           <Link
             href="/dashboard"
-            className="text-xs text-neutral-400 hover:text-neutral-600"
+            className="inline-flex items-center gap-1 text-xs text-neutral-400 hover:text-neutral-600"
           >
-            ← All agreements
+            <ChevronLeft size={14} strokeWidth={2} /> All agreements
           </Link>
         </div>
       </aside>

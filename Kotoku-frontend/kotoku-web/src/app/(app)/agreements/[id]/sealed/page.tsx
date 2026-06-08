@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { ArrowRight, Check } from "lucide-react";
 import { agreementsApi } from "@/api/agreements";
 import { vaultApi } from "@/api/vault";
 import { reopenApi } from "@/api/reopen";
@@ -73,8 +74,8 @@ export default function SealedPage() {
     <div className="flex flex-col gap-6 max-w-xl">
       {/* Seal confirmation */}
       <div className="rounded-2xl bg-emerald-50 border border-emerald-100 px-5 py-5">
-        <p className="text-emerald-700 font-semibold text-base">
-          ✓ Agreement sealed
+        <p className="text-emerald-700 font-semibold text-base flex items-center gap-1.5">
+          <Check size={16} className="shrink-0" strokeWidth={2.5} /> Agreement sealed
         </p>
         {agreement.sealed_at && (
           <p className="text-emerald-600 text-xs mt-1">
@@ -146,9 +147,9 @@ export default function SealedPage() {
           </div>
           <Link
             href={`/vault/${vaultEntry.agreement}`}
-            className="px-4 py-2 rounded-full bg-neutral-900 text-white text-xs font-medium hover:bg-neutral-700 transition-colors"
+            className="inline-flex items-center gap-1 px-4 py-2 rounded-full bg-neutral-900 text-white text-xs font-medium hover:bg-neutral-700 transition-colors"
           >
-            Open in vault →
+            Open in vault <ArrowRight size={12} strokeWidth={2.5} />
           </Link>
         </div>
       ) : (

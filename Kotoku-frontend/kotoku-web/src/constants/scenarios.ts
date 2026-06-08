@@ -25,7 +25,7 @@ export const SCENARIOS: ScenarioDef[] = [
     id: "used_vehicle_sale",
     label: "Used vehicle sale",
     description: "Buying or selling a used car, motorbike, or other vehicle.",
-    icon: "🚗",
+    icon: "car",
     roles: ["seller", "buyer"],
     evidenceRequirements: [
       "At least 3 vehicle photos",
@@ -58,7 +58,7 @@ export const SCENARIOS: ScenarioDef[] = [
     id: "room_rental",
     label: "Room rental",
     description: "Renting a room, apartment, or property.",
-    icon: "🏠",
+    icon: "home",
     roles: ["landlord", "tenant"],
     evidenceRequirements: [
       "At least 2 property photos",
