@@ -13,7 +13,7 @@ def _get_client(external: bool = False):
         endpoint_url=endpoint_url,
         aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
         aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
-        region_name=settings.AWS_S3_REGION_NAME,
+        region_name=settings.AWS_S3_REGION_NAME.strip(),
         config=BotoConfig(signature_version="s3v4"),
     )
 
@@ -25,7 +25,7 @@ def _build_object_url(key: str) -> str:
     endpoint_url = getattr(settings, "AWS_ENDPOINT_URL_S3", None)
     if endpoint_url:
         return f"{endpoint_url.rstrip('/')}/{settings.AWS_STORAGE_BUCKET_NAME}/{key}"
-    return f"https://{settings.AWS_STORAGE_BUCKET_NAME}.s3.{settings.AWS_S3_REGION_NAME}.amazonaws.com/{key}"
+    return f"https://{settings.AWS_STORAGE_BUCKET_NAME}.s3.{settings.AWS_S3_REGION_NAME.strip()}.amazonaws.com/{key}"
 
 
 class S3StorageClient:
