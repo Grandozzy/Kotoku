@@ -234,38 +234,42 @@ export default function AgreementDetailPage() {
       )}
 
       {/* Proceed to Evidence CTA */}
-      {!editing && agreement.status !== "sealed" && (
-        <div>
-          {missingRequired.length > 0 && (
-            <p className="text-xs text-amber-600 mb-3">
-              Required before proceeding:{" "}
-              {missingRequired.map((f) => f.label).join(", ")}
-            </p>
-          )}
-          {detailsComplete ? (
-            <div className="rounded-xl bg-emerald-50 px-4 py-3 flex items-center justify-between gap-4">
-              <div className="flex items-center gap-1.5 text-sm text-emerald-700">
-                <Check size={14} className="shrink-0" strokeWidth={2.5} />
-                Details complete
-              </div>
-              <button
-                onClick={() => router.push(`/agreements/${agreementId}/evidence`)}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-neutral-900 text-white text-xs font-medium hover:bg-neutral-700 transition-colors shrink-0"
-              >
-                <span>Proceed to Evidence</span>
-                <ArrowRight size={12} />
-              </button>
+      {!editing && (
+        <>
+          {agreement.status !== "sealed" && (
+            <div>
+              {missingRequired.length > 0 && (
+                <p className="text-xs text-amber-600 mb-3">
+                  Required before proceeding:{" "}
+                  {missingRequired.map((f) => f.label).join(", ")}
+                </p>
+              )}
+              {detailsComplete ? (
+                <div className="rounded-xl bg-emerald-50 px-4 py-3 flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-1.5 text-sm text-emerald-700">
+                    <Check size={14} className="shrink-0" strokeWidth={2.5} />
+                    Details complete
+                  </div>
+                  <button
+                    onClick={() => router.push(`/agreements/${agreementId}/evidence`)}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-neutral-900 text-white text-xs font-medium hover:bg-neutral-700 transition-colors shrink-0"
+                  >
+                    <span>Proceed to Evidence</span>
+                    <ArrowRight size={12} />
+                  </button>
+                </div>
+              ) : (
+                requiredFields.length > 0 && (
+                  <button
+                    disabled
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-neutral-900 text-white text-xs font-medium opacity-40 cursor-not-allowed"
+                  >
+                    <span>Proceed to Evidence</span>
+                    <ArrowRight size={12} />
+                  </button>
+                )
+              )}
             </div>
-          ) : (
-            requiredFields.length > 0 && (
-              <button
-                disabled
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-neutral-900 text-white text-xs font-medium opacity-40 cursor-not-allowed"
-              >
-                <span>Proceed to Evidence</span>
-                <ArrowRight size={12} />
-              </button>
-            )
           )}
           {agreement.status === "sealed" && (
             <div className="rounded-xl bg-emerald-50 px-4 py-3">
@@ -275,7 +279,7 @@ export default function AgreementDetailPage() {
               </span>
             </div>
           )}
-        </div>
+        </>
       )}
     </div>
   );
