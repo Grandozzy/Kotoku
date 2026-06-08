@@ -1,11 +1,11 @@
 import { useRouter } from "expo-router";
 import { AlertTriangle, ChevronRight, FileText, Handshake, TrendingUp } from "lucide-react-native";
 import { useState } from "react";
-import { Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
+import { Alert, Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Button, CardSkeleton, EmptyState } from "@/components/ui";
-import { getAgreement } from "@/api/agreements";
+import { deleteDraft, getAgreement } from "@/api/agreements";
 import { usePendingActions } from "@/features/agreements/usePendingActions";
 import { useAgreementStore } from "@/features/agreements/agreementStore";
 import { usePlan } from "@/features/billing/usePlan";
@@ -136,7 +136,7 @@ export default function HomeScreen() {
             Drafts
           </Text>
           {drafts.map((item) => (
-            <DraftCard key={item.id} item={item} />
+            <DraftCard key={item.id} item={item} onDeleted={refetch} />
           ))}
         </View>
       )}
@@ -213,13 +213,35 @@ function ActionCard({ item }: { item: { id: number; title: string; status: strin
   );
 }
 
-function DraftCard({ item }: { item: { id: number; title: string; updated_at: string; scenario_template: string; status: string; parties?: Array<{ role: string; full_name: string }> } }) {
+function DraftCard({ item, onDeleted }: { item: { id: number; title: string; updated_at: string; scenario_template: string; status: string; parties?: Array<{ role: string; full_name: string }> }; onDeleted: () => void }) {
   const router = useRouter();
   const initDraft = useAgreementStore((s) => s.initDraft);
 
   const handlePress = () => {
     initDraft(item.id, item.scenario_template as ScenarioId);
     router.push(`/agreement/${item.id}/steps/${item.status === "draft" ? "parties" : "review"}?scenarioId=${item.scenario_template}`);
+  };
+
+  const handleDelete = () => {
+    Alert.alert(
+      "Delete draft",
+      `Delete "${item.title}"? This cannot be undone.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deleteDraft(item.id);
+              onDeleted();
+            } catch {
+              Alert.alert("Error", "Could not delete draft. Please try again.");
+            }
+          },
+        },
+      ],
+    );
   };
 
   const relativeTime = getRelativeTime(item.updated_at);
@@ -229,6 +251,7 @@ function DraftCard({ item }: { item: { id: number; title: string; updated_at: st
   return (
     <Pressable
       onPress={handlePress}
+      onLongPress={handleDelete}
       className="bg-surface-card rounded-xl border border-border-subtle p-lg active:opacity-70"
     >
       <View className="flex-row items-start gap-md">
@@ -241,9 +264,12 @@ function DraftCard({ item }: { item: { id: number; title: string; updated_at: st
           </Text>
           <Text className="text-xs text-ink-muted mt-xs">{scenarioLabel} · {relativeTime}</Text>
           {partyNames && <Text className="text-xs text-ink-secondary mt-xs">{partyNames}</Text>}
-          <View className="flex-row items-center gap-xs mt-xs">
-            <Text className="text-xs text-brand-primary">Continue</Text>
-            <ChevronRight size={12} color={colors.brandPrimary} strokeWidth={2} />
+          <View className="flex-row items-center justify-between mt-xs">
+            <View className="flex-row items-center gap-xs">
+              <Text className="text-xs text-brand-primary">Continue</Text>
+              <ChevronRight size={12} color={colors.brandPrimary} strokeWidth={2} />
+            </View>
+            <Text className="text-xs text-ink-muted">Hold to delete</Text>
           </View>
         </View>
       </View>

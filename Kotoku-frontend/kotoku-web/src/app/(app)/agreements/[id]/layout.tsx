@@ -1,7 +1,8 @@
 "use client";
 
-import { useParams } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { agreementsApi } from "@/api/agreements";
 import { StepNav } from "@/components/agreement/StepNav";
 import { StatusBadge } from "@/components/ui/StatusBadge";
@@ -15,6 +16,18 @@ export default function AgreementLayout({
 }) {
   const { id } = useParams<{ id: string }>();
   const agreementId = Number(id);
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  const deleteMutation = useMutation({
+    mutationFn: () => agreementsApi.deleteDraft(agreementId),
+    onSuccess: () => {
+      queryClient.removeQueries({ queryKey: ["agreements", agreementId] });
+      queryClient.invalidateQueries({ queryKey: ["agreements"] });
+      router.replace("/dashboard");
+    },
+  });
 
   const { data: agreement, isLoading } = useQuery({
     queryKey: ["agreements", agreementId],
@@ -52,13 +65,45 @@ export default function AgreementLayout({
           </div>
         </div>
         <StepNav agreement={agreement} />
-        <div className="mt-6 pt-4 border-t border-neutral-100">
+        <div className="mt-6 pt-4 border-t border-neutral-100 flex flex-col gap-3">
           <Link
             href="/dashboard"
             className="inline-flex items-center gap-1 text-xs text-neutral-400 hover:text-neutral-600"
           >
             <ChevronLeft size={14} strokeWidth={2} /> All agreements
           </Link>
+          {agreement.status === "draft" && (
+            confirmDelete ? (
+              <div className="flex flex-col gap-1">
+                <p className="text-xs text-neutral-500">Delete this draft?</p>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => deleteMutation.mutate()}
+                    disabled={deleteMutation.isPending}
+                    className="text-xs font-medium text-red-600 hover:text-red-700 disabled:opacity-50"
+                  >
+                    {deleteMutation.isPending ? "Deleting…" : "Yes, delete"}
+                  </button>
+                  <button
+                    onClick={() => setConfirmDelete(false)}
+                    className="text-xs text-neutral-400 hover:text-neutral-600"
+                  >
+                    Cancel
+                  </button>
+                </div>
+                {deleteMutation.isError && (
+                  <p className="text-xs text-red-500">Could not delete. Try again.</p>
+                )}
+              </div>
+            ) : (
+              <button
+                onClick={() => setConfirmDelete(true)}
+                className="text-xs text-neutral-400 hover:text-red-500 text-left transition-colors"
+              >
+                Delete draft
+              </button>
+            )
+          )}
         </div>
       </aside>
 

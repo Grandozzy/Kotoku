@@ -166,3 +166,7 @@ export async function setParties(
     { parties },
   );
 }
+
+export async function deleteDraft(agreementId: number): Promise<void> {
+  await apiClient.delete(`/agreements/${agreementId}/`);
+}

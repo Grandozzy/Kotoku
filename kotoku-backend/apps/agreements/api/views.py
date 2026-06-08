@@ -78,6 +78,19 @@ class AgreementDetailView(APIView):
         )
         return ok({"agreement": AgreementDetailSerializer(agreement).data})
 
+    def delete(self, request, agreement_id: int):
+        try:
+            agreement = AgreementSelector.get_owned_agreement_detail(
+                agreement_id,
+                account_id=request.user.account.pk,
+            )
+        except Agreement.DoesNotExist:
+            raise Http404 from None
+        if agreement.status != AgreementStatus.DRAFT:
+            raise DomainError("Only draft agreements can be deleted.")
+        agreement.delete()
+        return ok({})
+
     def patch(self, request, agreement_id: int):
         try:
             agreement = AgreementSelector.get_owned_agreement_detail(

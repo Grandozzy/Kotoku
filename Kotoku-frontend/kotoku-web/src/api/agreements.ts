@@ -27,4 +27,6 @@ export const agreementsApi = {
 
   validate: (id: number) =>
     api.post<ValidateAgreementResponse>(`/api/agreements/${id}/validate/`),
+
+  deleteDraft: (id: number) => api.delete<void>(`/api/agreements/${id}/`),
 };

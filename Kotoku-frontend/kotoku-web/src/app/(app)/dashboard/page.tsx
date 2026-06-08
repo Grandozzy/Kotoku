@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { ArrowRight, Handshake } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { agreementsApi } from "@/api/agreements";
 import { PlanBanner } from "@/components/billing/PlanBanner";
 import { usePlan } from "@/hooks/usePlan";
@@ -19,6 +20,68 @@ const STATUS_STYLES: Record<string, string> = {
 };
 
 function AgreementRow({ agreement }: { agreement: Agreement }) {
+  const queryClient = useQueryClient();
+  const [confirming, setConfirming] = useState(false);
+
+  const deleteMutation = useMutation({
+    mutationFn: () => agreementsApi.deleteDraft(agreement.id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["agreements"] });
+    },
+  });
+
+  const meta = (
+    <p className="text-xs text-neutral-400 mt-0.5">
+      {agreement.parties.length} part{agreement.parties.length !== 1 ? "ies" : "y"} ·{" "}
+      {new Date(agreement.created_at).toLocaleDateString("en-GB", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      })}
+    </p>
+  );
+
+  if (agreement.status === "draft") {
+    return (
+      <div className="flex items-center justify-between px-4 py-3 rounded-xl border border-neutral-100 hover:border-neutral-200 transition-colors group">
+        <Link href={`/agreements/${agreement.id}`} className="flex-1 min-w-0">
+          <p className="font-medium text-sm">{agreement.title}</p>
+          {meta}
+        </Link>
+        <div className="flex items-center gap-2 shrink-0 ml-3">
+          <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${STATUS_STYLES.draft}`}>
+            draft
+          </span>
+          {confirming ? (
+            <>
+              <span className="text-xs text-neutral-500">Delete?</span>
+              <button
+                onClick={() => deleteMutation.mutate()}
+                disabled={deleteMutation.isPending}
+                className="text-xs font-medium text-red-600 hover:text-red-700 disabled:opacity-50"
+              >
+                {deleteMutation.isPending ? "Deleting…" : "Yes"}
+              </button>
+              <button
+                onClick={() => setConfirming(false)}
+                className="text-xs text-neutral-400 hover:text-neutral-600"
+              >
+                Cancel
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={() => setConfirming(true)}
+              className="text-xs text-neutral-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+            >
+              Delete
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <Link
       href={`/agreements/${agreement.id}`}
@@ -26,14 +89,7 @@ function AgreementRow({ agreement }: { agreement: Agreement }) {
     >
       <div>
         <p className="font-medium text-sm">{agreement.title}</p>
-        <p className="text-xs text-neutral-400 mt-0.5">
-          {agreement.parties.length} part{agreement.parties.length !== 1 ? "ies" : "y"} ·{" "}
-          {new Date(agreement.created_at).toLocaleDateString("en-GB", {
-            day: "numeric",
-            month: "short",
-            year: "numeric",
-          })}
-        </p>
+        {meta}
       </div>
       <span
         className={`text-xs font-medium px-2.5 py-1 rounded-full ${
