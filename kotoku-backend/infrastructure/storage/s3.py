@@ -3,11 +3,19 @@ from botocore.config import Config as BotoConfig
 from django.conf import settings
 
 
+def _endpoint(name: str) -> str | None:
+    """Return the setting value, or None if absent/blank (boto3 rejects empty strings)."""
+    val = getattr(settings, name, None)
+    if isinstance(val, str):
+        val = val.strip() or None
+    return val
+
+
 def _get_client(external: bool = False):
     if external:
-        endpoint_url = getattr(settings, "AWS_S3_EXTERNAL_URL", None) or getattr(settings, "AWS_ENDPOINT_URL_S3", None)
+        endpoint_url = _endpoint("AWS_S3_EXTERNAL_URL") or _endpoint("AWS_ENDPOINT_URL_S3")
     else:
-        endpoint_url = getattr(settings, "AWS_ENDPOINT_URL_S3", None)
+        endpoint_url = _endpoint("AWS_ENDPOINT_URL_S3")
     return boto3.client(
         "s3",
         endpoint_url=endpoint_url,
@@ -19,10 +27,10 @@ def _get_client(external: bool = False):
 
 
 def _build_object_url(key: str) -> str:
-    external_url = getattr(settings, "AWS_S3_EXTERNAL_URL", "")
+    external_url = _endpoint("AWS_S3_EXTERNAL_URL")
     if external_url:
         return f"{external_url.rstrip('/')}/{settings.AWS_STORAGE_BUCKET_NAME}/{key}"
-    endpoint_url = getattr(settings, "AWS_ENDPOINT_URL_S3", None)
+    endpoint_url = _endpoint("AWS_ENDPOINT_URL_S3")
     if endpoint_url:
         return f"{endpoint_url.rstrip('/')}/{settings.AWS_STORAGE_BUCKET_NAME}/{key}"
     return f"https://{settings.AWS_STORAGE_BUCKET_NAME}.s3.{settings.AWS_S3_REGION_NAME.strip()}.amazonaws.com/{key}"
