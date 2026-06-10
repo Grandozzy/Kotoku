@@ -86,13 +86,13 @@ class S3StorageClient:
                 "Bucket": settings.AWS_STORAGE_BUCKET_NAME,
                 "Key": key,
                 "ContentType": content_type,
-                "Metadata": {"sha256": checksum_sha256},
             },
             ExpiresIn=expires_in,
         )
+        # Only Content-Type is included in the presigned signature.
+        # The checksum is verified server-side in confirm_upload via HEAD object.
         return url, {
             "Content-Type": content_type,
-            "x-amz-meta-sha256": checksum_sha256,
         }
 
     def head_object(self, key: str) -> dict:

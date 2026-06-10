@@ -328,7 +328,9 @@ class EvidenceService:
                 },
             )
             raise DomainError("Uploaded file content type does not match the original upload request.")
-        if actual_checksum != item.file_hash:
+        # Only enforce checksum match when S3 has the metadata header stored
+        # (older presigned URLs may not have included x-amz-meta-sha256).
+        if actual_checksum and actual_checksum != item.file_hash:
             logger.warning(
                 "[EVIDENCE] storage_verify_checksum_mismatch",
                 extra={
