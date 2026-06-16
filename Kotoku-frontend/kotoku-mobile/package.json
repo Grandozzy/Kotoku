@@ -7,7 +7,7 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
-    "postinstall": "node node_modules/@sentry/cli/scripts/install.js"
+    "postinstall": "node node_modules/@sentry/cli/scripts/install.js && patch-package"
   },
   "dependencies": {
     "@expo-google-fonts/cormorant-garamond": "^0.4.1",
@@ -20,6 +20,7 @@
     "expo": "~54.0.34",
     "expo-application": "~7.0.8",
     "expo-av": "^16.0.8",
+    "expo-build-properties": "~1.0.10",
     "expo-camera": "~17.0.10",
     "expo-constants": "~18.0.13",
     "expo-crypto": "~15.0.9",
@@ -57,6 +58,7 @@
   "devDependencies": {
     "@types/react": "~19.1.0",
     "babel-plugin-module-resolver": "^5.0.3",
+    "patch-package": "8.0.1",
     "typescript": "~5.9.2"
   },
   "private": true

@@ -23,7 +23,6 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "softInputMode": "adjustResize",
       "predictiveBackGestureEnabled": false,
       "package": "com.kotoku.mobile",
       "permissions": [
@@ -65,7 +64,8 @@
       ],
       "expo-sqlite",
       "expo-media-library",
-      "@sentry/react-native"
+      "@sentry/react-native",
+      "expo-build-properties"
     ],
     "experiments": {
       "typedRoutes": true
