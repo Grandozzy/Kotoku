@@ -1,7 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Controller, useForm } from "react-hook-form";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from "react-native";
 import { useState } from "react";
 import { z } from "zod";
 
@@ -103,44 +103,49 @@ export default function PartiesStep() {
   };
 
   return (
-    <ScrollView
-      className="flex-1 bg-surface-canvas"
-      contentContainerClassName="px-lg py-xl gap-xl"
-      contentContainerStyle={{ paddingBottom: 60 }}
-      keyboardShouldPersistTaps="handled"
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
-      <PartySection
-        title={roleA}
-        prefix="partyA"
-        control={control}
-        errors={errors.partyA}
-      />
+      <ScrollView
+        className="flex-1 bg-surface-canvas"
+        contentContainerClassName="px-lg py-xl gap-xl"
+        contentContainerStyle={{ paddingBottom: 60 }}
+        keyboardShouldPersistTaps="handled"
+      >
+        <PartySection
+          title={roleA}
+          prefix="partyA"
+          control={control}
+          errors={errors.partyA}
+        />
 
-      <PartySection
-        title={roleB}
-        prefix="partyB"
-        control={control}
-        errors={errors.partyB}
-      />
+        <PartySection
+          title={roleB}
+          prefix="partyB"
+          control={control}
+          errors={errors.partyB}
+        />
 
-      <View className="flex-row gap-sm">
-        <View style={{ flex: 2 }}>
-          <Button
-            title="Proceed"
-            variant="primary"
-            size="lg"
-            disabled={!isValid || saving}
-            loading={saving}
-            onPress={handleSubmit(onSubmit)}
-          />
+        <View className="flex-row gap-sm">
+          <View style={{ flex: 2 }}>
+            <Button
+              title="Proceed"
+              variant="primary"
+              size="lg"
+              disabled={!isValid || saving}
+              loading={saving}
+              onPress={handleSubmit(onSubmit)}
+            />
+          </View>
         </View>
-      </View>
-      {saveError && (
-        <Text className="text-sm text-semantic-error text-center">
-          {saveError}
-        </Text>
-      )}
-    </ScrollView>
+        {saveError && (
+          <Text className="text-sm text-semantic-error text-center">
+            {saveError}
+          </Text>
+        )}
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 

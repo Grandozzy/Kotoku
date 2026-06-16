@@ -11,7 +11,7 @@ import {
   X,
 } from "lucide-react-native";
 import { useState } from "react";
-import { Alert, Linking, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { Alert, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -147,10 +147,15 @@ export default function ProfileScreen() {
     : phone?.slice(-2) ?? "—";
 
   return (
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+    >
     <ScrollView
       className="flex-1 bg-surface-canvas"
       contentContainerClassName="px-lg pb-2xl gap-lg"
       contentContainerStyle={{ paddingTop: insets.top + 12 }}
+      keyboardShouldPersistTaps="handled"
     >
       {/* Header */}
       <View>
@@ -309,5 +314,6 @@ export default function ProfileScreen() {
         <Text className="text-md font-medium text-semantic-error">Log out</Text>
       </Pressable>
     </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
