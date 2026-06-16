@@ -2,6 +2,7 @@
 import React, { useRef } from "react";
 import {
   NativeSyntheticEvent,
+  Platform,
   Text,
   TextInput,
   View,
@@ -33,6 +34,15 @@ export const OTPInput: React.FC<OTPInputProps> = ({
   const inputs = useRef<Array<TextInput | null>>([]);
 
   const handleChange = (text: string, index: number) => {
+    // iOS OTP autofill pastes the full code into the focused cell at once.
+    // Distribute digits across all cells starting from index 0.
+    if (text.length > 1) {
+      const digits = text.replace(/\D/g, "").slice(0, length);
+      onChange(digits.padEnd(length, " ").slice(0, length).trimEnd());
+      const nextFocus = Math.min(digits.length, length - 1);
+      inputs.current[nextFocus]?.focus();
+      return;
+    }
     const digit = text.slice(-1);
     const next =
       value.substring(0, index) + digit + value.substring(index + 1);
@@ -73,7 +83,8 @@ export const OTPInput: React.FC<OTPInputProps> = ({
               <TextInput
                 ref={(ref) => { inputs.current[idx] = ref; }}
                 keyboardType="number-pad"
-                maxLength={1}
+                maxLength={Platform.OS === "ios" ? length : 1}
+                textContentType={Platform.OS === "ios" ? "oneTimeCode" : undefined}
                 value={secureTextEntry && value[idx] ? "•" : (value[idx] ?? "")}
                 editable={!disabled}
                 onChangeText={(t) => handleChange(t, idx)}
