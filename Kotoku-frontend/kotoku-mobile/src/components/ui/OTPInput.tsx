@@ -1,5 +1,5 @@
 // src/components/ui/OTPInput.tsx
-import React, { useRef } from "react";
+import React, { useCallback, useRef } from "react";
 import {
   NativeSyntheticEvent,
   Platform,
@@ -12,6 +12,7 @@ import {
 type KeyboardEventData = { key: string };
 
 import { cn } from "@/lib/cn";
+import { useSmsOtp } from "@/hooks/useSmsOtp";
 
 interface OTPInputProps {
   // Default is 8 to match Kotoku's OTP policy (8-digit codes).
@@ -32,6 +33,18 @@ export const OTPInput: React.FC<OTPInputProps> = ({
   secureTextEntry,
 }) => {
   const inputs = useRef<Array<TextInput | null>>([]);
+
+  // Android: auto-fill via SMS User Consent API when an SMS arrives.
+  const handleSmsCode = useCallback(
+    (code: string) => {
+      onChange(code);
+      // Focus the last filled cell (or last cell if fully filled).
+      const nextFocus = Math.min(code.length, length - 1);
+      inputs.current[nextFocus]?.focus();
+    },
+    [length, onChange],
+  );
+  useSmsOtp(length, handleSmsCode);
 
   const handleChange = (text: string, index: number) => {
     // iOS OTP autofill pastes the full code into the focused cell at once.
