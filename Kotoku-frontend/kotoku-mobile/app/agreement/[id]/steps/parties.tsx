@@ -15,7 +15,15 @@ import { setParties } from "@/api/agreements";
 import { getApiErrorMessage } from "@/lib/errorHandler";
 
 const partySchema = z.object({
-  fullName: z.string().min(2, "Full name is required"),
+  fullName: z
+    .string()
+    .refine(
+      (v) => {
+        const parts = v.trim().split(/\s+/).filter(Boolean);
+        return parts.length >= 2 && parts.every((p) => p.length >= 2);
+      },
+      "Enter your full name as it appears on your ID (first and last name)",
+    ),
   phone: z
     .string()
     .min(10, "Phone number is too short")
