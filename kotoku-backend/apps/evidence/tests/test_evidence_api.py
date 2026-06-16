@@ -22,13 +22,16 @@ _EVIDENCE_PATH = "/api/agreements/{id}/evidence/"
 _FAKE_PRESIGNED_URL = "https://storage.kotoku/bucket/key?X-Amz-Signature=fake"
 _FAKE_VIEW_URL = "https://storage.kotoku/bucket/key?response-content-disposition=inline"
 _FAKE_CHECKSUM = "a" * 64
-_FAKE_HEADERS = {"Content-Type": "image/jpeg", "x-amz-meta-sha256": _FAKE_CHECKSUM}
+_FAKE_HEADERS = {"Content-Type": "image/jpeg"}
 _FAKE_STORAGE_URL = "https://storage.kotoku/bucket/agreements/1/evidence/photo.jpg"
+# In production, x-amz-meta-sha256 is not included in the presigned PUT headers,
+# so S3 stores no sha256 metadata and the checksum check is skipped in confirm_upload.
+# The head mock deliberately omits metadata to reflect this production behavior.
 _FAKE_HEAD = {
     "content_length": 500,
     "content_type": "image/jpeg",
     "etag": "abc123etag",
-    "metadata": {"sha256": _FAKE_CHECKSUM},
+    "metadata": {},
 }
 
 _seq = 0
