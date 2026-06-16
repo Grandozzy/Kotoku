@@ -57,6 +57,16 @@ export default function PartiesStep() {
 
   const roleEnum = (label: string) => label.toLowerCase();
 
+  // Backend requires strict E.164 (e.g. +233501234567).
+  // Accept local Ghanaian format (0XXXXXXXXX) and convert it.
+  const toE164 = (phone: string) => {
+    const digits = phone.replace(/\s/g, "");
+    if (digits.startsWith("0") && digits.length === 10) {
+      return "+233" + digits.slice(1);
+    }
+    return digits;
+  };
+
   const {
     control,
     handleSubmit,
@@ -80,14 +90,14 @@ export default function PartiesStep() {
         {
           role: roleEnum(roleA),
           full_name: values.partyA.fullName,
-          phone: values.partyA.phone,
+          phone: toE164(values.partyA.phone),
           id_type: values.partyA.idType,
           id_number: values.partyA.idNumber,
         },
         {
           role: roleEnum(roleB),
           full_name: values.partyB.fullName,
-          phone: values.partyB.phone,
+          phone: toE164(values.partyB.phone),
           id_type: values.partyB.idType,
           id_number: values.partyB.idNumber,
         },
