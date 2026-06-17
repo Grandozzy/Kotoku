@@ -1,5 +1,3 @@
-import * as FileSystem from "expo-file-system/legacy";
-
 import {
   confirmUpload,
   getUploadUrl,
@@ -23,7 +21,7 @@ const RETRYABLE_CONFIRM_STATUSES = new Set([
 export interface UploadEvidenceInput {
   agreementId: number;
   evidenceType: string;
-  localUri: string;
+  fileBlob: Blob;
   mimeType: string;
   sizeBytes: number;
   checksumSha256: string;
@@ -56,39 +54,39 @@ function shouldRetryConfirm(error: unknown): boolean {
 async function uploadFileToStorage(
   uploadUrl: string,
   headers: Record<string, string>,
-  localUri: string,
+  fileBlob: Blob,
 ): Promise<void> {
-  let timedOut = false;
-  let timeout: ReturnType<typeof setTimeout> | null = null;
-  const uploadPromise = FileSystem.uploadAsync(uploadUrl, localUri, {
-    httpMethod: "PUT",
-    headers,
-    uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
-    sessionType: FileSystem.FileSystemSessionType.FOREGROUND,
-  }).catch((error) => {
-    if (timedOut) return null;
-    throw error;
-  });
-  const timeoutPromise = new Promise<null>((resolve) => {
-    timeout = setTimeout(() => {
-      timedOut = true;
-      resolve(null);
-    }, S3_UPLOAD_TIMEOUT_MS);
-  });
+  await new Promise<void>((resolve, reject) => {
+    const request = new XMLHttpRequest();
+    request.open("PUT", uploadUrl);
+    request.timeout = S3_UPLOAD_TIMEOUT_MS;
 
-  try {
-    const response = await Promise.race([uploadPromise, timeoutPromise]);
-    if (!response) return;
-    if (response.status < 200 || response.status >= 300) {
-      throw new Error(
-        `S3 upload failed (${response.status}): ${response.body || "(no body)"}`,
+    for (const [key, value] of Object.entries(headers)) {
+      request.setRequestHeader(key, value);
+    }
+
+    request.onload = () => {
+      if (request.status >= 200 && request.status < 300) {
+        resolve();
+        return;
+      }
+      reject(
+        new Error(
+          `S3 upload failed (${request.status}): ${request.responseText || "(no body)"}`,
+        ),
       );
-    }
-  } finally {
-    if (timeout) {
-      clearTimeout(timeout);
-    }
-  }
+    };
+
+    request.onerror = () => {
+      reject(new Error("S3 upload failed: storage server could not be reached."));
+    };
+
+    request.ontimeout = () => {
+      resolve();
+    };
+
+    request.send(fileBlob);
+  });
 }
 
 async function findConfirmedEvidence(
@@ -138,7 +136,7 @@ async function confirmWithRetry(
 export async function uploadEvidenceItem({
   agreementId,
   evidenceType,
-  localUri,
+  fileBlob,
   mimeType,
   sizeBytes,
   checksumSha256,
@@ -157,7 +155,7 @@ export async function uploadEvidenceItem({
       : { "Content-Type": mimeType };
 
   onPhaseChange?.("uploading");
-  await uploadFileToStorage(uploadUrlRes.upload_url, uploadHeaders, localUri);
+  await uploadFileToStorage(uploadUrlRes.upload_url, uploadHeaders, fileBlob);
 
   onPhaseChange?.("confirming");
   return confirmWithRetry(
