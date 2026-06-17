@@ -194,6 +194,3 @@ void disputeCreatePayload;
 void disputeCreateResult;
 void annotationListResult;
 void annotationCreateResult;
-
-// This file is a compile-time type contract test — no runtime assertions needed.
-test("API contract types are consistent", () => {});

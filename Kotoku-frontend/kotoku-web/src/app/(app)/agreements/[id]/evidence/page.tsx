@@ -17,6 +17,8 @@ import {
   XCircle,
 } from "lucide-react";
 import { agreementsApi } from "@/api/agreements";
+import type { EvidenceItemResponse } from "@/api/evidence";
+import type { Agreement, EvidenceItem } from "@/types/agreement";
 import {
   uploadEvidenceFile,
   type UploadPhase,
@@ -48,6 +50,16 @@ function createUploadId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
+function toAgreementEvidence(item: EvidenceItemResponse): EvidenceItem {
+  return {
+    id: item.id,
+    evidence_type: item.evidence_type,
+    file_type: item.file_type,
+    upload_status: item.upload_status,
+    created_at: item.created_at,
+  };
+}
+
 export default function EvidencePage() {
   const { id } = useParams<{ id: string }>();
   const agreementId = Number(id);
@@ -61,9 +73,22 @@ export default function EvidencePage() {
 
   const confirmedCount =
     agreement?.evidence_items?.filter((e) => e.upload_status === "confirmed").length ?? 0;
+  const confirmedIds = new Set(
+    agreement?.evidence_items
+      ?.filter((e) => e.upload_status === "confirmed")
+      .map((e) => e.id) ?? []
+  );
 
   const [items, setItems] = useState<UploadItem[]>([]);
   const [selectedType, setSelectedType] = useState(EVIDENCE_TYPES[0].value);
+  const localConfirmedCount = items.filter(
+    (item) => item.status === "done" && !confirmedIds.has(item.remoteId ?? -1)
+  ).length;
+  const effectiveConfirmedCount = confirmedCount + localConfirmedCount;
+  const canProceed = effectiveConfirmedCount > 0;
+  const uploadableCount = items.filter(
+    (item) => item.status === "idle" || item.status === "error"
+  ).length;
   const uploadInProgress = items.some(
     (item) =>
       item.status === "hashing" ||
@@ -118,7 +143,26 @@ export default function EvidencePage() {
           i.id === item.id ? { ...i, status: "done", remoteId: evidence.id } : i
         )
       );
-      await queryClient.invalidateQueries({ queryKey: ["agreements", agreementId] });
+      queryClient.setQueryData<Agreement>(
+        ["agreements", agreementId],
+        (current) => {
+          if (!current) return current;
+          const nextEvidence = toAgreementEvidence(evidence);
+          const existing = current.evidence_items ?? [];
+          return {
+            ...current,
+            evidence_items: existing.some((entry) => entry.id === nextEvidence.id)
+              ? existing.map((entry) =>
+                  entry.id === nextEvidence.id ? nextEvidence : entry
+                )
+              : [...existing, nextEvidence],
+          };
+        }
+      );
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["agreements", agreementId] }),
+        queryClient.invalidateQueries({ queryKey: ["agreements"] }),
+      ]);
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Upload failed. Please try again.";
@@ -207,11 +251,11 @@ export default function EvidencePage() {
       </div>
 
       {/* Queue */}
-      {confirmedCount > 0 && (
+      {canProceed && (
         <div className="rounded-xl bg-emerald-50 px-4 py-3 flex items-center justify-between gap-4">
           <div className="flex items-center gap-1.5 text-sm text-emerald-700">
             <Check size={14} className="shrink-0" strokeWidth={2.5} />
-            {confirmedCount} file{confirmedCount > 1 ? "s" : ""} confirmed
+            {effectiveConfirmedCount} file{effectiveConfirmedCount > 1 ? "s" : ""} confirmed
           </div>
           <button
             onClick={() => router.push(`/agreements/${agreementId}/consent`)}
@@ -279,10 +323,14 @@ export default function EvidencePage() {
           ))}
           <button
             onClick={uploadAll}
-            disabled={uploadInProgress}
+            disabled={uploadInProgress || uploadableCount === 0}
             className="mt-2 px-5 py-2.5 rounded-full bg-neutral-900 text-white text-sm font-medium disabled:opacity-50 hover:bg-neutral-700 transition-colors w-fit"
           >
-            {uploadInProgress ? "Uploading…" : "Upload all"}
+            {uploadInProgress
+              ? "Uploading…"
+              : uploadableCount === 0
+                ? "All files uploaded"
+                : "Upload all"}
           </button>
         </div>
       )}
