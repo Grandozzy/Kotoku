@@ -1,3 +1,4 @@
+import * as FileSystem from "expo-file-system/legacy";
 import * as ImagePicker from "expo-image-picker";
 import { useEffect, useState } from "react";
 
@@ -15,6 +16,8 @@ const ALLOWED_MIMES = new Set([
   "audio/mpeg",
   "application/pdf",
 ]);
+const BASE64_ALPHABET =
+  "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
 function arrayBufferToHex(buffer: ArrayBuffer): string {
   return Array.from(new Uint8Array(buffer))
@@ -108,8 +111,36 @@ function sha256Bytes(bytes: Uint8Array): ArrayBuffer {
   return output;
 }
 
-async function sha256Hex(blob: Blob): Promise<string> {
-  return arrayBufferToHex(sha256Bytes(new Uint8Array(await blob.arrayBuffer())));
+function base64ToBytes(base64: string): Uint8Array {
+  const cleanBase64 = base64.replace(/[\n\r\s=]/g, "");
+  const bytes: number[] = [];
+
+  for (let index = 0; index < cleanBase64.length; index += 4) {
+    const chunk =
+      (BASE64_ALPHABET.indexOf(cleanBase64[index]) << 18) |
+      (BASE64_ALPHABET.indexOf(cleanBase64[index + 1]) << 12) |
+      ((BASE64_ALPHABET.indexOf(cleanBase64[index + 2]) & 63) << 6) |
+      (BASE64_ALPHABET.indexOf(cleanBase64[index + 3]) & 63);
+
+    bytes.push((chunk >> 16) & 255);
+    if (index + 2 < cleanBase64.length) {
+      bytes.push((chunk >> 8) & 255);
+    }
+    if (index + 3 < cleanBase64.length) {
+      bytes.push(chunk & 255);
+    }
+  }
+
+  return new Uint8Array(bytes);
+}
+
+async function sha256HexFromUri(uri: string): Promise<string> {
+  // blob.arrayBuffer() is not available on Android React Native — read the
+  // file via the native FileSystem module and decode from base64 instead.
+  const base64 = await FileSystem.readAsStringAsync(uri, {
+    encoding: FileSystem.EncodingType.Base64,
+  });
+  return arrayBufferToHex(sha256Bytes(base64ToBytes(base64)));
 }
 
 interface UploadItem {
@@ -246,8 +277,7 @@ export function useEvidenceUpload(
       if (result.canceled || !result.assets[0]) return;
 
       const asset = result.assets[0];
-      const fileBlob = await (await fetch(asset.uri)).blob();
-      const checksumSha256 = await sha256Hex(fileBlob);
+      const checksumSha256 = await sha256HexFromUri(asset.uri);
 
       // Use the real asset MIME when it's a type the backend accepts; fall back
       // to image/jpeg so the declared type always matches the uploaded bytes.
@@ -257,7 +287,7 @@ export function useEvidenceUpload(
           : MIME_JPEG;
 
       step = "getUploadUrl";
-      const sizeBytes = fileBlob.size || asset.fileSize || 1;
+      const sizeBytes = asset.fileSize || 1;
       const nextItem: UploadItem = {
         slotId,
         evidenceType,
