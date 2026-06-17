@@ -158,3 +158,6 @@ void dispute;
 void annotation;
 void checksumUploadArgs;
 void confirmUploadArgs;
+
+// Compile-time type contract test — no runtime assertions needed.
+test("API contract types are consistent", () => {});

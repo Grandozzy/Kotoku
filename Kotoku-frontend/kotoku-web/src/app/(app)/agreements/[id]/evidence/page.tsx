@@ -3,10 +3,24 @@
 import { useCallback, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useDropzone } from "react-dropzone";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, Check, CheckCircle2, FileText, Loader2, Paperclip, Upload, XCircle } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  ArrowRight,
+  Check,
+  CheckCircle2,
+  FileText,
+  Loader2,
+  Paperclip,
+  RefreshCw,
+  Trash2,
+  Upload,
+  XCircle,
+} from "lucide-react";
 import { agreementsApi } from "@/api/agreements";
-import { evidenceApi } from "@/api/evidence";
+import {
+  uploadEvidenceFile,
+  type UploadPhase,
+} from "@/components/evidence/evidenceUploadService";
 
 const EVIDENCE_TYPES = [
   { value: "vehicle_photo", label: "Vehicle photo" },
@@ -21,18 +35,17 @@ const EVIDENCE_TYPES = [
 ];
 
 interface UploadItem {
+  id: string;
   file: File;
   evidenceType: string;
-  status: "idle" | "uploading" | "done" | "error";
+  status: "idle" | UploadPhase | "done" | "error";
+  remoteId?: number;
   errorMsg?: string;
 }
 
-async function sha256Hex(file: File): Promise<string> {
-  const buffer = await file.arrayBuffer();
-  const digest = await crypto.subtle.digest("SHA-256", buffer);
-  return Array.from(new Uint8Array(digest))
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
+function createUploadId(): string {
+  if (typeof crypto.randomUUID === "function") return crypto.randomUUID();
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
 export default function EvidencePage() {
@@ -51,12 +64,19 @@ export default function EvidencePage() {
 
   const [items, setItems] = useState<UploadItem[]>([]);
   const [selectedType, setSelectedType] = useState(EVIDENCE_TYPES[0].value);
+  const uploadInProgress = items.some(
+    (item) =>
+      item.status === "hashing" ||
+      item.status === "uploading" ||
+      item.status === "confirming"
+  );
 
   const onDrop = useCallback(
     (accepted: File[]) => {
       setItems((prev) => [
         ...prev,
         ...accepted.map((file) => ({
+          id: createUploadId(),
           file,
           evidenceType: selectedType,
           status: "idle" as const,
@@ -72,52 +92,63 @@ export default function EvidencePage() {
     multiple: true,
   });
 
-  const uploadMutation = useMutation({
-    mutationFn: async (item: UploadItem) => {
-      const checksumSha256 = await sha256Hex(item.file);
-      const init = await evidenceApi.requestUploadUrl(agreementId, {
-        evidence_type: item.evidenceType,
-        mime_type: item.file.type,
-        size_bytes: item.file.size,
-        checksum_sha256: checksumSha256,
-      });
-      await evidenceApi.uploadToStorage(init.upload_url, init.headers, item.file);
-      await evidenceApi.confirm(agreementId, {
-        file_key: init.file_key,
-        evidence_type: item.evidenceType,
-        mime_type: item.file.type,
-        checksum_sha256: checksumSha256,
-      });
-      return init.evidence_id;
-    },
-    onMutate: (item) => {
-      setItems((prev) =>
-        prev.map((i) => (i === item ? { ...i, status: "uploading" } : i))
-      );
-    },
-    onSuccess: (_, item) => {
-      setItems((prev) =>
-        prev.map((i) => (i === item ? { ...i, status: "done" } : i))
-      );
-      queryClient.invalidateQueries({ queryKey: ["agreements", agreementId] });
-    },
-    onError: (err: Error, item) => {
+  async function uploadItem(item: UploadItem) {
+    try {
       setItems((prev) =>
         prev.map((i) =>
-          i === item ? { ...i, status: "error", errorMsg: err.message } : i
+          i.id === item.id ? { ...i, status: "hashing", errorMsg: undefined } : i
         )
       );
-    },
-  });
+      const evidence = await uploadEvidenceFile({
+        agreementId,
+        evidenceType: item.evidenceType,
+        file: item.file,
+        onPhaseChange: (phase) => {
+          setItems((prev) =>
+            prev.map((i) =>
+              i.id === item.id
+                ? { ...i, status: phase, errorMsg: undefined }
+                : i
+            )
+          );
+        },
+      });
+      setItems((prev) =>
+        prev.map((i) =>
+          i.id === item.id ? { ...i, status: "done", remoteId: evidence.id } : i
+        )
+      );
+      await queryClient.invalidateQueries({ queryKey: ["agreements", agreementId] });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Upload failed. Please try again.";
+      setItems((prev) =>
+        prev.map((i) =>
+          i.id === item.id ? { ...i, status: "error", errorMsg: message } : i
+        )
+      );
+    }
+  }
 
   function uploadAll() {
     items
       .filter((i) => i.status === "idle" || i.status === "error")
-      .forEach((i) => uploadMutation.mutate(i));
+      .forEach((i) => {
+        void uploadItem(i);
+      });
   }
 
   function remove(item: UploadItem) {
-    setItems((prev) => prev.filter((i) => i !== item));
+    setItems((prev) => prev.filter((i) => i.id !== item.id));
+  }
+
+  function statusLabel(status: UploadItem["status"]): string {
+    if (status === "hashing") return "Preparing";
+    if (status === "uploading") return "Uploading";
+    if (status === "confirming") return "Confirming";
+    if (status === "done") return "Confirmed";
+    if (status === "error") return "Upload failed";
+    return "Ready";
   }
 
   return (
@@ -194,9 +225,9 @@ export default function EvidencePage() {
 
       {items.length > 0 && (
         <div className="flex flex-col gap-2">
-          {items.map((item, idx) => (
+          {items.map((item) => (
             <div
-              key={idx}
+              key={item.id}
               className="flex items-center justify-between px-4 py-2.5 rounded-xl border border-neutral-100 bg-white"
             >
               <div className="flex items-center gap-3 min-w-0">
@@ -205,7 +236,9 @@ export default function EvidencePage() {
                     <CheckCircle2 size={18} className="text-emerald-500" strokeWidth={2} />
                   ) : item.status === "error" ? (
                     <XCircle size={18} className="text-red-500" strokeWidth={2} />
-                  ) : item.status === "uploading" ? (
+                  ) : item.status === "hashing" ||
+                    item.status === "uploading" ||
+                    item.status === "confirming" ? (
                     <Loader2 size={18} className="text-neutral-400 animate-spin" strokeWidth={2} />
                   ) : (
                     <FileText size={18} className="text-neutral-400" strokeWidth={1.8} />
@@ -215,28 +248,41 @@ export default function EvidencePage() {
                   <p className="text-sm font-medium truncate">{item.file.name}</p>
                   <p className="text-xs text-neutral-400">
                     {EVIDENCE_TYPES.find((t) => t.value === item.evidenceType)?.label}
+                    <span> · {statusLabel(item.status)}</span>
                     {item.errorMsg && (
                       <span className="text-red-500"> · {item.errorMsg}</span>
                     )}
                   </p>
                 </div>
               </div>
-              {item.status === "idle" && (
-                <button
-                  onClick={() => remove(item)}
-                  className="text-xs text-neutral-400 hover:text-red-500 ml-2"
-                >
-                  Remove
-                </button>
-              )}
+              <div className="flex items-center gap-2 ml-2">
+                {item.status === "error" && (
+                  <button
+                    onClick={() => void uploadItem(item)}
+                    aria-label={`Retry ${item.file.name}`}
+                    className="text-neutral-400 hover:text-neutral-700"
+                  >
+                    <RefreshCw size={16} />
+                  </button>
+                )}
+                {(item.status === "idle" || item.status === "error") && (
+                  <button
+                    onClick={() => remove(item)}
+                    aria-label={`Remove ${item.file.name}`}
+                    className="text-neutral-400 hover:text-red-500"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                )}
+              </div>
             </div>
           ))}
           <button
             onClick={uploadAll}
-            disabled={uploadMutation.isPending}
+            disabled={uploadInProgress}
             className="mt-2 px-5 py-2.5 rounded-full bg-neutral-900 text-white text-sm font-medium disabled:opacity-50 hover:bg-neutral-700 transition-colors w-fit"
           >
-            {uploadMutation.isPending ? "Uploading…" : "Upload all"}
+            {uploadInProgress ? "Uploading…" : "Upload all"}
           </button>
         </div>
       )}

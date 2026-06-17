@@ -18,7 +18,7 @@ export default function EvidenceStep() {
   const template = useTemplate(scenarioId);
   const agreementId = Number(id);
 
-  const { items, pickImage, error } = useEvidenceUpload(agreementId);
+  const { items, pickImage, retryUpload, error } = useEvidenceUpload(agreementId);
 
   if (!template) return null;
 
@@ -55,16 +55,27 @@ export default function EvidenceStep() {
         </View>
 
         <View className="flex-row flex-wrap gap-sm">
-          {photoSlots.map((slot) => (
-            <View key={slot.id} style={{ width: "47%" }}>
-              <PhotoSlot
-                label={slot.label}
-                required={slot.required}
-                localUri={items[slot.id]?.localUri}
-                onPress={() => pickImage(slot.id, slot.id)}
-              />
-            </View>
-          ))}
+          {photoSlots.map((slot) => {
+            const item = items[slot.id];
+            return (
+              <View key={slot.id} style={{ width: "47%" }}>
+                <PhotoSlot
+                  label={slot.label}
+                  required={slot.required}
+                  localUri={item?.localUri}
+                  status={item?.uploadStatus}
+                  error={item?.error}
+                  onPress={() => {
+                    if (item?.uploadStatus === "failed") {
+                      void retryUpload(slot.id);
+                      return;
+                    }
+                    void pickImage(slot.id, slot.id);
+                  }}
+                />
+              </View>
+            );
+          })}
         </View>
       </View>
 

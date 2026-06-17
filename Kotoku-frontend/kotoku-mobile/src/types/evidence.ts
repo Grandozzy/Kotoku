@@ -1,6 +1,11 @@
 export type EvidenceFileType = "photo" | "document" | "signature" | "voice_note";
 
-export type UploadStatus = "pending" | "uploading" | "uploaded" | "failed";
+export type UploadStatus =
+  | "pending"
+  | "uploading"
+  | "confirming"
+  | "uploaded"
+  | "failed";
 
 export interface EvidenceItem {
   id: number;

@@ -96,7 +96,17 @@ const confirmEvidencePayload: Parameters<typeof evidenceApi.confirm>[1] = {
 };
 
 const confirmEvidenceResult: Awaited<ReturnType<typeof evidenceApi.confirm>> = {
-  evidence: { id: 55 },
+  evidence: {
+    id: 55,
+    evidence_type: uploadUrlPayload.evidence_type,
+    file_type: "photo",
+    mime_type: uploadUrlPayload.mime_type,
+    size_bytes: uploadUrlPayload.size_bytes,
+    view_url: "https://storage.example/evidence/file.jpg",
+    upload_status: "confirmed",
+    uploaded_by_role: null,
+    created_at: "2026-05-19T12:00:00Z",
+  },
 };
 
 const party: Party = {
@@ -184,3 +194,6 @@ void disputeCreatePayload;
 void disputeCreateResult;
 void annotationListResult;
 void annotationCreateResult;
+
+// This file is a compile-time type contract test — no runtime assertions needed.
+test("API contract types are consistent", () => {});

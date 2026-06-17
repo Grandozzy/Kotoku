@@ -2,11 +2,8 @@ import * as ImagePicker from "expo-image-picker";
 import * as Crypto from "expo-crypto";
 import { useEffect, useState } from "react";
 
-import {
-  confirmUpload,
-  getUploadUrl,
-  listEvidence,
-} from "@/api/evidence";
+import { listEvidence } from "@/api/evidence";
+import { uploadEvidenceItem } from "@/features/evidence/evidenceUploadService";
 import { getApiErrorMessage } from "@/lib/errorHandler";
 import type { UploadStatus } from "@/types/evidence";
 
@@ -40,12 +37,16 @@ interface UploadItem {
   localUri: string;
   uploadStatus: UploadStatus;
   remoteId?: number;
+  mimeType?: string;
+  sizeBytes?: number;
+  checksumSha256?: string;
   error?: string;
 }
 
 interface UseEvidenceUploadReturn {
   items: Record<string, UploadItem>;
   pickImage: (slotId: string, evidenceType: string) => Promise<void>;
+  retryUpload: (slotId: string) => Promise<void>;
   uploadStatus: (slotId: string) => UploadStatus;
   error: string | null;
 }
@@ -55,6 +56,65 @@ export function useEvidenceUpload(
 ): UseEvidenceUploadReturn {
   const [items, setItems] = useState<Record<string, UploadItem>>({});
   const [error, setError] = useState<string | null>(null);
+
+  const uploadItem = async (item: UploadItem) => {
+    let step = "getUploadUrl";
+    try {
+      if (!item.mimeType || !item.sizeBytes || !item.checksumSha256) {
+        throw new Error("Please choose the photo again before retrying.");
+      }
+
+      const confirmed = await uploadEvidenceItem({
+        agreementId,
+        evidenceType: item.evidenceType,
+        mimeType: item.mimeType,
+        localUri: item.localUri,
+        sizeBytes: item.sizeBytes,
+        checksumSha256: item.checksumSha256,
+        onPhaseChange: (phase) => {
+          step = phase === "uploading" ? "uploadToS3" : "confirmUpload";
+          setItems((prev) => ({
+            ...prev,
+            [item.slotId]: {
+              ...prev[item.slotId],
+              uploadStatus: phase,
+              error: undefined,
+            },
+          }));
+        },
+      });
+
+      setItems((prev) => ({
+        ...prev,
+        [item.slotId]: {
+          ...prev[item.slotId],
+          localUri:
+            confirmed.view_url ?? prev[item.slotId]?.localUri ?? item.localUri,
+          uploadStatus: "uploaded",
+          remoteId: confirmed.id,
+          error: undefined,
+        },
+      }));
+    } catch (err) {
+      const prefix = `[step:${step}]`;
+      const msg = getApiErrorMessage(err, `${prefix} Failed to upload photo.`);
+      if (__DEV__) {
+        console.error(`[EVIDENCE-${agreementId}] ${prefix}`, err);
+      }
+      setError(msg);
+      setItems((prev) => {
+        if (!prev[item.slotId]) return prev;
+        return {
+          ...prev,
+          [item.slotId]: {
+            ...prev[item.slotId],
+            uploadStatus: "failed",
+            error: msg,
+          },
+        };
+      });
+    }
+  };
 
   useEffect(() => {
     if (!agreementId) return;
@@ -115,58 +175,19 @@ export function useEvidenceUpload(
           ? asset.mimeType
           : MIME_JPEG;
 
-      setItems((prev) => ({
-        ...prev,
-        [slotId]: {
-          slotId,
-          evidenceType,
-          localUri: asset.uri,
-          uploadStatus: "uploading",
-        },
-      }));
-
       step = "getUploadUrl";
       const sizeBytes = fileBlob.size || asset.fileSize || 1;
-      const uploadUrlRes = await getUploadUrl(
-        agreementId,
+      const nextItem: UploadItem = {
+        slotId,
         evidenceType,
+        localUri: asset.uri,
+        uploadStatus: "uploading",
         mimeType,
-        sizeBytes || 1,
+        sizeBytes,
         checksumSha256,
-      );
-
-      step = "uploadToS3";
-      const s3resp = await fetch(uploadUrlRes.upload_url, {
-        method: "PUT",
-        headers:
-          Object.keys(uploadUrlRes.headers ?? {}).length > 0
-            ? uploadUrlRes.headers
-            : { "Content-Type": mimeType },
-        body: fileBlob,
-      });
-
-      if (!s3resp.ok) {
-        const body = await s3resp.text().catch(() => "(no body)");
-        throw new Error(`S3 upload failed (${s3resp.status}): ${body}`);
-      }
-
-      step = "confirmUpload";
-      await confirmUpload(
-        agreementId,
-        uploadUrlRes.file_key,
-        evidenceType,
-        mimeType,
-        checksumSha256,
-      );
-
-      setItems((prev) => ({
-        ...prev,
-        [slotId]: {
-          ...prev[slotId],
-          uploadStatus: "uploaded",
-          remoteId: uploadUrlRes.evidence_id,
-        },
-      }));
+      };
+      setItems((prev) => ({ ...prev, [slotId]: nextItem }));
+      await uploadItem(nextItem);
     } catch (err) {
       const prefix = `[step:${step}]`;
       const msg = getApiErrorMessage(err, `${prefix} Failed to upload photo.`);
@@ -187,5 +208,18 @@ export function useEvidenceUpload(
   const uploadStatus = (slotId: string): UploadStatus =>
     items[slotId]?.uploadStatus ?? "pending";
 
-  return { items, pickImage, uploadStatus, error };
+  const retryUpload = async (slotId: string) => {
+    setError(null);
+    const item = items[slotId];
+    if (
+      !item ||
+      item.uploadStatus === "uploading" ||
+      item.uploadStatus === "confirming"
+    ) {
+      return;
+    }
+    await uploadItem({ ...item, uploadStatus: "uploading" });
+  };
+
+  return { items, pickImage, retryUpload, uploadStatus, error };
 }
