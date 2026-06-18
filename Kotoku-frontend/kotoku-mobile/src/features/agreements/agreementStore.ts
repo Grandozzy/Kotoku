@@ -42,6 +42,14 @@ interface AgreementDraftStore {
 
   // Actions
   initDraft: (agreementId: number, scenarioId: ScenarioId) => void;
+  hydrateDraft: (
+    agreementId: number,
+    scenarioId: ScenarioId,
+    stepIndex: number,
+    partyA?: PartyDraft,
+    partyB?: PartyDraft,
+    subjectData?: Record<string, unknown>,
+  ) => void;
   initReopened: (agreementId: number, scenarioId: ScenarioId, partyA?: PartyDraft, partyB?: PartyDraft, subjectData?: Record<string, unknown>) => void;
   initForConsent: (agreementId: number, scenarioId: ScenarioId, partyA: PartyDraft, partyB: PartyDraft) => void;
   setScenarioId: (id: ScenarioId | null) => void;
@@ -82,6 +90,19 @@ export const useAgreementStore = create<AgreementDraftStore>((set) => ({
 
   initDraft: (agreementId, scenarioId) =>
     set({ agreementId, scenarioId, stepIndex: 0, isReopened: false }),
+
+  hydrateDraft: (agreementId, scenarioId, stepIndex, partyA, partyB, subjectData) =>
+    set({
+      agreementId,
+      scenarioId,
+      stepIndex,
+      isReopened: false,
+      partyA: partyA ?? emptyParty,
+      partyB: partyB ?? emptyParty,
+      subjectData: subjectData ?? {},
+      consentA: emptyConsent,
+      consentB: emptyConsent,
+    }),
 
   initReopened: (agreementId, scenarioId, partyA, partyB, subjectData) =>
     set({

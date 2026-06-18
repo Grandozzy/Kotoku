@@ -215,11 +215,64 @@ function ActionCard({ item }: { item: { id: number; title: string; status: strin
 
 function DraftCard({ item, onDeleted }: { item: { id: number; title: string; updated_at: string; scenario_template: string; status: string; parties?: Array<{ role: string; full_name: string }> }; onDeleted: () => void }) {
   const router = useRouter();
-  const initDraft = useAgreementStore((s) => s.initDraft);
+  const hydrateDraft = useAgreementStore((s) => s.hydrateDraft);
+  const [loading, setLoading] = useState(false);
 
-  const handlePress = () => {
-    initDraft(item.id, item.scenario_template as ScenarioId);
-    router.push(`/agreement/${item.id}/steps/${item.status === "draft" ? "parties" : "review"}?scenarioId=${item.scenario_template}`);
+  const handlePress = async () => {
+    setLoading(true);
+    try {
+      const agreement = await getAgreement(item.id);
+      const partyA = agreement.parties[0];
+      const partyB = agreement.parties[1];
+      const hasParties = agreement.parties.length >= 2;
+      const hasDetails = Object.keys(agreement.fieldData ?? {}).length > 0;
+      const targetStep =
+        item.status !== "draft"
+          ? "review"
+          : hasDetails
+            ? "evidence"
+            : hasParties
+              ? "details"
+              : "parties";
+      const targetIndex =
+        targetStep === "review"
+          ? 3
+          : targetStep === "evidence"
+            ? 2
+            : targetStep === "details"
+              ? 1
+              : 0;
+
+      hydrateDraft(
+        agreement.id,
+        agreement.scenarioId,
+        targetIndex,
+        partyA
+          ? {
+              fullName: partyA.displayName,
+              phone: partyA.phone,
+              idType: partyA.idType ?? "ghana_card",
+              idNumber: partyA.idNumber ?? "",
+            }
+          : undefined,
+        partyB
+          ? {
+              fullName: partyB.displayName,
+              phone: partyB.phone,
+              idType: partyB.idType ?? "ghana_card",
+              idNumber: partyB.idNumber ?? "",
+            }
+          : undefined,
+        agreement.fieldData,
+      );
+      router.push(
+        `/agreement/${agreement.id}/steps/${targetStep}?scenarioId=${agreement.scenarioId}`,
+      );
+    } catch {
+      Alert.alert("Error", "Could not load this draft. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleDelete = () => {
@@ -252,6 +305,7 @@ function DraftCard({ item, onDeleted }: { item: { id: number; title: string; upd
     <Pressable
       onPress={handlePress}
       onLongPress={handleDelete}
+      disabled={loading}
       className="bg-surface-card rounded-xl border border-border-subtle p-lg active:opacity-70"
     >
       <View className="flex-row items-start gap-md">
@@ -266,8 +320,10 @@ function DraftCard({ item, onDeleted }: { item: { id: number; title: string; upd
           {partyNames && <Text className="text-xs text-ink-secondary mt-xs">{partyNames}</Text>}
           <View className="flex-row items-center justify-between mt-xs">
             <View className="flex-row items-center gap-xs">
-              <Text className="text-xs text-brand-primary">Continue</Text>
-              <ChevronRight size={12} color={colors.brandPrimary} strokeWidth={2} />
+              <Text className="text-xs text-brand-primary">
+                {loading ? "Loading…" : "Continue"}
+              </Text>
+              {!loading && <ChevronRight size={12} color={colors.brandPrimary} strokeWidth={2} />}
             </View>
             <Text className="text-xs text-ink-muted">Hold to delete</Text>
           </View>

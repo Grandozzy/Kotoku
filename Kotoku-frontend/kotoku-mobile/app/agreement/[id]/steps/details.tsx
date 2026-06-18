@@ -44,7 +44,7 @@ export default function DetailsStep() {
   const { id, scenarioId: urlScenarioId } = useLocalSearchParams<{ id: string; scenarioId?: string }>();
   const storeScenarioId = useAgreementStore((s) => s.scenarioId);
   const scenarioId = storeScenarioId ?? urlScenarioId ?? null;
-  const { subjectData, setSubjectData, nextStep, prevStep, stepIndex } =
+  const { subjectData, setSubjectData, goToStep, prevStep, stepIndex } =
     useAgreementStore();
   const template = useTemplate(scenarioId);
 
@@ -77,7 +77,7 @@ export default function DetailsStep() {
     try {
       await updateAgreement(Number(id), { field_data: values });
     } catch {}
-    nextStep();
+    goToStep(2);
     router.push(`/agreement/${id}/steps/evidence?scenarioId=${scenarioId}`);
   };
 

@@ -1,5 +1,6 @@
-import { Stack, useLocalSearchParams, useRouter } from "expo-router";
+import { Stack, useLocalSearchParams, usePathname, useRouter } from "expo-router";
 import { ChevronLeft } from "lucide-react-native";
+import { useEffect, useMemo } from "react";
 import { Pressable, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -46,12 +47,24 @@ function FormHeader({ onExit }: { onExit: () => void }) {
 
 export default function StepsLayout() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const pathname = usePathname();
   const router = useRouter();
   const stepIndex = useAgreementStore((s) => s.stepIndex);
   const isReopened = useAgreementStore((s) => s.isReopened);
   const goToStep = useAgreementStore((s) => s.goToStep);
   const reset = useAgreementStore((s) => s.reset);
   useDraftPersistence();
+
+  const routeStepIndex = useMemo(() => {
+    const currentStep = STEPS.find((step) => pathname.endsWith(`/steps/${step}`));
+    return currentStep ? STEPS.indexOf(currentStep) : stepIndex;
+  }, [pathname, stepIndex]);
+
+  useEffect(() => {
+    if (routeStepIndex !== stepIndex) {
+      goToStep(routeStepIndex);
+    }
+  }, [goToStep, routeStepIndex, stepIndex]);
 
   const handleStepPress = (index: number) => {
     if (!id) return;
@@ -75,7 +88,7 @@ export default function StepsLayout() {
       ) : (
         <FormHeader onExit={handleExit} />
       )}
-      <StepProgress currentIndex={stepIndex} onStepPress={handleStepPress} />
+      <StepProgress currentIndex={routeStepIndex} onStepPress={handleStepPress} />
     </View>
   );
 

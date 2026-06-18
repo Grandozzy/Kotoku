@@ -16,7 +16,7 @@ from apps.audit.services import AuditService
 from apps.consent.models import ConsentRecord
 from apps.notifications.tasks import send_sms_message
 from apps.parties.models import Party
-from common.exceptions import DomainError
+from common.exceptions import DomainError, ServiceUnavailableError
 
 logger = logging.getLogger(__name__)
 
@@ -74,13 +74,24 @@ class ConsentService:
             )
             phone = party.phone
             if phone:
-                get_sms_gateway().send(
-                    to=phone,
-                    body=(
-                        f"Your Kotoku {sms_label} code is {otp_code}. "
-                        f"Valid for 10 minutes. Do not share this code."
-                    ),
+                body = (
+                    f"Your Kotoku {sms_label} code is {otp_code}. "
+                    f"Valid for 10 minutes. Do not share this code."
                 )
+                try:
+                    send_sms_message.delay(to=phone, body=body)
+                except Exception as exc:
+                    logger.exception(
+                        "Failed to enqueue consent OTP SMS",
+                        extra={
+                            "agreement_id": agreement.pk,
+                            "party_id": party.pk,
+                            "sms_error": exc.__class__.__name__,
+                        },
+                    )
+                    raise ServiceUnavailableError(
+                        "Consent codes could not be sent right now. Please try again."
+                    ) from None
             AuditService.record_event(
                 event_type=event_type,
                 entity_type="consent_record",
@@ -92,6 +103,7 @@ class ConsentService:
         return records
 
     @staticmethod
+    @transaction.atomic
     def request_consent(*, agreement_id: int) -> list[ConsentRecord]:
         agreement = Agreement.objects.get(pk=agreement_id)
         if agreement.status != AgreementStatus.PENDING_CONSENT:

@@ -14,7 +14,7 @@ export default function EvidenceStep() {
   const { id, scenarioId: urlScenarioId } = useLocalSearchParams<{ id: string; scenarioId?: string }>();
   const storeScenarioId = useAgreementStore((s) => s.scenarioId);
   const scenarioId = storeScenarioId ?? urlScenarioId ?? null;
-  const { nextStep, prevStep, stepIndex } = useAgreementStore();
+  const { goToStep, prevStep, stepIndex } = useAgreementStore();
   const template = useTemplate(scenarioId);
   const agreementId = Number(id);
 
@@ -35,7 +35,7 @@ export default function EvidenceStep() {
   const canProceed = uploadedPhotoCount >= minimumPhotoCount && requiredPhotosUploaded;
 
   const handleNext = () => {
-    nextStep();
+    goToStep(3);
     router.push(`/agreement/${id}/steps/review?scenarioId=${scenarioId}`);
   };
 

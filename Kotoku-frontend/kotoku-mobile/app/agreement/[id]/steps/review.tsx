@@ -10,13 +10,13 @@ import { colors } from "@/theme/tokens";
 export default function ReviewStep() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { scenarioId, partyA, partyB, subjectData, nextStep, prevStep, stepIndex } =
+  const { scenarioId, partyA, partyB, subjectData, goToStep, prevStep, stepIndex } =
     useAgreementStore();
   const template = useTemplate(scenarioId);
   const [roleA, roleB] = template?.partyRoles ?? ["Party A", "Party B"];
 
   const handleNext = () => {
-    nextStep();
+    goToStep(4);
     router.push(`/agreement/${id}/steps/consent?scenarioId=${scenarioId}`);
   };
 

@@ -55,7 +55,7 @@ export default function PartiesStep() {
   const storeScenarioId = useAgreementStore((s) => s.scenarioId);
   const scenarioId = storeScenarioId ?? urlScenarioId ?? null;
   const agreementId = Number(id);
-  const { partyA, partyB, setPartyA, setPartyB, nextStep } =
+  const { partyA, partyB, setPartyA, setPartyB, goToStep } =
     useAgreementStore();
   const template = useTemplate(scenarioId);
 
@@ -116,7 +116,7 @@ export default function PartiesStep() {
       return;
     }
     setSaving(false);
-    nextStep();
+    goToStep(1);
     router.push(`/agreement/${id}/steps/details?scenarioId=${scenarioId}`);
   };
 

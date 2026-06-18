@@ -157,6 +157,18 @@ class TestRequestOtpApi:
         resp = APIClient().post(_REQUEST_OTP_PATH.format(id=agreement.pk))
         assert resp.status_code == 401
 
+    def test_sms_enqueue_failure_returns_503(self, mock_delay):
+        mock_delay.side_effect = RuntimeError("SMS_API_KEY is not configured")
+        client, acct = _make_client("+233500100015")
+        agreement = _draft_agreement(acct)
+        _set_two_parties(agreement, acct.phone, "+233500100016")
+        resp = client.post(_REQUEST_OTP_PATH.format(id=agreement.pk))
+        assert resp.status_code == 503
+        assert resp.json()["message"] == (
+            "Consent codes could not be sent right now. Please try again."
+        )
+        assert ConsentRecord.objects.filter(agreement=agreement).count() == 0
+
 
 # ────────────────────────────────────────────────────────────────────────────
 # POST /consent/confirm/
