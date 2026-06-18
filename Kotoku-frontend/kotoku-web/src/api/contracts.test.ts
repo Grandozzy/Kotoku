@@ -89,6 +89,7 @@ const uploadUrlResult: Awaited<ReturnType<typeof evidenceApi.requestUploadUrl>> 
 };
 
 const confirmEvidencePayload: Parameters<typeof evidenceApi.confirm>[1] = {
+  evidence_id: uploadUrlResult.evidence_id,
   file_key: uploadUrlResult.file_key,
   evidence_type: uploadUrlPayload.evidence_type,
   mime_type: uploadUrlPayload.mime_type,

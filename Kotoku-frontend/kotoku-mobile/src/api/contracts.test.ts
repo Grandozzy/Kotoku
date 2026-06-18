@@ -138,12 +138,13 @@ const checksumUploadArgs: [number, string, string, number, string] = [
   "a".repeat(64),
 ];
 
-const confirmUploadArgs: [number, string, string, string, string] = [
+const confirmUploadArgs: [number, string, string, string, string, number] = [
   agreement.id,
   uploadUrlResult.file_key,
   evidenceResult.evidence_type,
   evidenceResult.mime_type,
   checksumUploadArgs[4],
+  uploadUrlResult.evidence_id,
 ];
 
 void agreement;

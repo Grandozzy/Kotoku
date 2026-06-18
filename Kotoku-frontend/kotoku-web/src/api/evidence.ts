@@ -37,6 +37,7 @@ export const evidenceApi = {
   confirm: (
     agreementId: number,
     data: {
+      evidence_id?: number;
       file_key: string;
       evidence_type: string;
       mime_type: string;

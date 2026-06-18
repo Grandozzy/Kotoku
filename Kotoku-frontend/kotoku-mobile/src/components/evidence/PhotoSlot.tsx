@@ -10,6 +10,7 @@ interface PhotoSlotProps {
   localUri?: string;
   status?: UploadStatus;
   error?: string;
+  failedActionLabel?: string;
   onPress: () => void;
 }
 
@@ -19,6 +20,7 @@ export function PhotoSlot({
   localUri,
   status = "pending",
   error,
+  failedActionLabel = "Retry",
   onPress,
 }: PhotoSlotProps) {
   const filled = Boolean(localUri);
@@ -30,7 +32,7 @@ export function PhotoSlot({
       : status === "confirming"
         ? "Confirming"
         : failed
-          ? "Retry"
+          ? failedActionLabel
           : null;
 
   return (

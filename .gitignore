@@ -40,6 +40,8 @@ AGENTS.md
 
 # markdown docs (kept local only)
 *.md
+!KOTOKU_CODING_RULES.md
+!docs/architecture/evidence-upload-hardening.md
 
 # init docs (local planning)
 init docs/

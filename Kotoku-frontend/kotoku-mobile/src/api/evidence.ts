@@ -45,10 +45,12 @@ export async function confirmUpload(
   evidenceType: string,
   mimeType: string,
   checksumSha256: string,
+  evidenceId?: number,
 ): Promise<EvidenceItemResponse> {
   const res = await apiClient.post<ApiResponse<{ evidence: EvidenceItemResponse }>>(
     `/agreements/${agreementId}/evidence/`,
     {
+      evidence_id: evidenceId,
       file_key: fileKey,
       evidence_type: evidenceType,
       mime_type: mimeType,

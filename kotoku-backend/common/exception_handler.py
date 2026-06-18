@@ -6,13 +6,19 @@ from common.exceptions import DomainError, ServiceUnavailableError
 
 def kotoku_exception_handler(exc, context):
     if isinstance(exc, ServiceUnavailableError):
+        payload = {"status": "error", "message": str(exc)}
+        if exc.code:
+            payload["code"] = exc.code
         return Response(
-            {"status": "error", "message": str(exc)},
+            payload,
             status=503,
         )
     if isinstance(exc, DomainError):
+        payload = {"status": "error", "message": str(exc)}
+        if exc.code:
+            payload["code"] = exc.code
         return Response(
-            {"status": "error", "message": str(exc)},
+            payload,
             status=400,
         )
     return exception_handler(exc, context)

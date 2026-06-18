@@ -273,16 +273,17 @@ class TestConfirmUploadApi:
             },
             format="json",
         )
-        return resp.json()["data"]["file_key"]
+        return resp.json()["data"]
 
     def test_confirm_returns_201(self, mock_presign, mock_head, mock_view_url):
         client, acct = _make_client("+233501500001")
         agreement = _agreement(acct)
-        file_key = self._request_url(client, agreement.pk)
+        upload = self._request_url(client, agreement.pk)
         resp = client.post(
             _EVIDENCE_PATH.format(id=agreement.pk),
             {
-                "file_key": file_key,
+                "evidence_id": upload["evidence_id"],
+                "file_key": upload["file_key"],
                 "evidence_type": "vehicle_photo_front",
                 "mime_type": "image/jpeg",
                 "checksum_sha256": _FAKE_CHECKSUM,
@@ -296,16 +297,16 @@ class TestConfirmUploadApi:
         assert "storage_url" not in data
         assert "download_url" not in data
         assert "file_key" not in data
-        assert EvidenceItem.objects.get(file_key=file_key).storage_url == ""
+        assert EvidenceItem.objects.get(file_key=upload["file_key"]).storage_url == ""
 
     def test_confirmed_item_appears_in_list(self, mock_presign, mock_head, mock_view_url):
         client, acct = _make_client("+233501500002")
         agreement = _agreement(acct)
-        file_key = self._request_url(client, agreement.pk)
+        upload = self._request_url(client, agreement.pk)
         client.post(
             _EVIDENCE_PATH.format(id=agreement.pk),
             {
-                "file_key": file_key,
+                "file_key": upload["file_key"],
                 "evidence_type": "vehicle_photo_front",
                 "mime_type": "image/jpeg",
                 "checksum_sha256": _FAKE_CHECKSUM,
@@ -332,11 +333,11 @@ class TestConfirmUploadApi:
     def test_wrong_evidence_type_returns_400(self, mock_presign, mock_head, mock_view_url):
         client, acct = _make_client("+233501500004")
         agreement = _agreement(acct)
-        file_key = self._request_url(client, agreement.pk, evidence_type="vehicle_photo_front")
+        upload = self._request_url(client, agreement.pk, evidence_type="vehicle_photo_front")
         resp = client.post(
             _EVIDENCE_PATH.format(id=agreement.pk),
             {
-                "file_key": file_key,
+                "file_key": upload["file_key"],
                 "evidence_type": "seller_id_photo",
                 "mime_type": "image/jpeg",
                 "checksum_sha256": _FAKE_CHECKSUM,
@@ -344,15 +345,16 @@ class TestConfirmUploadApi:
             format="json",
         )
         assert resp.status_code == 400
+        assert resp.json()["code"] == "evidence_type_mismatch"
 
     def test_wrong_mime_type_returns_400(self, mock_presign, mock_head, mock_view_url):
         client, acct = _make_client("+233501500005")
         agreement = _agreement(acct)
-        file_key = self._request_url(client, agreement.pk, mime_type="image/jpeg")
+        upload = self._request_url(client, agreement.pk, mime_type="image/jpeg")
         resp = client.post(
             _EVIDENCE_PATH.format(id=agreement.pk),
             {
-                "file_key": file_key,
+                "file_key": upload["file_key"],
                 "evidence_type": "vehicle_photo_front",
                 "mime_type": "image/png",
                 "checksum_sha256": _FAKE_CHECKSUM,
@@ -360,6 +362,7 @@ class TestConfirmUploadApi:
             format="json",
         )
         assert resp.status_code == 400
+        assert resp.json()["code"] == "evidence_mime_mismatch"
 
     def test_unknown_file_key_returns_400(self, mock_presign, mock_head, mock_view_url):
         client, acct = _make_client("+233501500006")
@@ -371,21 +374,24 @@ class TestConfirmUploadApi:
             format="json",
         )
         assert resp.status_code == 400
+        assert resp.json()["code"] == "evidence_upload_not_pending"
 
-    def test_cannot_confirm_twice(self, mock_presign, mock_head, mock_view_url):
+    def test_confirm_twice_is_idempotent(self, mock_presign, mock_head, mock_view_url):
         client, acct = _make_client("+233501500007")
         agreement = _agreement(acct)
-        file_key = self._request_url(client, agreement.pk)
+        upload = self._request_url(client, agreement.pk)
         payload = {
-            "file_key": file_key,
+            "evidence_id": upload["evidence_id"],
+            "file_key": upload["file_key"],
             "evidence_type": "vehicle_photo_front",
             "mime_type": "image/jpeg",
             "checksum_sha256": _FAKE_CHECKSUM,
         }
-        client.post(_EVIDENCE_PATH.format(id=agreement.pk), payload, format="json")
-        # Second confirm — item is now CONFIRMED, not PENDING → 400
+        first = client.post(_EVIDENCE_PATH.format(id=agreement.pk), payload, format="json")
         resp = client.post(_EVIDENCE_PATH.format(id=agreement.pk), payload, format="json")
-        assert resp.status_code == 400
+        assert first.status_code == 201
+        assert resp.status_code == 201
+        assert resp.json()["data"]["evidence"]["id"] == first.json()["data"]["evidence"]["id"]
 
     def test_unauthenticated_returns_401(self, mock_presign, mock_head, mock_view_url):
         _, acct = _make_client("+233501500008")
@@ -401,11 +407,11 @@ class TestConfirmUploadApi:
         mock_head.return_value = {**_FAKE_HEAD, "content_length": 499}
         client, acct = _make_client("+233501500009")
         agreement = _agreement(acct)
-        file_key = self._request_url(client, agreement.pk)
+        upload = self._request_url(client, agreement.pk)
         resp = client.post(
             _EVIDENCE_PATH.format(id=agreement.pk),
             {
-                "file_key": file_key,
+                "file_key": upload["file_key"],
                 "evidence_type": "vehicle_photo_front",
                 "mime_type": "image/jpeg",
                 "checksum_sha256": _FAKE_CHECKSUM,
@@ -413,16 +419,17 @@ class TestConfirmUploadApi:
             format="json",
         )
         assert resp.status_code == 400
+        assert resp.json()["code"] == "evidence_file_size_mismatch"
 
     def test_storage_mime_mismatch_returns_400(self, mock_presign, mock_head, mock_view_url):
         mock_head.return_value = {**_FAKE_HEAD, "content_type": "image/png"}
         client, acct = _make_client("+233501500010")
         agreement = _agreement(acct)
-        file_key = self._request_url(client, agreement.pk)
+        upload = self._request_url(client, agreement.pk)
         resp = client.post(
             _EVIDENCE_PATH.format(id=agreement.pk),
             {
-                "file_key": file_key,
+                "file_key": upload["file_key"],
                 "evidence_type": "vehicle_photo_front",
                 "mime_type": "image/jpeg",
                 "checksum_sha256": _FAKE_CHECKSUM,
@@ -430,15 +437,16 @@ class TestConfirmUploadApi:
             format="json",
         )
         assert resp.status_code == 400
+        assert resp.json()["code"] == "evidence_mime_mismatch"
 
     def test_checksum_mismatch_returns_400(self, mock_presign, mock_head, mock_view_url):
         client, acct = _make_client("+233501500011")
         agreement = _agreement(acct)
-        file_key = self._request_url(client, agreement.pk)
+        upload = self._request_url(client, agreement.pk)
         resp = client.post(
             _EVIDENCE_PATH.format(id=agreement.pk),
             {
-                "file_key": file_key,
+                "file_key": upload["file_key"],
                 "evidence_type": "vehicle_photo_front",
                 "mime_type": "image/jpeg",
                 "checksum_sha256": "b" * 64,
@@ -446,16 +454,17 @@ class TestConfirmUploadApi:
             format="json",
         )
         assert resp.status_code == 400
+        assert resp.json()["code"] == "evidence_checksum_mismatch"
 
     def test_storage_checksum_mismatch_returns_400(self, mock_presign, mock_head, mock_view_url):
         mock_head.return_value = {**_FAKE_HEAD, "metadata": {"sha256": "b" * 64}}
         client, acct = _make_client("+233501500012")
         agreement = _agreement(acct)
-        file_key = self._request_url(client, agreement.pk)
+        upload = self._request_url(client, agreement.pk)
         resp = client.post(
             _EVIDENCE_PATH.format(id=agreement.pk),
             {
-                "file_key": file_key,
+                "file_key": upload["file_key"],
                 "evidence_type": "vehicle_photo_front",
                 "mime_type": "image/jpeg",
                 "checksum_sha256": _FAKE_CHECKSUM,
@@ -463,16 +472,17 @@ class TestConfirmUploadApi:
             format="json",
         )
         assert resp.status_code == 400
+        assert resp.json()["code"] == "evidence_checksum_mismatch"
 
     def test_storage_verify_failure_returns_503(self, mock_presign, mock_head, mock_view_url):
         mock_head.side_effect = EndpointConnectionError(endpoint_url="http://storage.local")
         client, acct = _make_client("+233501500013")
         agreement = _agreement(acct)
-        file_key = self._request_url(client, agreement.pk)
+        upload = self._request_url(client, agreement.pk)
         resp = client.post(
             _EVIDENCE_PATH.format(id=agreement.pk),
             {
-                "file_key": file_key,
+                "file_key": upload["file_key"],
                 "evidence_type": "vehicle_photo_front",
                 "mime_type": "image/jpeg",
                 "checksum_sha256": _FAKE_CHECKSUM,

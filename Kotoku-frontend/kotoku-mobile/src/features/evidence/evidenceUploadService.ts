@@ -55,7 +55,14 @@ async function uploadFileToStorage(
   uploadUrl: string,
   headers: Record<string, string>,
   fileBlob: Blob,
+  expectedSizeBytes: number,
 ): Promise<void> {
+  if (typeof fileBlob.size === "number" && fileBlob.size !== expectedSizeBytes) {
+    throw new Error(
+      "Selected file size changed before upload. Please choose the file again.",
+    );
+  }
+
   await new Promise<void>((resolve, reject) => {
     const request = new XMLHttpRequest();
     request.open("PUT", uploadUrl);
@@ -82,7 +89,7 @@ async function uploadFileToStorage(
     };
 
     request.ontimeout = () => {
-      resolve();
+      reject(new Error("S3 upload timed out before the file was fully sent."));
     };
 
     request.send(fileBlob);
@@ -99,6 +106,7 @@ async function findConfirmedEvidence(
 
 async function confirmWithRetry(
   agreementId: number,
+  evidenceId: number,
   fileKey: string,
   evidenceType: string,
   mimeType: string,
@@ -118,6 +126,7 @@ async function confirmWithRetry(
         evidenceType,
         mimeType,
         checksumSha256,
+        evidenceId,
       );
     } catch (error) {
       lastError = error;
@@ -155,11 +164,17 @@ export async function uploadEvidenceItem({
       : { "Content-Type": mimeType };
 
   onPhaseChange?.("uploading");
-  await uploadFileToStorage(uploadUrlRes.upload_url, uploadHeaders, fileBlob);
+  await uploadFileToStorage(
+    uploadUrlRes.upload_url,
+    uploadHeaders,
+    fileBlob,
+    sizeBytes,
+  );
 
   onPhaseChange?.("confirming");
   return confirmWithRetry(
     agreementId,
+    uploadUrlRes.evidence_id,
     uploadUrlRes.file_key,
     evidenceType,
     mimeType,

@@ -64,6 +64,14 @@ _MIME_TO_EXT: dict[str, str] = {
 _EVIDENCE_TYPE_RE = re.compile(r"^[a-z][a-z0-9_]{1,126}$")
 
 
+class EvidenceErrorCode:
+    UPLOAD_NOT_PENDING = "evidence_upload_not_pending"
+    FILE_SIZE_MISMATCH = "evidence_file_size_mismatch"
+    MIME_MISMATCH = "evidence_mime_mismatch"
+    CHECKSUM_MISMATCH = "evidence_checksum_mismatch"
+    TYPE_MISMATCH = "evidence_type_mismatch"
+
+
 def _validate_file(file_type: str, file_data: bytes) -> None:
     if len(file_data) == 0:
         raise DomainError("Uploaded file is empty")
@@ -239,6 +247,7 @@ class EvidenceService:
         evidence_type: str,
         mime_type: str,
         checksum_sha256: str,
+        evidence_id: int | None = None,
     ) -> EvidenceItem:
         """Confirm that the client has uploaded the file and finalise the record.
 
@@ -246,28 +255,52 @@ class EvidenceService:
         EvidenceItem created during generate_upload_url, then marks it confirmed
         and sets the permanent storage URL.
         """
+        lookup = {
+            "agreement_id": agreement_id,
+            "upload_status": EvidenceItem.UploadStatus.PENDING,
+        }
+        if evidence_id is not None:
+            lookup["pk"] = evidence_id
+        else:
+            lookup["file_key"] = file_key
+
         try:
-            item = EvidenceItem.objects.select_for_update().get(
+            item = EvidenceItem.objects.select_for_update().get(**lookup)
+        except EvidenceItem.DoesNotExist:
+            confirmed = EvidenceItem.objects.select_for_update().filter(
                 agreement_id=agreement_id,
                 file_key=file_key,
-                upload_status=EvidenceItem.UploadStatus.PENDING,
-            )
-        except EvidenceItem.DoesNotExist:
+                upload_status=EvidenceItem.UploadStatus.CONFIRMED,
+                evidence_type=evidence_type,
+                mime_type=mime_type,
+                file_hash=checksum_sha256,
+            ).first()
+            if confirmed is not None:
+                return confirmed
             raise DomainError(
-                "No pending upload found for this file key on this agreement."
+                "No pending upload found for this file key on this agreement.",
+                code=EvidenceErrorCode.UPLOAD_NOT_PENDING,
             )
 
+        if item.file_key != file_key:
+            raise DomainError(
+                "file_key does not match the original upload request.",
+                code=EvidenceErrorCode.UPLOAD_NOT_PENDING,
+            )
         if item.evidence_type != evidence_type:
             raise DomainError(
-                "evidence_type does not match the original upload request."
+                "evidence_type does not match the original upload request.",
+                code=EvidenceErrorCode.TYPE_MISMATCH,
             )
         if item.mime_type != mime_type:
             raise DomainError(
-                "mime_type does not match the original upload request."
+                "mime_type does not match the original upload request.",
+                code=EvidenceErrorCode.MIME_MISMATCH,
             )
         if item.file_hash != checksum_sha256:
             raise DomainError(
-                "checksum_sha256 does not match the original upload request."
+                "checksum_sha256 does not match the original upload request.",
+                code=EvidenceErrorCode.CHECKSUM_MISMATCH,
             )
 
         try:
@@ -315,7 +348,10 @@ class EvidenceService:
                     "actual_size": actual_size,
                 },
             )
-            raise DomainError("Uploaded file size does not match the original upload request.")
+            raise DomainError(
+                "Uploaded file size does not match the original upload request.",
+                code=EvidenceErrorCode.FILE_SIZE_MISMATCH,
+            )
         if actual_mime and actual_mime != item.mime_type:
             logger.warning(
                 "[EVIDENCE] storage_verify_mime_mismatch",
@@ -327,7 +363,10 @@ class EvidenceService:
                     "actual_mime": actual_mime,
                 },
             )
-            raise DomainError("Uploaded file content type does not match the original upload request.")
+            raise DomainError(
+                "Uploaded file content type does not match the original upload request.",
+                code=EvidenceErrorCode.MIME_MISMATCH,
+            )
         # Only enforce checksum match when S3 has the metadata header stored
         # (older presigned URLs may not have included x-amz-meta-sha256).
         if actual_checksum and actual_checksum != item.file_hash:
@@ -341,7 +380,10 @@ class EvidenceService:
                     "has_actual_checksum": bool(actual_checksum),
                 },
             )
-            raise DomainError("Uploaded file checksum does not match the original upload request.")
+            raise DomainError(
+                "Uploaded file checksum does not match the original upload request.",
+                code=EvidenceErrorCode.CHECKSUM_MISMATCH,
+            )
 
         item.upload_status = EvidenceItem.UploadStatus.CONFIRMED
         item.save(update_fields=["upload_status"])

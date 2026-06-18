@@ -65,8 +65,13 @@ export default function EvidenceStep() {
                   localUri={item?.localUri}
                   status={item?.uploadStatus}
                   error={item?.error}
+                  failedActionLabel={item?.retryable === false ? "Replace" : "Retry"}
                   onPress={() => {
                     if (item?.uploadStatus === "failed") {
+                      if (item.retryable === false) {
+                        void pickImage(slot.id, slot.id);
+                        return;
+                      }
                       void retryUpload(slot.id);
                       return;
                     }

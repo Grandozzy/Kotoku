@@ -36,6 +36,7 @@ class UploadUrlResponseSerializer(serializers.Serializer):
 
 
 class ConfirmUploadSerializer(serializers.Serializer):
+    evidence_id = serializers.IntegerField(required=False, min_value=1)
     file_key = serializers.CharField(max_length=512)
     evidence_type = serializers.RegexField(r"^[a-z][a-z0-9_]{1,126}$")
     mime_type = serializers.ChoiceField(choices=_ALLOWED_MIME_TYPES)

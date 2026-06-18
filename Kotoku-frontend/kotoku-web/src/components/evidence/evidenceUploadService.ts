@@ -94,7 +94,9 @@ async function uploadToStorage(
       );
     }
   } catch (error) {
-    if (timedOut) return;
+    if (timedOut) {
+      throw new Error("File upload timed out before the file was fully sent.");
+    }
     throw new Error(
       error instanceof Error
         ? error.message
@@ -115,6 +117,7 @@ async function findConfirmedEvidence(
 
 async function confirmWithRetry(
   agreementId: number,
+  evidenceId: number,
   fileKey: string,
   evidenceType: string,
   mimeType: string,
@@ -129,6 +132,7 @@ async function confirmWithRetry(
 
     try {
       const result = await evidenceApi.confirm(agreementId, {
+        evidence_id: evidenceId,
         file_key: fileKey,
         evidence_type: evidenceType,
         mime_type: mimeType,
@@ -175,6 +179,7 @@ export async function uploadEvidenceFile({
   onPhaseChange?.("confirming");
   return confirmWithRetry(
     agreementId,
+    init.evidence_id,
     init.file_key,
     evidenceType,
     mimeType,
