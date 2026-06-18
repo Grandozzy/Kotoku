@@ -1,3 +1,4 @@
+from django.db import transaction
 from django.http import Http404
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import IsAuthenticated
@@ -151,8 +152,9 @@ class SealView(APIView):
             )
         except Agreement.DoesNotExist:
             raise Http404 from None
-        agreement = AgreementService.seal_agreement(agreement_id=agreement_id)
-        VaultService.create_for_agreement(agreement_id=agreement_id)
+        with transaction.atomic():
+            agreement = AgreementService.seal_agreement(agreement_id=agreement_id)
+            VaultService.create_for_agreement(agreement_id=agreement_id)
         return ok({"agreement": AgreementDetailSerializer(agreement).data})
 
 

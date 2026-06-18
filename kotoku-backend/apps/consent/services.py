@@ -4,7 +4,9 @@ import logging
 import secrets
 from datetime import timedelta
 
+from django.conf import settings
 from django.core.cache import cache
+from django.core import signing
 from django.db import transaction
 from django.utils import timezone
 
@@ -22,6 +24,7 @@ logger = logging.getLogger(__name__)
 
 _OTP_MAX_ATTEMPTS = 3
 _OTP_LOCKOUT_SECONDS = 900  # 15 minutes
+_CONSENT_LINK_SALT = "kotoku.consent-link.v1"
 
 
 def get_sms_gateway():
@@ -53,6 +56,36 @@ def generate_otp_expiry(minutes: int = 10) -> timezone.datetime:
 
 class ConsentService:
     @staticmethod
+    def make_consent_link_token(
+        *,
+        agreement_id: int,
+        party_id: int,
+        purpose: str = ConsentRecord.Purpose.CONSENT,
+    ) -> str:
+        return signing.dumps(
+            {
+                "agreement_id": agreement_id,
+                "party_id": party_id,
+                "purpose": purpose,
+            },
+            salt=_CONSENT_LINK_SALT,
+        )
+
+    @staticmethod
+    def load_consent_link_token(token: str) -> dict:
+        try:
+            payload = signing.loads(
+                token,
+                salt=_CONSENT_LINK_SALT,
+                max_age=settings.CONSENT_LINK_MAX_AGE_SECONDS,
+            )
+        except signing.BadSignature:
+            raise DomainError("Invalid or expired consent link.") from None
+        if not isinstance(payload, dict):
+            raise DomainError("Invalid or expired consent link.")
+        return payload
+
+    @staticmethod
     def _issue_party_otps(
         *,
         agreement: Agreement,
@@ -74,10 +107,23 @@ class ConsentService:
             )
             phone = party.phone
             if phone:
-                body = (
-                    f"Your Kotoku {sms_label} code is {otp_code}. "
-                    f"Valid for 10 minutes. Do not share this code."
-                )
+                if purpose == ConsentRecord.Purpose.CONSENT:
+                    token = ConsentService.make_consent_link_token(
+                        agreement_id=agreement.pk,
+                        party_id=party.pk,
+                        purpose=purpose,
+                    )
+                    consent_url = f"{settings.KOTOKU_WEB_URL}/consent/{token}"
+                    body = (
+                        f"Your Kotoku {sms_label} code is {otp_code}. "
+                        f"Review and confirm: {consent_url}. "
+                        f"Valid for 10 minutes. Do not share this code."
+                    )
+                else:
+                    body = (
+                        f"Your Kotoku {sms_label} code is {otp_code}. "
+                        f"Valid for 10 minutes. Do not share this code."
+                    )
                 try:
                     send_sms_message.delay(to=phone, body=body)
                 except Exception as exc:
@@ -361,7 +407,11 @@ class ConsentService:
     @staticmethod
     @transaction.atomic
     def confirm_by_phone(
-        *, agreement_id: int, party_phone: str, otp_code: str
+        *,
+        agreement_id: int,
+        party_phone: str,
+        otp_code: str,
+        purpose: str = ConsentRecord.Purpose.CONSENT,
     ) -> ConsentRecord:
         """Verify a party's consent OTP identified by their phone number.
 
@@ -377,7 +427,12 @@ class ConsentService:
         try:
             record = (
                 ConsentRecord.objects.select_for_update()
-                .get(agreement_id=agreement_id, party=party, granted=False)
+                .get(
+                    agreement_id=agreement_id,
+                    party=party,
+                    purpose=purpose,
+                    granted=False,
+                )
             )
         except ConsentRecord.DoesNotExist:
             raise DomainError("Invalid or expired verification code.") from None
@@ -411,3 +466,82 @@ class ConsentService:
             metadata={"party_id": party.pk, "channel": record.channel},
         )
         return record
+
+    @staticmethod
+    def get_public_consent_context(*, token: str) -> dict:
+        payload = ConsentService.load_consent_link_token(token)
+        agreement_id = int(payload.get("agreement_id") or 0)
+        party_id = int(payload.get("party_id") or 0)
+        purpose = payload.get("purpose") or ConsentRecord.Purpose.CONSENT
+
+        try:
+            party = Party.objects.select_related("agreement").get(
+                pk=party_id,
+                agreement_id=agreement_id,
+            )
+        except Party.DoesNotExist:
+            raise DomainError("Invalid or expired consent link.") from None
+
+        agreement = party.agreement
+        parties = list(Party.objects.filter(agreement=agreement).order_by("id"))
+        record = (
+            ConsentRecord.objects.filter(
+                agreement=agreement,
+                party=party,
+                purpose=purpose,
+            )
+            .order_by("-created_at")
+            .first()
+        )
+        consent_records = ConsentRecord.objects.filter(
+            agreement=agreement,
+            purpose=purpose,
+        )
+        all_consented = consent_records.exists() and not consent_records.filter(
+            granted=False,
+        ).exists()
+
+        return {
+            "agreement": {
+                "id": agreement.pk,
+                "title": agreement.title,
+                "scenario_template": agreement.scenario_template,
+                "status": agreement.status,
+                "field_data": agreement.field_data,
+            },
+            "party": {
+                "id": party.pk,
+                "role": party.role,
+                "display_name": party.display_name,
+                "phone": party.phone,
+            },
+            "parties": [
+                {
+                    "id": item.pk,
+                    "role": item.role,
+                    "display_name": item.display_name,
+                    "phone": item.phone,
+                }
+                for item in parties
+            ],
+            "consent_record": record,
+            "all_consented": all_consented,
+        }
+
+    @staticmethod
+    @transaction.atomic
+    def confirm_public_link(*, token: str, otp_code: str) -> dict:
+        context = ConsentService.get_public_consent_context(token=token)
+        party = context["party"]
+        record = ConsentService.confirm_by_phone(
+            agreement_id=context["agreement"]["id"],
+            party_phone=party["phone"],
+            otp_code=otp_code,
+            purpose=ConsentRecord.Purpose.CONSENT,
+        )
+        all_consented = not ConsentRecord.objects.filter(
+            agreement_id=context["agreement"]["id"],
+            purpose=ConsentRecord.Purpose.CONSENT,
+            granted=False,
+        ).exists()
+        return {"consent_record": record, "all_consented": all_consented}

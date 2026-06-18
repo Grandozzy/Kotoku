@@ -4,6 +4,7 @@ from django.http import HttpResponse, JsonResponse
 from django.urls import include, path
 
 from apps.accounts.api.views import MeView
+from apps.consent.api.views import PublicConsentLinkConfirmView, PublicConsentLinkView
 
 
 def root(_: object) -> JsonResponse:
@@ -33,4 +34,10 @@ urlpatterns = [
     path("api/disputes/", include("apps.disputes.api.urls")),
     path("api/billing/", include("apps.billing.api.urls")),
     path("api/payments/", include("apps.payments.api.urls")),
+    path(
+        "api/consent-links/<str:token>/confirm/",
+        PublicConsentLinkConfirmView.as_view(),
+        name="public-consent-link-confirm",
+    ),
+    path("api/consent-links/<str:token>/", PublicConsentLinkView.as_view(), name="public-consent-link"),
 ]

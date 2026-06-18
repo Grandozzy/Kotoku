@@ -1,6 +1,7 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { confirmOtp, requestOtp } from "@/api/consent";
+import { confirmOtp, getConsentStatus, requestOtp } from "@/api/consent";
 import { validateAgreement } from "@/api/agreements";
 import { useAgreementStore } from "@/features/agreements/agreementStore";
 import { getApiErrorMessage } from "@/lib/errorHandler";
@@ -64,6 +65,43 @@ export function useConfirmOtp(agreementId: number) {
       queryClient.invalidateQueries({ queryKey: ["agreement", agreementId] });
     },
   });
+}
+
+export function useConsentStatus(agreementId: number) {
+  const partyA = useAgreementStore((s) => s.partyA);
+  const partyB = useAgreementStore((s) => s.partyB);
+  const setConsentSent = useAgreementStore((s) => s.setConsentSent);
+  const setConsentConfirmed = useAgreementStore((s) => s.setConsentConfirmed);
+  const query = useQuery({
+    queryKey: ["consent", "status", agreementId],
+    queryFn: () => getConsentStatus(agreementId),
+    enabled: agreementId > 0,
+    refetchInterval: (query) =>
+      query.state.data?.allConsented ? false : 5000,
+  });
+
+  useEffect(() => {
+    const records = query.data?.records ?? [];
+    const partyARecord = records.find((record) => record.partyPhone === partyA.phone);
+    const partyBRecord = records.find((record) => record.partyPhone === partyB.phone);
+
+    if (partyARecord) {
+      setConsentSent("A");
+      if (partyARecord.granted) setConsentConfirmed("A");
+    }
+    if (partyBRecord) {
+      setConsentSent("B");
+      if (partyBRecord.granted) setConsentConfirmed("B");
+    }
+  }, [
+    partyA.phone,
+    partyB.phone,
+    query.data?.records,
+    setConsentConfirmed,
+    setConsentSent,
+  ]);
+
+  return query;
 }
 
 export { getApiErrorMessage };

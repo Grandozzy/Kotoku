@@ -12,6 +12,10 @@ class ConfirmConsentSerializer(serializers.Serializer):
     otp_code = serializers.CharField(max_length=8, min_length=1)
 
 
+class PublicConsentConfirmSerializer(serializers.Serializer):
+    otp_code = serializers.CharField(max_length=8, min_length=1)
+
+
 class ConsentRecordOutputSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     party_id = serializers.IntegerField(source="party.pk")
@@ -28,3 +32,26 @@ class ConsentStatusOutputSerializer(serializers.Serializer):
     agreement_id = serializers.IntegerField()
     all_consented = serializers.BooleanField()
     records = ConsentRecordOutputSerializer(many=True)
+
+
+class PublicConsentPartySerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    role = serializers.CharField()
+    display_name = serializers.CharField()
+    phone = serializers.CharField()
+
+
+class PublicConsentAgreementSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    title = serializers.CharField()
+    scenario_template = serializers.CharField()
+    status = serializers.CharField()
+    field_data = serializers.DictField()
+
+
+class PublicConsentContextSerializer(serializers.Serializer):
+    agreement = PublicConsentAgreementSerializer()
+    party = PublicConsentPartySerializer()
+    parties = PublicConsentPartySerializer(many=True)
+    consent_record = ConsentRecordOutputSerializer(allow_null=True)
+    all_consented = serializers.BooleanField()

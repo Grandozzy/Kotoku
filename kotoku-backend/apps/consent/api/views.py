@@ -10,6 +10,8 @@ from apps.consent.api.serializers import (
     ConfirmConsentSerializer,
     ConsentRecordOutputSerializer,
     ConsentStatusOutputSerializer,
+    PublicConsentConfirmSerializer,
+    PublicConsentContextSerializer,
 )
 from apps.consent.selectors import ConsentSelector
 from apps.consent.services import ConsentService
@@ -103,4 +105,34 @@ class ConsentStatusView(APIView):
                     "records": records,
                 }
             ).data
+        )
+
+
+class PublicConsentLinkView(APIView):
+    authentication_classes = []
+    permission_classes = []
+
+    def get(self, request, token: str):
+        context = ConsentService.get_public_consent_context(token=token)
+        return ok(PublicConsentContextSerializer(context).data)
+
+
+class PublicConsentLinkConfirmView(APIView):
+    authentication_classes = []
+    permission_classes = []
+
+    def post(self, request, token: str):
+        serializer = PublicConsentConfirmSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        result = ConsentService.confirm_public_link(
+            token=token,
+            otp_code=serializer.validated_data["otp_code"],
+        )
+        return ok(
+            {
+                "consent_record": ConsentRecordOutputSerializer(
+                    result["consent_record"]
+                ).data,
+                "all_consented": result["all_consented"],
+            }
         )

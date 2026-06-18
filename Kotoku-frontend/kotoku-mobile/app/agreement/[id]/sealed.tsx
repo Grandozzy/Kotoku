@@ -7,7 +7,7 @@ import { colors } from "@/theme/tokens";
 
 export default function SealedScreen() {
   const router = useRouter();
-  const { reopened } = useLocalSearchParams<{ reopened: string }>();
+  const { id, reopened } = useLocalSearchParams<{ id: string; reopened: string }>();
   const isReseal = reopened === "true";
 
   return (
@@ -35,7 +35,7 @@ export default function SealedScreen() {
           variant="primary"
           size="lg"
           fullWidth
-          onPress={() => router.replace("/(main)/vault")}
+          onPress={() => router.replace(`/(main)/vault/${id}`)}
         />
         {!isReseal && (
           <Button

@@ -17,14 +17,17 @@ from apps.accounts.models import Account, User
 from apps.agreements.domain.enums import AgreementStatus
 from apps.agreements.models import Agreement
 from apps.consent.models import ConsentRecord
-from apps.consent.services import hash_otp
+from apps.consent.services import ConsentService, hash_otp
 from apps.evidence.models import EvidenceItem
 from apps.parties.services import PartyService
+from apps.vault.models import VaultEntry
 
 _REQUEST_OTP_PATH = "/api/agreements/{id}/consent/request-otp/"
 _CONFIRM_PATH = "/api/agreements/{id}/consent/confirm/"
 _STATUS_PATH = "/api/agreements/{id}/consent/status/"
 _SEAL_PATH = "/api/agreements/{id}/seal/"
+_PUBLIC_CONSENT_PATH = "/api/consent-links/{token}/"
+_PUBLIC_CONSENT_CONFIRM_PATH = "/api/consent-links/{token}/confirm/"
 
 _seq = 0
 
@@ -321,6 +324,48 @@ class TestConsentStatusApi:
         assert resp.status_code == 404
 
 
+@pytest.mark.django_db
+@patch("apps.consent.services.send_sms_message.delay", return_value=None)
+class TestPublicConsentLinkApi:
+    def _setup(self, initiator_phone, second_phone):
+        client, acct = _make_client(initiator_phone)
+        agreement = _draft_agreement(acct)
+        _set_two_parties(agreement, acct.phone, second_phone)
+        client.post(_REQUEST_OTP_PATH.format(id=agreement.pk))
+        party = agreement.parties.get(phone=second_phone)
+        token = ConsentService.make_consent_link_token(
+            agreement_id=agreement.pk,
+            party_id=party.pk,
+        )
+        return agreement, party, token
+
+    def test_public_link_returns_view_only_context(self, mock_delay):
+        agreement, party, token = self._setup("+233500350001", "+233500350002")
+        resp = APIClient().get(_PUBLIC_CONSENT_PATH.format(token=token))
+        assert resp.status_code == 200
+        data = resp.json()["data"]
+        assert data["agreement"]["id"] == agreement.pk
+        assert data["party"]["id"] == party.pk
+        assert data["party"]["phone"] == party.phone
+        assert "id_number" not in data["party"]
+
+    def test_public_link_confirms_only_token_party(self, mock_delay):
+        agreement, party, token = self._setup("+233500350003", "+233500350004")
+        record = ConsentRecord.objects.get(agreement=agreement, party=party)
+        ConsentRecord.objects.filter(pk=record.pk).update(
+            otp_code_hash=hash_otp("12345678")
+        )
+        resp = APIClient().post(
+            _PUBLIC_CONSENT_CONFIRM_PATH.format(token=token),
+            {"otp_code": "12345678"},
+            format="json",
+        )
+        assert resp.status_code == 200
+        assert resp.json()["data"]["consent_record"]["granted"] is True
+        record.refresh_from_db()
+        assert record.granted is True
+
+
 # ────────────────────────────────────────────────────────────────────────────
 # POST /seal/
 # ────────────────────────────────────────────────────────────────────────────
@@ -353,6 +398,12 @@ class TestSealApi:
         agreement.refresh_from_db()
         assert agreement.status == AgreementStatus.SEALED
         assert agreement.sealed_at is not None
+
+    def test_seal_creates_vault_entry(self, mock_delay):
+        client, acct, agreement = self._ready_to_seal("+233500400014", "+233500400015")
+        resp = client.post(_SEAL_PATH.format(id=agreement.pk))
+        assert resp.status_code == 200
+        assert VaultEntry.objects.filter(agreement=agreement).exists()
 
     def test_seal_fails_without_evidence(self, mock_delay):
         client, acct = _make_client("+233500400005")

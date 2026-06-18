@@ -64,8 +64,12 @@ export function useSealAgreement(id: number) {
     mutationFn: () => sealAgreement(id),
     onSuccess: () => {
       const wasReopened = isReopened;
-      // Refresh billing usage so the home screen reflects the new count
+      queryClient.invalidateQueries({ queryKey: ["agreement", id] });
+      queryClient.invalidateQueries({ queryKey: ["agreements"] });
       queryClient.invalidateQueries({ queryKey: ["billing", "current-plan"] });
+      queryClient.invalidateQueries({ queryKey: ["pending-actions"] });
+      queryClient.invalidateQueries({ queryKey: ["vault"] });
+      queryClient.invalidateQueries({ queryKey: ["vault", id] });
       router.replace(`/agreement/${id}/sealed?reopened=${wasReopened}`);
       setTimeout(() => reset(), 0);
     },

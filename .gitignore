@@ -42,6 +42,7 @@ AGENTS.md
 *.md
 !KOTOKU_CODING_RULES.md
 !docs/architecture/evidence-upload-hardening.md
+!Consent_hardening.md
 
 # init docs (local planning)
 init docs/

@@ -7,6 +7,7 @@ import { Button, OTPInput } from "@/components/ui";
 import { STEPS, useAgreementStore } from "@/features/agreements/agreementStore";
 import {
   useConfirmOtp,
+  useConsentStatus,
   useRequestOtp,
   getApiErrorMessage,
 } from "@/features/consent/useConsentFlow";
@@ -33,9 +34,11 @@ export default function ConsentStep() {
   const { data: plan } = usePlan();
   const requestOtp = useRequestOtp(agreementId);
   const confirmOtp = useConfirmOtp(agreementId);
+  const consentStatus = useConsentStatus(agreementId);
   const sealMutation = useSealAgreement(agreementId);
 
-  const bothConfirmed = consentA.confirmed && consentB.confirmed;
+  const bothConfirmed =
+    consentStatus.data?.allConsented ?? (consentA.confirmed && consentB.confirmed);
   const otpsSent = consentA.otpSent && consentB.otpSent;
   const currentParty =
     authenticatedPhone && authenticatedPhone === partyA.phone
