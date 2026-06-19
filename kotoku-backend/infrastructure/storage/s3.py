@@ -1,3 +1,4 @@
+from functools import lru_cache
 import boto3
 from botocore.config import Config as BotoConfig
 from django.conf import settings
@@ -11,6 +12,7 @@ def _endpoint(name: str) -> str | None:
     return val
 
 
+@lru_cache(maxsize=2)
 def _get_client(external: bool = False):
     if external:
         endpoint_url = _endpoint("AWS_S3_EXTERNAL_URL") or _endpoint("AWS_ENDPOINT_URL_S3")
