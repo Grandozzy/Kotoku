@@ -10,6 +10,20 @@ function formatLabel(value: string) {
     .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
+function formatBytes(value: number | null) {
+  if (!value) return "Size unavailable";
+  if (value < 1024) return `${value} B`;
+  if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`;
+  return `${(value / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function formatDate(value: string) {
+  return new Intl.DateTimeFormat("en", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(value));
+}
+
 export default async function PublicConsentPage({
   params,
 }: {
@@ -39,7 +53,7 @@ export default async function PublicConsentPage({
     );
   }
 
-  const { agreement, party, parties, consent_record: record } = context;
+  const { agreement, party, parties, evidence, consent_record: record } = context;
   const details = Object.entries(agreement.field_data ?? {}).filter(
     ([, value]) => value !== null && value !== undefined && value !== "",
   );
@@ -91,6 +105,87 @@ export default async function PublicConsentPage({
             </dl>
           ) : (
             <p className="mt-3 text-sm text-neutral-500">No extra details were provided.</p>
+          )}
+        </section>
+
+        <section className="rounded-3xl border border-neutral-200 bg-white p-6 shadow-sm">
+          <h2 className="text-lg font-semibold text-neutral-900">Evidence</h2>
+          <p className="mt-1 text-sm text-neutral-500">
+            Review the confirmed evidence attached to this agreement. This section is view-only.
+          </p>
+          {evidence.length > 0 ? (
+            <div className="mt-5 grid gap-4">
+              {evidence.map((item) => {
+                const isImage = item.mime_type.startsWith("image/");
+                return (
+                  <div
+                    key={item.id}
+                    className="grid gap-4 rounded-2xl border border-neutral-100 bg-neutral-50 p-4 sm:grid-cols-[120px_1fr]"
+                  >
+                    <div className="flex h-28 items-center justify-center overflow-hidden rounded-xl bg-white text-xs font-semibold uppercase tracking-wide text-neutral-400">
+                      {isImage && item.view_url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          alt={formatLabel(item.evidence_type)}
+                          className="h-full w-full object-cover"
+                          src={item.view_url}
+                        />
+                      ) : (
+                        formatLabel(item.file_type)
+                      )}
+                    </div>
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-semibold text-neutral-900">
+                          {formatLabel(item.evidence_type)}
+                        </p>
+                        <span className="rounded-full bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700">
+                          Confirmed
+                        </span>
+                      </div>
+                      <dl className="mt-3 grid gap-2 text-sm text-neutral-600 sm:grid-cols-2">
+                        <div>
+                          <dt className="text-xs font-semibold uppercase tracking-wide text-neutral-400">
+                            File
+                          </dt>
+                          <dd>{item.original_name || formatLabel(item.file_type)}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-xs font-semibold uppercase tracking-wide text-neutral-400">
+                            Type
+                          </dt>
+                          <dd>{item.mime_type || formatLabel(item.file_type)}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-xs font-semibold uppercase tracking-wide text-neutral-400">
+                            Size
+                          </dt>
+                          <dd>{formatBytes(item.size_bytes)}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-xs font-semibold uppercase tracking-wide text-neutral-400">
+                            Added
+                          </dt>
+                          <dd>{formatDate(item.created_at)}</dd>
+                        </div>
+                      </dl>
+                      {item.view_url && (
+                        <a
+                          className="mt-4 inline-flex text-sm font-semibold text-blue-700 hover:text-blue-900"
+                          href={item.view_url}
+                          rel="noreferrer"
+                          target="_blank"
+                        >
+                          Open evidence
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="mt-3 text-sm text-neutral-500">No confirmed evidence is attached yet.</p>
           )}
         </section>
 

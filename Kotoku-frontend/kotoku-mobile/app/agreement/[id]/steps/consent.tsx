@@ -4,7 +4,7 @@ import { useState } from "react";
 import { ScrollView, Text, View } from "react-native";
 
 import { Button, OTPInput } from "@/components/ui";
-import { STEPS, useAgreementStore } from "@/features/agreements/agreementStore";
+import { useAgreementStore } from "@/features/agreements/agreementStore";
 import {
   useConfirmOtp,
   useConsentStatus,
@@ -22,8 +22,7 @@ export default function ConsentStep() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const agreementId = Number(id);
 
-  const { scenarioId, consentA, consentB, partyA, partyB, prevStep, stepIndex } =
-    useAgreementStore();
+  const { scenarioId, consentA, consentB, partyA, partyB } = useAgreementStore();
   const authenticatedPhone = useSessionStore((s) => s.phone);
   const template = useTemplate(scenarioId);
   const [roleA, roleB] = template?.partyRoles ?? ["Party A", "Party B"];
@@ -46,6 +45,13 @@ export default function ConsentStep() {
       : authenticatedPhone && authenticatedPhone === partyB.phone
         ? "B"
         : null;
+  const currentPartyConfirmed =
+    currentParty === "A"
+      ? consentA.confirmed
+      : currentParty === "B"
+        ? consentB.confirmed
+        : false;
+  const otherPartyRole = currentParty === "A" ? roleB : roleA;
 
   // Cap state — either proactive (from plan hook) or reactive (from seal error)
   const proactiveCapReached = plan?.flags.is_personal && plan?.usage.is_cap_reached;
@@ -84,13 +90,12 @@ export default function ConsentStep() {
         </Text>
         <View className="bg-blue-50 border border-blue-100 rounded-xl p-md gap-xs">
           <Text className="text-sm font-semibold text-blue-900">
-            Each party confirms from their own account.
+            Each party confirms with their own OTP.
           </Text>
           <Text className="text-xs text-blue-800 leading-relaxed">
-            After codes are sent, the second party must sign in with their own
-            phone number on their device or invite link, then enter only the OTP
-            sent to that phone. Kotoku rejects attempts to confirm another party's
-            code.
+            The creator receives an OTP only. The other party receives their OTP
+            plus a secure review link, so they can confirm without installing the
+            app.
           </Text>
         </View>
       </View>
@@ -110,6 +115,15 @@ export default function ConsentStep() {
         <Text className="text-sm text-semantic-error text-center">
           {getApiErrorMessage(requestOtp.error)}
         </Text>
+      )}
+
+      {otpsSent && (
+        <View className="bg-surface-subtle border border-border-subtle rounded-xl p-md">
+          <Text className="text-sm text-ink-secondary leading-relaxed">
+            Consent has started, so agreement details are locked. If something is
+            wrong, do not confirm; restart the agreement with corrected details.
+          </Text>
+        </View>
       )}
 
       {otpsSent && !currentParty && (
@@ -155,11 +169,20 @@ export default function ConsentStep() {
         />
       )}
 
-      {otpsSent && currentParty && !bothConfirmed && (
+      {otpsSent && currentParty && currentPartyConfirmed && !bothConfirmed && (
+        <View className="bg-emerald-50 border border-emerald-100 rounded-xl p-md">
+          <Text className="text-sm text-emerald-800 leading-relaxed">
+            Your consent is confirmed. Waiting for {otherPartyRole} to enter
+            their OTP before this agreement can be sealed.
+          </Text>
+        </View>
+      )}
+
+      {otpsSent && currentParty && !currentPartyConfirmed && !bothConfirmed && (
         <View className="bg-blue-50 border border-blue-100 rounded-xl p-md">
           <Text className="text-sm text-blue-800 leading-relaxed">
-            Only your OTP can be confirmed from this account. The other party must
-            sign in with their own phone and confirm on their device.
+            Enter the OTP sent to your phone. The agreement can only be sealed
+            after both parties have confirmed.
           </Text>
         </View>
       )}
@@ -191,30 +214,14 @@ export default function ConsentStep() {
               </Text>
             </View>
           ) : (
-            <View className="flex-row gap-sm">
-              {stepIndex > 0 && (
-                <View style={{ flex: 1 }}>
-                  <Button
-                    title="Back"
-                    variant="secondary"
-                    size="lg"
-                    onPress={() => {
-                      prevStep();
-                      router.replace(`/agreement/${id}/steps/${STEPS[stepIndex - 1]}`);
-                    }}
-                  />
-                </View>
-              )}
-              <View style={{ flex: 2 }}>
-                <Button
-                  title="Seal agreement"
-                  variant="primary"
-                  size="lg"
-                  loading={sealMutation.isPending}
-                  onPress={() => sealMutation.mutate()}
-                />
-              </View>
-            </View>
+            <Button
+              title="Seal agreement"
+              variant="primary"
+              size="lg"
+              fullWidth
+              loading={sealMutation.isPending}
+              onPress={() => sealMutation.mutate()}
+            />
           )}
 
           {sealMutation.isError && !capReached && (
@@ -225,18 +232,6 @@ export default function ConsentStep() {
         </View>
       )}
 
-      {!bothConfirmed && otpsSent && stepIndex > 0 && (
-        <Button
-          title="Back"
-          variant="secondary"
-          size="lg"
-          fullWidth
-          onPress={() => {
-            prevStep();
-            router.replace(`/agreement/${id}/steps/${STEPS[stepIndex - 1]}`);
-          }}
-        />
-      )}
     </ScrollView>
   );
 }

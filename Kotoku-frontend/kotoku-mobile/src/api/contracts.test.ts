@@ -79,6 +79,7 @@ const evidenceResult: EvidenceItemResponse = {
   file_type: "photo",
   mime_type: "image/jpeg",
   size_bytes: 1234,
+  original_name: "buyer-id.jpg",
   view_url: "https://storage.example/evidence/file.jpg?response-content-disposition=inline",
   upload_status: "confirmed",
   uploaded_by_role: null,

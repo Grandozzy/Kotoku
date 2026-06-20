@@ -72,11 +72,13 @@ def _set_two_parties(agreement, initiator_phone, second_phone):
 
 
 def _add_confirmed_evidence(agreement):
-    EvidenceItem.objects.create(
+    return EvidenceItem.objects.create(
         agreement=agreement,
         file_type=EvidenceItem.FileType.PHOTO,
         evidence_type="vehicle_photo_front",
         mime_type="image/jpeg",
+        size_bytes=2048,
+        original_name="front-photo.jpg",
         upload_status=EvidenceItem.UploadStatus.CONFIRMED,
         storage_url="https://storage.kotoku/fake/photo.jpg",
     )
@@ -114,6 +116,20 @@ class TestRequestOtpApi:
         _set_two_parties(agreement, acct.phone, "+233500100006")
         client.post(_REQUEST_OTP_PATH.format(id=agreement.pk))
         assert ConsentRecord.objects.filter(agreement=agreement).count() == 2
+
+    def test_creator_sms_has_no_link_and_second_party_sms_has_link(self, mock_delay):
+        client, acct = _make_client("+233500100017")
+        agreement = _draft_agreement(acct)
+        second_phone = "+233500100018"
+        _set_two_parties(agreement, acct.phone, second_phone)
+        resp = client.post(_REQUEST_OTP_PATH.format(id=agreement.pk))
+        assert resp.status_code == 201
+        messages = {
+            call.kwargs["to"]: call.kwargs["body"]
+            for call in mock_delay.call_args_list
+        }
+        assert "/consent/" not in messages[acct.phone]
+        assert "/consent/" in messages[second_phone]
 
     def test_reissue_from_pending_consent(self, mock_delay):
         client, acct = _make_client("+233500100007")
@@ -296,6 +312,14 @@ class TestConfirmConsentApi:
 @pytest.mark.django_db
 @patch("apps.consent.services.send_sms_message.delay", return_value=None)
 class TestConsentStatusApi:
+    def test_all_consented_false_when_no_records_exist(self, mock_delay):
+        client, acct = _make_client("+233500300007")
+        agreement = _draft_agreement(acct)
+        _set_two_parties(agreement, acct.phone, "+233500300008")
+        resp = client.get(_STATUS_PATH.format(id=agreement.pk))
+        assert resp.status_code == 200
+        assert resp.json()["data"]["all_consented"] is False
+
     def test_returns_status_with_records(self, mock_delay):
         client, acct = _make_client("+233500300001")
         agreement = _draft_agreement(acct)
@@ -348,6 +372,29 @@ class TestPublicConsentLinkApi:
         assert data["party"]["id"] == party.pk
         assert data["party"]["phone"] == party.phone
         assert "id_number" not in data["party"]
+
+    def test_public_link_returns_confirmed_evidence_metadata_only(self, mock_delay):
+        agreement, party, token = self._setup("+233500350005", "+233500350006")
+        confirmed = _add_confirmed_evidence(agreement)
+        EvidenceItem.objects.create(
+            agreement=agreement,
+            file_type=EvidenceItem.FileType.DOCUMENT,
+            evidence_type="draft_receipt",
+            mime_type="application/pdf",
+            original_name="draft.pdf",
+            upload_status=EvidenceItem.UploadStatus.PENDING,
+            storage_url="https://storage.kotoku/fake/draft.pdf",
+        )
+
+        resp = APIClient().get(_PUBLIC_CONSENT_PATH.format(token=token))
+        assert resp.status_code == 200
+        evidence = resp.json()["data"]["evidence"]
+        assert len(evidence) == 1
+        assert evidence[0]["id"] == confirmed.pk
+        assert evidence[0]["original_name"] == "front-photo.jpg"
+        assert evidence[0]["view_url"] is None
+        assert "storage_url" not in evidence[0]
+        assert "file_key" not in evidence[0]
 
     def test_public_link_confirms_only_token_party(self, mock_delay):
         agreement, party, token = self._setup("+233500350003", "+233500350004")

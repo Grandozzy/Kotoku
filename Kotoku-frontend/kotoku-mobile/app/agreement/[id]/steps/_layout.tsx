@@ -51,6 +51,8 @@ export default function StepsLayout() {
   const router = useRouter();
   const stepIndex = useAgreementStore((s) => s.stepIndex);
   const isReopened = useAgreementStore((s) => s.isReopened);
+  const consentA = useAgreementStore((s) => s.consentA);
+  const consentB = useAgreementStore((s) => s.consentB);
   const goToStep = useAgreementStore((s) => s.goToStep);
   const reset = useAgreementStore((s) => s.reset);
   useDraftPersistence();
@@ -71,6 +73,9 @@ export default function StepsLayout() {
     goToStep(index);
     router.replace(`/agreement/${id}/steps/${STEPS[index]}`);
   };
+  const consentStarted =
+    routeStepIndex === STEPS.indexOf("consent") &&
+    (consentA.otpSent || consentB.otpSent);
 
   const handleExit = () => {
     reset();
@@ -88,7 +93,10 @@ export default function StepsLayout() {
       ) : (
         <FormHeader onExit={handleExit} />
       )}
-      <StepProgress currentIndex={routeStepIndex} onStepPress={handleStepPress} />
+      <StepProgress
+        currentIndex={routeStepIndex}
+        onStepPress={consentStarted ? undefined : handleStepPress}
+      />
     </View>
   );
 

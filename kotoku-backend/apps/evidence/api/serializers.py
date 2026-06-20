@@ -55,6 +55,7 @@ class EvidenceItemSerializer(serializers.ModelSerializer):
             "file_type",
             "mime_type",
             "size_bytes",
+            "original_name",
             "view_url",
             "upload_status",
             "uploaded_by_role",

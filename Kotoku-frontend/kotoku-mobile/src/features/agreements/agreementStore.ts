@@ -61,6 +61,7 @@ interface AgreementDraftStore {
   setSubjectData: (data: Record<string, unknown>) => void;
   setConsentSent: (party: "A" | "B") => void;
   setConsentConfirmed: (party: "A" | "B") => void;
+  setConsentState: (party: "A" | "B", state: ConsentPartyState) => void;
   reset: () => void;
 }
 
@@ -152,6 +153,13 @@ export const useAgreementStore = create<AgreementDraftStore>((set) => ({
       party === "A"
         ? { consentA: { ...s.consentA, confirmed: true } }
         : { consentB: { ...s.consentB, confirmed: true } },
+    ),
+
+  setConsentState: (party, state) =>
+    set(
+      party === "A"
+        ? { consentA: state }
+        : { consentB: state },
     ),
 
   reset: () =>

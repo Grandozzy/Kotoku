@@ -15,7 +15,7 @@ function formatValidationErrors(errors: { field: string; message: string }[]) {
 }
 
 export function useRequestOtp(agreementId: number) {
-  const setConsentSent = useAgreementStore((s) => s.setConsentSent);
+  const setConsentState = useAgreementStore((s) => s.setConsentState);
   const partyA = useAgreementStore((s) => s.partyA);
   const partyB = useAgreementStore((s) => s.partyB);
 
@@ -28,16 +28,16 @@ export function useRequestOtp(agreementId: number) {
       return requestOtp(agreementId);
     },
     onSuccess: () => {
-      setConsentSent("A");
-      setConsentSent("B");
+      setConsentState("A", { otpSent: true, confirmed: false });
+      setConsentState("B", { otpSent: true, confirmed: false });
     },
     onError: (error) => {
       if (
         partyA.phone && partyB.phone &&
         getApiErrorMessage(error).includes("already consented")
       ) {
-        setConsentSent("A");
-        setConsentSent("B");
+        setConsentState("A", { otpSent: true, confirmed: true });
+        setConsentState("B", { otpSent: true, confirmed: true });
       }
     },
   });
@@ -70,8 +70,7 @@ export function useConfirmOtp(agreementId: number) {
 export function useConsentStatus(agreementId: number) {
   const partyA = useAgreementStore((s) => s.partyA);
   const partyB = useAgreementStore((s) => s.partyB);
-  const setConsentSent = useAgreementStore((s) => s.setConsentSent);
-  const setConsentConfirmed = useAgreementStore((s) => s.setConsentConfirmed);
+  const setConsentState = useAgreementStore((s) => s.setConsentState);
   const query = useQuery({
     queryKey: ["consent", "status", agreementId],
     queryFn: () => getConsentStatus(agreementId),
@@ -82,23 +81,25 @@ export function useConsentStatus(agreementId: number) {
 
   useEffect(() => {
     const records = query.data?.records ?? [];
-    const partyARecord = records.find((record) => record.partyPhone === partyA.phone);
-    const partyBRecord = records.find((record) => record.partyPhone === partyB.phone);
+    const latestRecords = [...records].sort((left, right) => {
+      const leftCreatedAt = left.createdAt ? Date.parse(left.createdAt) : 0;
+      const rightCreatedAt = right.createdAt ? Date.parse(right.createdAt) : 0;
+      return rightCreatedAt - leftCreatedAt || right.id - left.id;
+    });
+    const partyARecord = latestRecords.find((record) => record.partyPhone === partyA.phone);
+    const partyBRecord = latestRecords.find((record) => record.partyPhone === partyB.phone);
 
     if (partyARecord) {
-      setConsentSent("A");
-      if (partyARecord.granted) setConsentConfirmed("A");
+      setConsentState("A", { otpSent: true, confirmed: partyARecord.granted });
     }
     if (partyBRecord) {
-      setConsentSent("B");
-      if (partyBRecord.granted) setConsentConfirmed("B");
+      setConsentState("B", { otpSent: true, confirmed: partyBRecord.granted });
     }
   }, [
     partyA.phone,
     partyB.phone,
     query.data?.records,
-    setConsentConfirmed,
-    setConsentSent,
+    setConsentState,
   ]);
 
   return query;

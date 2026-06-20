@@ -49,9 +49,23 @@ class PublicConsentAgreementSerializer(serializers.Serializer):
     field_data = serializers.DictField()
 
 
+class PublicConsentEvidenceSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    evidence_type = serializers.CharField()
+    file_type = serializers.CharField()
+    mime_type = serializers.CharField()
+    size_bytes = serializers.IntegerField(allow_null=True)
+    original_name = serializers.CharField()
+    upload_status = serializers.CharField()
+    uploaded_by_role = serializers.CharField(allow_null=True)
+    created_at = serializers.DateTimeField()
+    view_url = serializers.URLField(allow_null=True)
+
+
 class PublicConsentContextSerializer(serializers.Serializer):
     agreement = PublicConsentAgreementSerializer()
     party = PublicConsentPartySerializer()
     parties = PublicConsentPartySerializer(many=True)
+    evidence = PublicConsentEvidenceSerializer(many=True)
     consent_record = ConsentRecordOutputSerializer(allow_null=True)
     all_consented = serializers.BooleanField()

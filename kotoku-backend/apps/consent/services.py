@@ -16,15 +16,46 @@ from apps.agreements.domain.state_machine import next_state
 from apps.agreements.models import Agreement, AgreementRevision
 from apps.audit.services import AuditService
 from apps.consent.models import ConsentRecord
+from apps.evidence.models import EvidenceItem
 from apps.notifications.tasks import send_sms_message
 from apps.parties.models import Party
 from common.exceptions import DomainError, ServiceUnavailableError
+from infrastructure.storage.s3 import S3StorageClient
 
 logger = logging.getLogger(__name__)
 
 _OTP_MAX_ATTEMPTS = 3
 _OTP_LOCKOUT_SECONDS = 900  # 15 minutes
 _CONSENT_LINK_SALT = "kotoku.consent-link.v1"
+
+
+def _public_evidence_payload(item: EvidenceItem) -> dict:
+    view_url = None
+    if item.file_key:
+        try:
+            view_url = S3StorageClient().generate_presigned_view_url(
+                item.file_key,
+                content_type=item.mime_type,
+                expires_in=settings.EVIDENCE_VIEW_URL_TTL_SECONDS,
+            )
+        except Exception:
+            logger.exception(
+                "Failed to generate public consent evidence view URL",
+                extra={"evidence_id": item.pk, "agreement_id": item.agreement_id},
+            )
+
+    return {
+        "id": item.pk,
+        "evidence_type": item.evidence_type,
+        "file_type": item.file_type,
+        "mime_type": item.mime_type,
+        "size_bytes": item.size_bytes,
+        "original_name": item.original_name,
+        "upload_status": item.upload_status,
+        "uploaded_by_role": item.uploaded_by.role if item.uploaded_by_id else None,
+        "created_at": item.created_at,
+        "view_url": view_url,
+    }
 
 
 def get_sms_gateway():
@@ -107,7 +138,12 @@ class ConsentService:
             )
             phone = party.phone
             if phone:
-                if purpose == ConsentRecord.Purpose.CONSENT:
+                is_creator_party = (
+                    purpose == ConsentRecord.Purpose.CONSENT
+                    and agreement.created_by.phone
+                    and phone == agreement.created_by.phone
+                )
+                if purpose == ConsentRecord.Purpose.CONSENT and not is_creator_party:
                     token = ConsentService.make_consent_link_token(
                         agreement_id=agreement.pk,
                         party_id=party.pk,
@@ -151,7 +187,7 @@ class ConsentService:
     @staticmethod
     @transaction.atomic
     def request_consent(*, agreement_id: int) -> list[ConsentRecord]:
-        agreement = Agreement.objects.get(pk=agreement_id)
+        agreement = Agreement.objects.select_related("created_by").get(pk=agreement_id)
         if agreement.status != AgreementStatus.PENDING_CONSENT:
             raise DomainError(
                 "Cannot request consent: agreement must be in pending_consent status"
@@ -166,7 +202,10 @@ class ConsentService:
         ):
             raise DomainError("All parties have already consented. Proceed to seal.")
 
-        ConsentRecord.objects.filter(agreement=agreement, granted=False).delete()
+        ConsentRecord.objects.filter(
+            agreement=agreement,
+            purpose=ConsentRecord.Purpose.CONSENT,
+        ).delete()
         parties = list(Party.objects.filter(agreement=agreement))
         if not parties:
             raise DomainError("Cannot request consent: agreement has no parties")
@@ -257,7 +296,11 @@ class ConsentService:
         SMS is sent directly to party.phone so this works for parties created via
         the Parties API that may not yet have a linked Account.
         """
-        agreement = Agreement.objects.select_for_update().get(pk=agreement_id)
+        agreement = (
+            Agreement.objects.select_related("created_by")
+            .select_for_update()
+            .get(pk=agreement_id)
+        )
 
         if not can_request_consent(agreement):
             raise DomainError(
@@ -273,8 +316,6 @@ class ConsentService:
                 raise DomainError(
                     "All parties have already consented. Proceed to seal."
                 )
-            # Re-issue: wipe stale records so each party gets a fresh OTP.
-            ConsentRecord.objects.filter(agreement=agreement).delete()
         else:
             # DRAFT or ACTIVE → PENDING_CONSENT
             agreement.status = next_state(agreement.status, "request_consent")
@@ -289,6 +330,11 @@ class ConsentService:
                 entity_type="agreement",
                 entity_id=str(agreement.pk),
             )
+
+        ConsentRecord.objects.filter(
+            agreement=agreement,
+            purpose=ConsentRecord.Purpose.CONSENT,
+        ).delete()
 
         parties = list(Party.objects.filter(agreement=agreement))
         if not parties:
@@ -465,6 +511,32 @@ class ConsentService:
             entity_id=str(record.pk),
             metadata={"party_id": party.pk, "channel": record.channel},
         )
+        from apps.consent.selectors import ConsentSelector  # noqa: PLC0415
+        if (
+            purpose == ConsentRecord.Purpose.CONSENT
+            and ConsentSelector.all_parties_consented(
+                agreement_id=agreement_id,
+                purpose=purpose,
+            )
+        ):
+            agreement = Agreement.objects.select_for_update().get(pk=agreement_id)
+            has_revision = AgreementRevision.objects.filter(
+                agreement=agreement
+            ).exists()
+            if not has_revision:
+                agreement.status = next_state(agreement.status, "all_consented")
+                agreement.save(update_fields=["status", "updated_at"])
+                AuditService.record_event(
+                    event_type="agreement.all_consented",
+                    entity_type="agreement",
+                    entity_id=str(agreement.pk),
+                )
+            else:
+                AuditService.record_event(
+                    event_type="agreement.reseal_all_consented",
+                    entity_type="agreement",
+                    entity_id=str(agreement.pk),
+                )
         return record
 
     @staticmethod
@@ -484,6 +556,15 @@ class ConsentService:
 
         agreement = party.agreement
         parties = list(Party.objects.filter(agreement=agreement).order_by("id"))
+        evidence = [
+            _public_evidence_payload(item)
+            for item in EvidenceItem.objects.filter(
+                agreement=agreement,
+                upload_status=EvidenceItem.UploadStatus.CONFIRMED,
+            )
+            .select_related("uploaded_by")
+            .order_by("-created_at")
+        ]
         record = (
             ConsentRecord.objects.filter(
                 agreement=agreement,
@@ -493,13 +574,11 @@ class ConsentService:
             .order_by("-created_at")
             .first()
         )
-        consent_records = ConsentRecord.objects.filter(
-            agreement=agreement,
+        from apps.consent.selectors import ConsentSelector  # noqa: PLC0415
+        all_consented = ConsentSelector.all_parties_consented(
+            agreement_id=agreement.pk,
             purpose=purpose,
         )
-        all_consented = consent_records.exists() and not consent_records.filter(
-            granted=False,
-        ).exists()
 
         return {
             "agreement": {
@@ -524,6 +603,7 @@ class ConsentService:
                 }
                 for item in parties
             ],
+            "evidence": evidence,
             "consent_record": record,
             "all_consented": all_consented,
         }

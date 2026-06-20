@@ -14,6 +14,7 @@ export interface EvidenceItemResponse {
   file_type: string;
   mime_type: string;
   size_bytes: number | null;
+  original_name: string;
   view_url: string | null;
   upload_status: string;
   uploaded_by_role: string | null;

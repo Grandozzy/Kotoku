@@ -26,10 +26,24 @@ export interface PublicConsentAgreement {
   field_data: Record<string, unknown>;
 }
 
+export interface PublicConsentEvidence {
+  id: number;
+  evidence_type: string;
+  file_type: string;
+  mime_type: string;
+  size_bytes: number | null;
+  original_name: string;
+  upload_status: string;
+  uploaded_by_role: string | null;
+  created_at: string;
+  view_url: string | null;
+}
+
 export interface PublicConsentContext {
   agreement: PublicConsentAgreement;
   party: PublicConsentParty;
   parties: PublicConsentParty[];
+  evidence: PublicConsentEvidence[];
   consent_record: PublicConsentRecord | null;
   all_consented: boolean;
 }

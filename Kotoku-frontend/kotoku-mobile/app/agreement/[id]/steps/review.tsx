@@ -1,11 +1,26 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { Pencil } from "lucide-react-native";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { useQuery } from "@tanstack/react-query";
+import { FileText, Image as ImageIcon, Pencil } from "lucide-react-native";
+import { Image, Pressable, ScrollView, Text, View } from "react-native";
 
+import { listEvidence, type EvidenceItemResponse } from "@/api/evidence";
 import { Button } from "@/components/ui";
 import { useAgreementStore, STEPS } from "@/features/agreements/agreementStore";
 import { useTemplate } from "@/features/agreements/useAgreementDraft";
 import { colors } from "@/theme/tokens";
+
+function formatBytes(value: number | null) {
+  if (!value) return "Size unavailable";
+  if (value < 1024) return `${value} B`;
+  if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`;
+  return `${(value / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function formatDate(value: string) {
+  const timestamp = Date.parse(value);
+  if (Number.isNaN(timestamp)) return "Date unavailable";
+  return new Date(timestamp).toLocaleDateString();
+}
 
 export default function ReviewStep() {
   const router = useRouter();
@@ -14,6 +29,15 @@ export default function ReviewStep() {
     useAgreementStore();
   const template = useTemplate(scenarioId);
   const [roleA, roleB] = template?.partyRoles ?? ["Party A", "Party B"];
+  const agreementId = Number(id);
+  const { data: evidence = [], isLoading: evidenceLoading } = useQuery({
+    queryKey: ["evidence", agreementId],
+    queryFn: () => listEvidence(agreementId),
+    enabled: agreementId > 0,
+  });
+  const evidenceLabels = new Map(
+    template?.evidenceRequirements.slots.map((slot) => [slot.id, slot.label]) ?? [],
+  );
 
   const handleNext = () => {
     goToStep(4);
@@ -72,6 +96,29 @@ export default function ReviewStep() {
           </Section>
         );
       })}
+
+      <Section
+        title="Evidence"
+        onEdit={() => router.push(`/agreement/${id}/steps/evidence?scenarioId=${scenarioId}`)}
+      >
+        {evidenceLoading ? (
+          <Text className="text-sm text-ink-muted">Loading uploaded evidence…</Text>
+        ) : evidence.length > 0 ? (
+          <View className="gap-md">
+            {evidence.map((item) => (
+              <EvidenceReviewCard
+                key={item.id}
+                item={item}
+                label={evidenceLabels.get(item.evidence_type) ?? item.evidence_type}
+              />
+            ))}
+          </View>
+        ) : (
+          <Text className="text-sm text-ink-muted">
+            No confirmed evidence is attached yet.
+          </Text>
+        )}
+      </Section>
 
       <View className="flex-row gap-sm">
         {stepIndex > 0 && (
@@ -134,6 +181,60 @@ function ReviewRow({ label, value }: { label: string; value: string }) {
       <Text className="text-sm text-ink-primary text-right flex-1" numberOfLines={2}>
         {value}
       </Text>
+    </View>
+  );
+}
+
+function EvidenceReviewCard({
+  item,
+  label,
+}: {
+  item: EvidenceItemResponse;
+  label: string;
+}) {
+  const isImage = item.mime_type.startsWith("image/");
+
+  return (
+    <View className="rounded-lg border border-border-subtle bg-surface-subtle overflow-hidden">
+      <View className="flex-row gap-md p-md">
+        <View className="w-20 h-20 rounded-md bg-surface-card items-center justify-center overflow-hidden">
+          {isImage && item.view_url ? (
+            <Image
+              source={{ uri: item.view_url, cache: "force-cache" }}
+              className="w-full h-full"
+              resizeMode="cover"
+            />
+          ) : item.file_type === "document" ? (
+            <FileText size={24} color={colors.inkMuted} />
+          ) : (
+            <ImageIcon size={24} color={colors.inkMuted} />
+          )}
+        </View>
+        <View className="flex-1 gap-xs">
+          <View className="flex-row items-start justify-between gap-sm">
+            <Text className="text-sm font-semibold text-ink-primary flex-1">
+              {label}
+            </Text>
+            <Text className="text-xs font-semibold text-emerald-700">
+              Confirmed
+            </Text>
+          </View>
+          <Text className="text-xs text-ink-muted" numberOfLines={1}>
+            {item.original_name || item.mime_type || item.file_type}
+          </Text>
+          <Text className="text-xs text-ink-muted">
+            {item.mime_type || item.file_type} · {formatBytes(item.size_bytes)}
+          </Text>
+          <Text className="text-xs text-ink-muted">
+            Added {formatDate(item.created_at)}
+          </Text>
+          {item.uploaded_by_role && (
+            <Text className="text-xs text-ink-muted">
+              Uploaded by {item.uploaded_by_role}
+            </Text>
+          )}
+        </View>
+      </View>
     </View>
   );
 }
