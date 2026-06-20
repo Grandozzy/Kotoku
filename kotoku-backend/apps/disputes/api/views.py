@@ -1,17 +1,18 @@
 from django.http import Http404
-from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.views import APIView
 from rest_framework.response import Response
+from rest_framework.views import APIView
+from rest_framework_simplejwt.authentication import JWTAuthentication
 
-from apps.agreements.selectors import AgreementSelector
 from apps.agreements.models import Agreement
-from apps.parties.models import Party
+from apps.agreements.selectors import AgreementSelector
 from apps.disputes.api.serializers import DisputeCreateSerializer, DisputeSerializer
 from apps.disputes.models import Dispute
 from apps.disputes.selectors import DisputeSelector
 from apps.disputes.services import DisputeService
+from apps.parties.models import Party
 from common.exceptions import DomainError
+from common.phone_numbers import phone_lookup_values
 from common.responses import ok
 
 
@@ -31,7 +32,10 @@ class DisputeCollectionView(APIView):
 
     def _caller_party(self, agreement, user):
         phone = getattr(user.account, "phone", "") or getattr(user, "phone", "")
-        return Party.objects.filter(agreement=agreement, phone=phone).first()
+        return Party.objects.filter(
+            agreement=agreement,
+            phone__in=phone_lookup_values(phone),
+        ).first()
 
     def get(self, request, agreement_id: int):
         self._get_agreement(
@@ -55,13 +59,21 @@ class DisputeCollectionView(APIView):
         caller_party = self._caller_party(agreement, request.user)
         if caller_party is None:
             return Response(
-                {"status": "error", "message": "Authenticated user is not a verified party on this agreement."},
+                {
+                    "status": "error",
+                    "message": (
+                        "Authenticated user is not a verified party on this agreement."
+                    ),
+                },
                 status=403,
             )
         party_id = request.data.get("raised_by_party_id")
         if party_id and str(party_id) != str(caller_party.pk):
             return Response(
-                {"status": "error", "message": "Disputes can only be opened for the authenticated party."},
+                {
+                    "status": "error",
+                    "message": "Disputes can only be opened for the authenticated party.",
+                },
                 status=403,
             )
 

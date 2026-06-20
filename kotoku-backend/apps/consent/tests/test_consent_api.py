@@ -19,6 +19,7 @@ from apps.agreements.models import Agreement
 from apps.consent.models import ConsentRecord
 from apps.consent.services import ConsentService, hash_otp
 from apps.evidence.models import EvidenceItem
+from apps.parties.models import Party
 from apps.parties.services import PartyService
 from apps.vault.models import VaultEntry
 
@@ -131,6 +132,38 @@ class TestRequestOtpApi:
         assert "/consent/" not in messages[acct.phone]
         assert "/consent/" in messages[second_phone]
 
+    def test_creator_sms_has_no_link_when_party_phone_format_differs(self, mock_delay):
+        client, acct = _make_client("0500100019")
+        agreement = _draft_agreement(acct)
+        creator_party_phone = "+233500100019"
+        second_phone = "+233500100020"
+        Party.objects.create(
+            agreement=agreement,
+            role=Party.Role.SELLER,
+            display_name="Kofi",
+            phone=creator_party_phone,
+            id_type=Party.IdType.GHANA_CARD,
+            id_number="GHA-S",
+        )
+        Party.objects.create(
+            agreement=agreement,
+            role=Party.Role.BUYER,
+            display_name="Ama",
+            phone=second_phone,
+            id_type=Party.IdType.GHANA_CARD,
+            id_number="GHA-B",
+        )
+
+        resp = client.post(_REQUEST_OTP_PATH.format(id=agreement.pk))
+
+        assert resp.status_code == 201
+        messages = {
+            call.kwargs["to"]: call.kwargs["body"]
+            for call in mock_delay.call_args_list
+        }
+        assert "/consent/" not in messages[creator_party_phone]
+        assert "/consent/" in messages[second_phone]
+
     def test_reissue_from_pending_consent(self, mock_delay):
         client, acct = _make_client("+233500100007")
         agreement = _draft_agreement(acct)
@@ -219,6 +252,18 @@ class TestConfirmConsentApi:
         resp = client.post(
             _CONFIRM_PATH.format(id=agreement.pk),
             {"party_phone": acct.phone, "otp_code": "11111111"},
+            format="json",
+        )
+        assert resp.status_code == 200
+        assert resp.json()["data"]["consent_record"]["granted"] is True
+
+    def test_valid_otp_accepts_authenticated_phone_format_difference(self, mock_delay):
+        client, acct, agreement = self._setup("0500200101", "+233500200102")
+        canonical_phone = "+233500200101"
+        self._force_otp(agreement, canonical_phone, "11111111")
+        resp = client.post(
+            _CONFIRM_PATH.format(id=agreement.pk),
+            {"party_phone": canonical_phone, "otp_code": "11111111"},
             format="json",
         )
         assert resp.status_code == 200

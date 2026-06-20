@@ -1,5 +1,14 @@
 import { useRouter } from "expo-router";
-import { AlertCircle, Calendar, ChevronLeft, ShieldCheck, Zap } from "lucide-react-native";
+import {
+  AlertCircle,
+  Calendar,
+  ChevronLeft,
+  CreditCard,
+  ReceiptText,
+  ShieldCheck,
+  Sparkles,
+  Zap,
+} from "lucide-react-native";
 import { Alert, Pressable, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -64,8 +73,8 @@ export default function SubscriptionScreen() {
         className="flex-1 bg-surface-canvas px-lg items-center justify-center gap-xl"
         style={{ paddingTop: insets.top }}
       >
-        <View className="w-20 h-20 rounded-full bg-surface-canvas border border-border-subtle items-center justify-center">
-          <ShieldCheck size={36} color={colors.inkMuted} strokeWidth={1.5} />
+        <View className="w-24 h-24 rounded-3xl bg-brand-primary/10 border border-brand-primary/20 items-center justify-center">
+          <Sparkles size={42} color={colors.brandPrimary} strokeWidth={1.6} />
         </View>
         <View className="items-center gap-sm">
           <Text className="text-xl font-semibold text-ink-primary text-center">
@@ -76,10 +85,11 @@ export default function SubscriptionScreen() {
           </Text>
         </View>
         <Pressable
-          className="bg-brand-primary rounded-xl px-2xl py-md active:opacity-70 w-full items-center"
+          className="bg-brand-primary rounded-xl px-2xl py-md active:opacity-70 w-full items-center flex-row justify-center gap-sm"
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           onPress={() => router.push("/(main)/plans" as any)}
         >
+          <CreditCard size={16} color="#fff" strokeWidth={2} />
           <Text className="text-white font-semibold text-md">View plans</Text>
         </Pressable>
         <Pressable onPress={() => router.back()} className="active:opacity-70">
@@ -177,10 +187,11 @@ export default function SubscriptionScreen() {
       {/* Actions */}
       <View className="gap-sm">
         <Pressable
-          className="bg-brand-primary rounded-xl py-md items-center active:opacity-70"
+          className="bg-brand-primary rounded-xl py-md items-center justify-center flex-row gap-sm active:opacity-70"
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           onPress={() => router.push("/(main)/plans" as any)}
         >
+          <CreditCard size={16} color="#fff" strokeWidth={2} />
           <Text className="text-white font-semibold text-md">Change plan</Text>
         </Pressable>
 
@@ -193,9 +204,12 @@ export default function SubscriptionScreen() {
             onPress={handleCancel}
             disabled={cancelling}
           >
-            <Text className="text-semantic-error text-md font-medium">
-              {cancelling ? "Cancelling…" : "Cancel subscription"}
-            </Text>
+            <View className="flex-row items-center justify-center gap-sm">
+              <ReceiptText size={16} color={colors.error} strokeWidth={1.8} />
+              <Text className="text-semantic-error text-md font-medium">
+                {cancelling ? "Cancelling…" : "Cancel subscription"}
+              </Text>
+            </View>
           </Pressable>
         )}
       </View>

@@ -5,6 +5,7 @@ from apps.agreements.models import Agreement
 from apps.audit.services import AuditService
 from apps.parties.models import Party
 from common.exceptions import DomainError
+from common.phone_numbers import normalize_phone_for_compare, normalize_phone_to_e164
 
 
 def _require_identity_fields(party_data: dict, *, role: str) -> None:
@@ -14,6 +15,31 @@ def _require_identity_fields(party_data: dict, *, role: str) -> None:
         raise DomainError(f"Identity document type is required for role '{role}'.")
     if not id_number or not str(id_number).strip():
         raise DomainError(f"Identity document number is required for role '{role}'.")
+
+
+def _initiator_phone_keys(initiator_account) -> set[str]:
+    user = getattr(initiator_account, "user", None)
+    keys = {
+        normalize_phone_for_compare(getattr(initiator_account, "phone", "")),
+        normalize_phone_for_compare(getattr(user, "phone", "")),
+    }
+    keys.discard("")
+    return keys
+
+
+def _normalized_party_payloads(parties_data: list[dict]) -> list[dict]:
+    normalized = []
+    phone_keys = []
+    for party_data in parties_data:
+        phone = normalize_phone_to_e164(party_data.get("phone"))
+        phone_key = normalize_phone_for_compare(phone)
+        if not phone_key:
+            raise DomainError("Each party must have a phone number.")
+        normalized.append({**party_data, "phone": phone})
+        phone_keys.append(phone_key)
+    if len(phone_keys) != len(set(phone_keys)):
+        raise DomainError("Each party must have a unique phone number.")
+    return normalized
 
 
 class PartyService:
@@ -45,8 +71,9 @@ class PartyService:
         if len(roles) != len(set(roles)):
             raise DomainError("Each party must have a unique role.")
 
-        phones = [p["phone"] for p in parties_data]
-        if initiator_account.phone not in phones:
+        parties_data = _normalized_party_payloads(parties_data)
+        party_phone_keys = {normalize_phone_for_compare(p["phone"]) for p in parties_data}
+        if not _initiator_phone_keys(initiator_account).intersection(party_phone_keys):
             raise DomainError("At least one party must match your account phone number.")
 
         for p in parties_data:
@@ -107,7 +134,20 @@ class PartyService:
                 party.display_name = patch["full_name"]
                 update_fields.append("display_name")
             if "phone" in patch:
-                party.phone = patch["phone"]
+                normalized_phone = normalize_phone_to_e164(patch["phone"])
+                normalized_phone_key = normalize_phone_for_compare(normalized_phone)
+                if not normalized_phone_key:
+                    raise DomainError("Each party must have a phone number.")
+                existing_phone_keys = {
+                    normalize_phone_for_compare(existing_phone)
+                    for existing_phone in Party.objects.filter(agreement=agreement)
+                    .exclude(pk=party.pk)
+                    .values_list("phone", flat=True)
+                }
+                duplicate_exists = normalized_phone_key in existing_phone_keys
+                if duplicate_exists:
+                    raise DomainError("Each party must have a unique phone number.")
+                party.phone = normalized_phone
                 update_fields.append("phone")
             if "id_type" in patch:
                 _require_identity_fields(

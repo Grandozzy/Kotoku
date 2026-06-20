@@ -15,6 +15,7 @@ from apps.consent.api.serializers import (
 )
 from apps.consent.selectors import ConsentSelector
 from apps.consent.services import ConsentService
+from common.phone_numbers import same_phone
 from common.responses import ok
 
 
@@ -72,7 +73,7 @@ class ConfirmConsentView(APIView):
         serializer = ConfirmConsentSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         account_phone = request.user.account.phone
-        if serializer.validated_data["party_phone"] != account_phone:
+        if not same_phone(serializer.validated_data["party_phone"], account_phone):
             raise PermissionDenied("Consent confirmation must match the authenticated phone.")
         record = ConsentService.confirm_by_phone(
             agreement_id=agreement_id,

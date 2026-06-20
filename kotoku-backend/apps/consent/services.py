@@ -5,8 +5,8 @@ import secrets
 from datetime import timedelta
 
 from django.conf import settings
-from django.core.cache import cache
 from django.core import signing
+from django.core.cache import cache
 from django.db import transaction
 from django.utils import timezone
 
@@ -20,6 +20,7 @@ from apps.evidence.models import EvidenceItem
 from apps.notifications.tasks import send_sms_message
 from apps.parties.models import Party
 from common.exceptions import DomainError, ServiceUnavailableError
+from common.phone_numbers import normalize_phone_for_compare
 from infrastructure.storage.s3 import S3StorageClient
 
 logger = logging.getLogger(__name__)
@@ -85,6 +86,25 @@ def generate_otp_expiry(minutes: int = 10) -> timezone.datetime:
     return timezone.now() + timedelta(minutes=minutes)
 
 
+def _is_creator_party(*, agreement: Agreement, party: Party) -> bool:
+    party_phone = normalize_phone_for_compare(party.phone)
+    creator_user = getattr(agreement.created_by, "user", None)
+    creator_phones = {
+        normalize_phone_for_compare(agreement.created_by.phone),
+        normalize_phone_for_compare(getattr(creator_user, "phone", "")),
+    }
+    creator_phones.discard("")
+    return bool(party_phone and party_phone in creator_phones)
+
+
+def _get_party_by_phone(*, agreement_id: int, phone: str) -> Party:
+    phone_key = normalize_phone_for_compare(phone)
+    for party in Party.objects.filter(agreement_id=agreement_id):
+        if normalize_phone_for_compare(party.phone) == phone_key:
+            return party
+    raise Party.DoesNotExist
+
+
 class ConsentService:
     @staticmethod
     def make_consent_link_token(
@@ -140,8 +160,7 @@ class ConsentService:
             if phone:
                 is_creator_party = (
                     purpose == ConsentRecord.Purpose.CONSENT
-                    and agreement.created_by.phone
-                    and phone == agreement.created_by.phone
+                    and _is_creator_party(agreement=agreement, party=party)
                 )
                 if purpose == ConsentRecord.Purpose.CONSENT and not is_creator_party:
                     token = ConsentService.make_consent_link_token(
@@ -187,7 +206,10 @@ class ConsentService:
     @staticmethod
     @transaction.atomic
     def request_consent(*, agreement_id: int) -> list[ConsentRecord]:
-        agreement = Agreement.objects.select_related("created_by").get(pk=agreement_id)
+        agreement = Agreement.objects.select_related(
+            "created_by",
+            "created_by__user",
+        ).get(pk=agreement_id)
         if agreement.status != AgreementStatus.PENDING_CONSENT:
             raise DomainError(
                 "Cannot request consent: agreement must be in pending_consent status"
@@ -297,7 +319,7 @@ class ConsentService:
         the Parties API that may not yet have a linked Account.
         """
         agreement = (
-            Agreement.objects.select_related("created_by")
+            Agreement.objects.select_related("created_by", "created_by__user")
             .select_for_update()
             .get(pk=agreement_id)
         )
@@ -399,7 +421,7 @@ class ConsentService:
         state transition (REOPEN_REQUESTED → ACTIVE) via AgreementService.
         """
         try:
-            party = Party.objects.get(agreement_id=agreement_id, phone=party_phone)
+            party = _get_party_by_phone(agreement_id=agreement_id, phone=party_phone)
         except Party.DoesNotExist:
             raise DomainError("Invalid or expired verification code.") from None
 
@@ -466,7 +488,7 @@ class ConsentService:
         Errors are intentionally unified to avoid leaking record state.
         """
         try:
-            party = Party.objects.get(agreement_id=agreement_id, phone=party_phone)
+            party = _get_party_by_phone(agreement_id=agreement_id, phone=party_phone)
         except Party.DoesNotExist:
             raise DomainError("Invalid or expired verification code.") from None
 

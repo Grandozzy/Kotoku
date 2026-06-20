@@ -101,6 +101,15 @@ export async function getDraft(localId: number): Promise<DraftRow | null> {
   return raw ? parseRow(raw) : null;
 }
 
+export async function getDraftByAgreementId(agreementId: number): Promise<DraftRow | null> {
+  const db = await getDb();
+  const raw = await db.getFirstAsync<RawRow>(
+    "SELECT * FROM drafts WHERE agreement_id = ? AND synced = 0 ORDER BY updated_at DESC LIMIT 1",
+    [agreementId],
+  );
+  return raw ? parseRow(raw) : null;
+}
+
 export async function listDrafts(): Promise<DraftRow[]> {
   const db = await getDb();
   const rows = await db.getAllAsync<RawRow>(

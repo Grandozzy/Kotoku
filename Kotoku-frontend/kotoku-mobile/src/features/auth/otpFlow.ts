@@ -87,8 +87,9 @@ export function useVerifyOtp(phone: string) {
     mutationFn: (code: string) => verifyOtp({ phone, code }),
     onSuccess: async (data) => {
       const { access, refresh, session_id, user } = data;
-      await saveSession(access, refresh, session_id, phone, user.account_id, user.pin_configured);
-      setSession(access, phone, user.account_id, user.pin_configured);
+      const sessionPhone = user.phone || phone;
+      await saveSession(access, refresh, session_id, sessionPhone, user.account_id, user.pin_configured);
+      setSession(access, sessionPhone, user.account_id, user.pin_configured);
       if (!user.pin_configured) {
         router.replace("/(auth)/pin-setup" as never);
       } else {
@@ -126,8 +127,9 @@ export function usePinVerify(phone: string) {
     mutationFn: (pin: string) => verifyPin({ phone, pin }),
     onSuccess: async (data) => {
       const { access, refresh, session_id, user } = data;
-      await saveSession(access, refresh, session_id, phone, user.account_id, true);
-      setSession(access, phone, user.account_id, true);
+      const sessionPhone = user.phone || phone;
+      await saveSession(access, refresh, session_id, sessionPhone, user.account_id, true);
+      setSession(access, sessionPhone, user.account_id, true);
       router.replace("/(main)/home");
     },
   });

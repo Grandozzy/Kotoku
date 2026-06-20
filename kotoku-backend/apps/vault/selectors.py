@@ -2,6 +2,7 @@ from django.db.models import Q, QuerySet
 
 from apps.agreements.domain.enums import AgreementStatus
 from apps.vault.models import VaultEntry
+from common.phone_numbers import phone_lookup_values
 
 _VAULT_VISIBLE_STATUSES = (
     AgreementStatus.SEALED,
@@ -22,7 +23,7 @@ class VaultSelector:
         if account_phone:
             qs = qs.filter(
                 Q(agreement__created_by__pk=account_id)
-                | Q(agreement__parties__phone=account_phone)
+                | Q(agreement__parties__phone__in=phone_lookup_values(account_phone))
             )
         else:
             qs = qs.filter(agreement__created_by__pk=account_id)
@@ -34,7 +35,7 @@ class VaultSelector:
         if account_phone:
             qs = qs.filter(
                 Q(agreement__created_by__pk=account_id)
-                | Q(agreement__parties__phone=account_phone)
+                | Q(agreement__parties__phone__in=phone_lookup_values(account_phone))
             )
         else:
             qs = qs.filter(agreement__created_by__pk=account_id)

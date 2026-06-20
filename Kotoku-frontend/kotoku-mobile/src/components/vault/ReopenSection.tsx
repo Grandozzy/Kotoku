@@ -6,6 +6,7 @@ import { Pressable, Text, View } from "react-native";
 import { Button, OTPInput } from "@/components/ui";
 import { getAgreement } from "@/api/agreements";
 import { getApiErrorMessage } from "@/lib/errorHandler";
+import { isSamePhone } from "@/lib/phone";
 import {
   useConfirmReopen,
   useRequestReopen,
@@ -51,9 +52,9 @@ export function ReopenSection({
   const partyA = effectiveParties[0];
   const partyB = effectiveParties[1];
   const currentParty =
-    authenticatedPhone && partyA?.phone === authenticatedPhone
+    authenticatedPhone && isSamePhone(partyA?.phone, authenticatedPhone)
       ? "A"
-      : authenticatedPhone && partyB?.phone === authenticatedPhone
+      : authenticatedPhone && isSamePhone(partyB?.phone, authenticatedPhone)
         ? "B"
         : null;
 

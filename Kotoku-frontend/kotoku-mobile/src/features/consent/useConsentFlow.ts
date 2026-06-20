@@ -5,6 +5,8 @@ import { confirmOtp, getConsentStatus, requestOtp } from "@/api/consent";
 import { validateAgreement } from "@/api/agreements";
 import { useAgreementStore } from "@/features/agreements/agreementStore";
 import { getApiErrorMessage } from "@/lib/errorHandler";
+import { isSamePhone, normalizePhoneToE164 } from "@/lib/phone";
+import { useSessionStore } from "@/store/sessionStore";
 
 function formatValidationErrors(errors: { field: string; message: string }[]) {
   if (errors.length === 0) return "Agreement is not ready for consent.";
@@ -16,11 +18,14 @@ function formatValidationErrors(errors: { field: string; message: string }[]) {
 
 export function useRequestOtp(agreementId: number) {
   const setConsentState = useAgreementStore((s) => s.setConsentState);
+  const resetConsentState = useAgreementStore((s) => s.resetConsentState);
+  const queryClient = useQueryClient();
   const partyA = useAgreementStore((s) => s.partyA);
   const partyB = useAgreementStore((s) => s.partyB);
 
   return useMutation({
     mutationFn: async () => {
+      resetConsentState();
       const validation = await validateAgreement(agreementId);
       if (!validation.valid) {
         throw new Error(formatValidationErrors(validation.errors));
@@ -30,6 +35,7 @@ export function useRequestOtp(agreementId: number) {
     onSuccess: () => {
       setConsentState("A", { otpSent: true, confirmed: false });
       setConsentState("B", { otpSent: true, confirmed: false });
+      queryClient.invalidateQueries({ queryKey: ["consent", "status", agreementId] });
     },
     onError: (error) => {
       if (
@@ -46,22 +52,24 @@ export function useRequestOtp(agreementId: number) {
 export function useConfirmOtp(agreementId: number) {
   const setConsentConfirmed = useAgreementStore((s) => s.setConsentConfirmed);
   const queryClient = useQueryClient();
-  const partyA = useAgreementStore((s) => s.partyA);
-  const partyB = useAgreementStore((s) => s.partyB);
+  const authenticatedPhone = useSessionStore((s) => s.phone);
 
   return useMutation({
     mutationFn: ({
-      party,
+      party: _party,
       otpCode,
     }: {
       party: "A" | "B";
       otpCode: string;
     }) => {
-      const phone = party === "A" ? partyA.phone : partyB.phone;
-      return confirmOtp(agreementId, phone, otpCode);
+      if (!authenticatedPhone) {
+        throw new Error("Sign in with the phone that received the OTP.");
+      }
+      return confirmOtp(agreementId, normalizePhoneToE164(authenticatedPhone), otpCode);
     },
     onSuccess: (_data, { party }) => {
       setConsentConfirmed(party);
+      queryClient.invalidateQueries({ queryKey: ["consent", "status", agreementId] });
       queryClient.invalidateQueries({ queryKey: ["agreement", agreementId] });
     },
   });
@@ -80,25 +88,30 @@ export function useConsentStatus(agreementId: number) {
   });
 
   useEffect(() => {
+    if (!query.isSuccess) return;
+
     const records = query.data?.records ?? [];
     const latestRecords = [...records].sort((left, right) => {
       const leftCreatedAt = left.createdAt ? Date.parse(left.createdAt) : 0;
       const rightCreatedAt = right.createdAt ? Date.parse(right.createdAt) : 0;
       return rightCreatedAt - leftCreatedAt || right.id - left.id;
     });
-    const partyARecord = latestRecords.find((record) => record.partyPhone === partyA.phone);
-    const partyBRecord = latestRecords.find((record) => record.partyPhone === partyB.phone);
+    const partyARecord = latestRecords.find((record) => isSamePhone(record.partyPhone, partyA.phone));
+    const partyBRecord = latestRecords.find((record) => isSamePhone(record.partyPhone, partyB.phone));
 
-    if (partyARecord) {
-      setConsentState("A", { otpSent: true, confirmed: partyARecord.granted });
-    }
-    if (partyBRecord) {
-      setConsentState("B", { otpSent: true, confirmed: partyBRecord.granted });
-    }
+    setConsentState("A", {
+      otpSent: Boolean(partyARecord),
+      confirmed: partyARecord?.granted ?? false,
+    });
+    setConsentState("B", {
+      otpSent: Boolean(partyBRecord),
+      confirmed: partyBRecord?.granted ?? false,
+    });
   }, [
     partyA.phone,
     partyB.phone,
     query.data?.records,
+    query.isSuccess,
     setConsentState,
   ]);
 

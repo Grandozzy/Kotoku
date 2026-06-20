@@ -12,6 +12,7 @@ from apps.evidence.models import EvidenceItem
 from apps.evidence.storage import store_evidence
 from apps.parties.models import Party
 from common.exceptions import DomainError, ServiceUnavailableError
+from common.phone_numbers import phone_lookup_values
 from infrastructure.storage.s3 import S3StorageClient
 
 logger = logging.getLogger("kotoku")
@@ -171,7 +172,11 @@ class EvidenceService:
             )
 
         agreement = Agreement.objects.get(pk=agreement_id)
-        if agreement.status not in (AgreementStatus.DRAFT, AgreementStatus.PENDING_CONSENT, AgreementStatus.ACTIVE):
+        if agreement.status not in (
+            AgreementStatus.DRAFT,
+            AgreementStatus.PENDING_CONSENT,
+            AgreementStatus.ACTIVE,
+        ):
             raise DomainError("Cannot add evidence: agreement is not in an editable state.")
 
         ext = _MIME_TO_EXT[mime_type]
@@ -202,7 +207,8 @@ class EvidenceService:
 
         # Find the matching party for this account (best-effort; null if not found).
         uploaded_by = Party.objects.filter(
-            agreement=agreement, phone=uploading_account.phone
+            agreement=agreement,
+            phone__in=phone_lookup_values(uploading_account.phone),
         ).first()
 
         item = EvidenceItem.objects.create(
@@ -280,7 +286,7 @@ class EvidenceService:
             raise DomainError(
                 "No pending upload found for this file key on this agreement.",
                 code=EvidenceErrorCode.UPLOAD_NOT_PENDING,
-            )
+            ) from None
 
         if item.file_key != file_key:
             raise DomainError(

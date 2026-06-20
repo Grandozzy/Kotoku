@@ -14,6 +14,7 @@ from apps.accounts.models import Account, DeviceSession, OTPRequest, User, UserP
 from apps.audit.services import AuditService
 from apps.notifications.tasks import send_sms_message
 from common.exceptions import DomainError
+from common.phone_numbers import normalize_phone_to_e164
 
 logger = logging.getLogger(__name__)
 
@@ -158,6 +159,7 @@ def _build_token_response(user: User, session: DeviceSession, raw_token: str) ->
 class AuthService:
     @staticmethod
     def send_otp(*, phone: str) -> None:
+        phone = normalize_phone_to_e164(phone)
         rate_key = _OTP_RATE_KEY.format(phone=phone)
         hourly_key = _OTP_HOURLY_KEY.format(phone=phone)
         lock_key = _OTP_LOCK_KEY.format(phone=phone)
@@ -204,6 +206,7 @@ class AuthService:
         device_fingerprint: str = "",
         device_name: str = "",
     ) -> dict:
+        phone = normalize_phone_to_e164(phone)
         lock_key = _OTP_LOCK_KEY.format(phone=phone)
         if cache.get(lock_key):
             raise DomainError("Too many failed OTP attempts. Try again later.")
@@ -259,11 +262,19 @@ class AuthService:
                             email=f"{phone}@kotoku.app",
                             phone=phone,
                         )
+                    else:
+                        if account.phone != user.phone:
+                            account.phone = user.phone
+                            account.save(update_fields=["phone", "updated_at"])
 
                 # New device login revokes all other sessions.
                 revoked = _revoke_all_sessions(user, reason=DeviceSession.REVOKE_NEW_DEVICE)
                 if revoked > 0:
-                    logger.info("Revoked %d sessions for %s on new-device OTP login", revoked, phone)
+                    logger.info(
+                        "Revoked %d sessions for %s on new-device OTP login",
+                        revoked,
+                        phone,
+                    )
 
                 session, raw_token = _create_session(
                     user=user,
@@ -413,6 +424,7 @@ class PinService:
         device_fingerprint: str = "",
         device_name: str = "",
     ) -> dict:
+        phone = normalize_phone_to_e164(phone)
         try:
             user = User.objects.get(phone=phone, is_active=True)
         except User.DoesNotExist:
@@ -437,7 +449,8 @@ class PinService:
 
         if user_pin.is_locked:
             raise DomainError(
-                f"Too many failed attempts. Try again after {user_pin.locked_until.strftime('%H:%M UTC')}."
+                "Too many failed attempts. Try again after "
+                f"{user_pin.locked_until.strftime('%H:%M UTC')}."
             )
 
         try:

@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 
-import { saveDraft, updateDraft } from "@/db/drafts";
+import { getDraftByAgreementId, saveDraft, updateDraft } from "@/db/drafts";
 import { useAgreementStore } from "@/features/agreements/agreementStore";
 
 /**
@@ -13,9 +13,14 @@ import { useAgreementStore } from "@/features/agreements/agreementStore";
 export function useDraftPersistence() {
   const store = useAgreementStore();
   const localIdRef = useRef<number | null>(null);
+  const agreementIdRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (!store.scenarioId) return;
+    if (agreementIdRef.current !== store.agreementId) {
+      agreementIdRef.current = store.agreementId;
+      localIdRef.current = null;
+    }
 
     async function persist() {
       const patch = {
@@ -27,6 +32,14 @@ export function useDraftPersistence() {
       };
 
       if (localIdRef.current === null) {
+        if (store.agreementId) {
+          const existing = await getDraftByAgreementId(store.agreementId);
+          if (existing) {
+            localIdRef.current = existing.id;
+            await updateDraft(existing.id, patch);
+            return;
+          }
+        }
         const id = await saveDraft({
           scenarioId: store.scenarioId!,
           title: `Draft — ${store.scenarioId}`,

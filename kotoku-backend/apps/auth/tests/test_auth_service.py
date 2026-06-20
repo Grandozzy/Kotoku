@@ -1,5 +1,5 @@
-from unittest.mock import patch
 from datetime import timedelta
+from unittest.mock import patch
 
 from django.core.cache import cache
 from django.test import TestCase, override_settings
@@ -73,6 +73,20 @@ class TestAuthService(TestCase):
         result = AuthService.verify_otp(phone="+233501234567", otp_code=otp)
         assert result["user"].pk == user.pk
         assert Account.objects.filter(user=result["user"]).count() == 1
+
+    def test_verify_otp_syncs_stale_account_phone_to_verified_user_phone(self):
+        user = User.objects.create_user(phone="+233501234568")
+        account = Account.objects.create(
+            user=user,
+            email="+233501234568@kotoku.app",
+            phone="0501234568",
+        )
+        with patch("apps.auth.services.send_sms_message.delay", return_value=None) as mocked_delay:
+            AuthService.send_otp(phone="+233501234568")
+        otp = self._sent_otp(mocked_delay)
+        AuthService.verify_otp(phone="+233501234568", otp_code=otp)
+        account.refresh_from_db()
+        assert account.phone == user.phone
 
     def test_verify_otp_locks_after_repeated_failures(self):
         with patch("apps.auth.services.send_sms_message.delay", return_value=None):

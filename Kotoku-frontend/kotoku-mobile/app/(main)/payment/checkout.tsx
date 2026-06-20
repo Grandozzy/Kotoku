@@ -1,5 +1,5 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { X } from "lucide-react-native";
+import { CreditCard, LockKeyhole, X } from "lucide-react-native";
 import { useRef, useState } from "react";
 import { ActivityIndicator, Alert, Pressable, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -74,6 +74,9 @@ export default function CheckoutScreen() {
   if (!authorization_url) {
     return (
       <View className="flex-1 bg-surface-canvas items-center justify-center px-lg">
+        <View className="w-16 h-16 rounded-2xl bg-amber-50 border border-amber-100 items-center justify-center mb-lg">
+          <CreditCard size={30} color="#d97706" strokeWidth={1.8} />
+        </View>
         <Text className="text-md text-ink-secondary text-center">
           Payment session expired. Please try again.
         </Text>
@@ -91,7 +94,15 @@ export default function CheckoutScreen() {
     <View className="flex-1 bg-surface-canvas" style={{ paddingTop: insets.top }}>
       {/* Header */}
       <View className="flex-row items-center justify-between px-lg py-md border-b border-border-subtle bg-surface-card">
-        <Text className="text-md font-semibold text-ink-primary">Secure Checkout</Text>
+        <View className="flex-row items-center gap-sm">
+          <View className="w-9 h-9 rounded-lg bg-brand-primary/10 items-center justify-center">
+            <LockKeyhole size={18} color={colors.brandPrimary} strokeWidth={1.8} />
+          </View>
+          <View>
+            <Text className="text-md font-semibold text-ink-primary">Secure checkout</Text>
+            <Text className="text-xs text-ink-muted">Powered by Paystack</Text>
+          </View>
+        </View>
         <Pressable
           onPress={handleCancel}
           className="w-9 h-9 rounded-lg bg-surface-canvas items-center justify-center active:opacity-70"

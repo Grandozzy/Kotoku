@@ -21,6 +21,7 @@ from apps.consent.services import ConsentService
 from apps.vault.services import VaultService
 from common.exceptions import DomainError
 from common.pagination import DefaultPagination
+from common.phone_numbers import phone_lookup_values, same_phone
 from common.responses import ok
 
 
@@ -237,7 +238,7 @@ class ReopenOtpConfirmView(APIView):
 
             raise _DomainError("Both 'phone' and 'otp_code' are required.")
         account_phone = request.user.account.phone
-        if phone != account_phone:
+        if not same_phone(phone, account_phone):
             raise PermissionDenied("Reopen confirmation must match the authenticated phone.")
 
         record = ConsentService.confirm_reopen_by_phone(
@@ -265,6 +266,7 @@ class PendingActionsView(APIView):
     def get(self, request):
         account = request.user.account
         phone = account.phone
+        phone_values = phone_lookup_values(phone)
 
         drafts = list(
             Agreement.objects.filter(
@@ -278,8 +280,8 @@ class PendingActionsView(APIView):
         pending_consent_qs = (
             Agreement.objects.filter(
                 status=AgreementStatus.PENDING_CONSENT,
-                parties__phone=phone,
-                consent_records__party__phone=phone,
+                parties__phone__in=phone_values,
+                consent_records__party__phone__in=phone_values,
                 consent_records__purpose=ConsentRecord.Purpose.CONSENT,
                 consent_records__granted=False,
             )
@@ -290,8 +292,8 @@ class PendingActionsView(APIView):
         reopen_requested_qs = (
             Agreement.objects.filter(
                 status=AgreementStatus.REOPEN_REQUESTED,
-                parties__phone=phone,
-                consent_records__party__phone=phone,
+                parties__phone__in=phone_values,
+                consent_records__party__phone__in=phone_values,
                 consent_records__purpose=ConsentRecord.Purpose.REOPEN,
                 consent_records__granted=False,
             )

@@ -1,9 +1,8 @@
-from django.db.models import QuerySet
-
-from django.db.models import Q
+from django.db.models import Q, QuerySet
 
 from apps.agreements.domain.enums import AgreementStatus
 from apps.disputes.models import Dispute
+from common.phone_numbers import phone_lookup_values
 
 _PARTICIPANT_VISIBLE_DISPUTE_STATUSES = (
     AgreementStatus.SEALED,
@@ -26,7 +25,7 @@ class DisputeSelector:
     def list_for_account(*, account_id: int, account_phone: str | None = None) -> QuerySet:
         owner_q = Q(agreement__created_by_id=account_id)
         if account_phone:
-            party_q = Q(agreement__parties__phone=account_phone) & Q(
+            party_q = Q(agreement__parties__phone__in=phone_lookup_values(account_phone)) & Q(
                 agreement__status__in=_PARTICIPANT_VISIBLE_DISPUTE_STATUSES
             )
             visibility_q = owner_q | party_q

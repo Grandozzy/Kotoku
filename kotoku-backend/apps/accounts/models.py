@@ -5,6 +5,8 @@ from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, Permis
 from django.db import models
 from django.utils import timezone
 
+from common.phone_numbers import normalize_phone_to_e164
+
 
 def _default_session_id() -> str:
     return f"sess_{uuid.uuid4().hex[:16]}"
@@ -18,6 +20,7 @@ class UserManager(BaseUserManager):
     def create_user(self, phone: str, password: str | None = None, **extra_fields):
         if not phone:
             raise ValueError("Phone number is required")
+        phone = normalize_phone_to_e164(phone)
         user = self.model(phone=phone, **extra_fields)
         if password:
             user.set_password(password)

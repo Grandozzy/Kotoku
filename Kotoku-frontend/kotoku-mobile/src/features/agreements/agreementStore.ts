@@ -62,6 +62,7 @@ interface AgreementDraftStore {
   setConsentSent: (party: "A" | "B") => void;
   setConsentConfirmed: (party: "A" | "B") => void;
   setConsentState: (party: "A" | "B", state: ConsentPartyState) => void;
+  resetConsentState: () => void;
   reset: () => void;
 }
 
@@ -90,7 +91,17 @@ export const useAgreementStore = create<AgreementDraftStore>((set) => ({
   isReopened: false,
 
   initDraft: (agreementId, scenarioId) =>
-    set({ agreementId, scenarioId, stepIndex: 0, isReopened: false }),
+    set({
+      agreementId,
+      scenarioId,
+      stepIndex: 0,
+      isReopened: false,
+      partyA: emptyParty,
+      partyB: emptyParty,
+      subjectData: {},
+      consentA: emptyConsent,
+      consentB: emptyConsent,
+    }),
 
   hydrateDraft: (agreementId, scenarioId, stepIndex, partyA, partyB, subjectData) =>
     set({
@@ -114,6 +125,8 @@ export const useAgreementStore = create<AgreementDraftStore>((set) => ({
       partyA: partyA ?? emptyParty,
       partyB: partyB ?? emptyParty,
       subjectData: subjectData ?? {},
+      consentA: emptyConsent,
+      consentB: emptyConsent,
     }),
 
   initForConsent: (agreementId, scenarioId, partyA, partyB) =>
@@ -125,6 +138,8 @@ export const useAgreementStore = create<AgreementDraftStore>((set) => ({
       partyA,
       partyB,
       subjectData: {},
+      consentA: emptyConsent,
+      consentB: emptyConsent,
     }),
 
   setScenarioId: (id) => set({ scenarioId: id }),
@@ -161,6 +176,8 @@ export const useAgreementStore = create<AgreementDraftStore>((set) => ({
         ? { consentA: state }
         : { consentB: state },
     ),
+
+  resetConsentState: () => set({ consentA: emptyConsent, consentB: emptyConsent }),
 
   reset: () =>
     set({

@@ -13,6 +13,8 @@ import {
 import { useTemplate } from "@/features/agreements/useAgreementDraft";
 import { setParties } from "@/api/agreements";
 import { getApiErrorMessage } from "@/lib/errorHandler";
+import { normalizePhoneToE164 } from "@/lib/phone";
+import { useSessionStore } from "@/store/sessionStore";
 
 const partySchema = z.object({
   fullName: z
@@ -57,6 +59,7 @@ export default function PartiesStep() {
   const agreementId = Number(id);
   const { partyA, partyB, setPartyA, setPartyB, goToStep } =
     useAgreementStore();
+  const creatorPhone = useSessionStore((s) => s.phone);
   const template = useTemplate(scenarioId);
 
   const [roleA, roleB] = template?.partyRoles ?? ["Buyer", "Seller"];
@@ -65,15 +68,9 @@ export default function PartiesStep() {
 
   const roleEnum = (label: string) => label.toLowerCase();
 
-  // Backend requires strict E.164 (e.g. +233501234567).
-  // Accept local Ghanaian format (0XXXXXXXXX) and convert it.
-  const toE164 = (phone: string) => {
-    const digits = phone.replace(/\s/g, "");
-    if (digits.startsWith("0") && digits.length === 10) {
-      return "+233" + digits.slice(1);
-    }
-    return digits;
-  };
+  const emptyParty = { fullName: "", phone: "", idType: "ghana_card" as IdType, idNumber: "" };
+  const hasPartyDraft = (party: typeof partyA) =>
+    Boolean(party.fullName || party.phone || party.idNumber);
 
   const {
     control,
@@ -83,33 +80,43 @@ export default function PartiesStep() {
     resolver: zodResolver(partiesSchema),
     mode: "onChange",
     defaultValues: {
-      partyA: partyA.fullName ? partyA : { fullName: "", phone: "", idType: "ghana_card" as IdType, idNumber: "" },
-      partyB: partyB.fullName ? partyB : { fullName: "", phone: "", idType: "ghana_card" as IdType, idNumber: "" },
+      partyA: hasPartyDraft(partyA)
+        ? partyA
+        : { ...emptyParty, phone: creatorPhone ?? "" },
+      partyB: hasPartyDraft(partyB) ? partyB : emptyParty,
     },
   });
 
   const onSubmit = async (values: PartiesFormValues) => {
     setSaveError(null);
-    setPartyA(values.partyA);
-    setPartyB(values.partyB);
+    const normalizedPartyA = {
+      ...values.partyA,
+      phone: normalizePhoneToE164(values.partyA.phone),
+    };
+    const normalizedPartyB = {
+      ...values.partyB,
+      phone: normalizePhoneToE164(values.partyB.phone),
+    };
     setSaving(true);
     try {
       await setParties(agreementId, [
         {
           role: roleEnum(roleA),
-          full_name: values.partyA.fullName,
-          phone: toE164(values.partyA.phone),
-          id_type: values.partyA.idType,
-          id_number: values.partyA.idNumber,
+          full_name: normalizedPartyA.fullName,
+          phone: normalizedPartyA.phone,
+          id_type: normalizedPartyA.idType,
+          id_number: normalizedPartyA.idNumber,
         },
         {
           role: roleEnum(roleB),
-          full_name: values.partyB.fullName,
-          phone: toE164(values.partyB.phone),
-          id_type: values.partyB.idType,
-          id_number: values.partyB.idNumber,
+          full_name: normalizedPartyB.fullName,
+          phone: normalizedPartyB.phone,
+          id_type: normalizedPartyB.idType,
+          id_number: normalizedPartyB.idNumber,
         },
       ]);
+      setPartyA(normalizedPartyA);
+      setPartyB(normalizedPartyB);
     } catch (error) {
       setSaveError(getApiErrorMessage(error, "Could not save parties. Check your access and party details."));
       setSaving(false);

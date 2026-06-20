@@ -14,6 +14,7 @@ import {
 import { useSealAgreement, useTemplate } from "@/features/agreements/useAgreementDraft";
 import { usePlan } from "@/features/billing/usePlan";
 import { isCapReachedError } from "@/lib/errorHandler";
+import { isSamePhone } from "@/lib/phone";
 import { useSessionStore } from "@/store/sessionStore";
 import { colors } from "@/theme/tokens";
 
@@ -36,21 +37,41 @@ export default function ConsentStep() {
   const consentStatus = useConsentStatus(agreementId);
   const sealMutation = useSealAgreement(agreementId);
 
+  const records = consentStatus.data?.records ?? [];
+  const latestRecords = [...records].sort((left, right) => {
+    const leftCreatedAt = left.createdAt ? Date.parse(left.createdAt) : 0;
+    const rightCreatedAt = right.createdAt ? Date.parse(right.createdAt) : 0;
+    return rightCreatedAt - leftCreatedAt || right.id - left.id;
+  });
+  const partyARecord = latestRecords.find((record) => isSamePhone(record.partyPhone, partyA.phone));
+  const partyBRecord = latestRecords.find((record) => isSamePhone(record.partyPhone, partyB.phone));
+  const pendingRecords = [partyARecord, partyBRecord].filter(
+    (record) => record && !record.granted,
+  );
+  const consentExpired =
+    pendingRecords.length > 0 &&
+    pendingRecords.some((record) => Date.parse(record!.expiresAt) <= Date.now());
+  const hasBackendConsentRecords = (consentStatus.data?.records.length ?? 0) > 0;
+  const otpsSent = hasBackendConsentRecords || (consentA.otpSent && consentB.otpSent);
+  const activeOtpsSent = otpsSent && !consentExpired;
+  const partyAConfirmed = otpsSent && consentA.confirmed;
+  const partyBConfirmed = otpsSent && consentB.confirmed;
   const bothConfirmed =
-    consentStatus.data?.allConsented ?? (consentA.confirmed && consentB.confirmed);
-  const otpsSent = consentA.otpSent && consentB.otpSent;
+    activeOtpsSent && (consentStatus.data?.allConsented ?? (partyAConfirmed && partyBConfirmed));
   const currentParty =
-    authenticatedPhone && authenticatedPhone === partyA.phone
+    authenticatedPhone && isSamePhone(authenticatedPhone, partyA.phone)
       ? "A"
-      : authenticatedPhone && authenticatedPhone === partyB.phone
+      : authenticatedPhone && isSamePhone(authenticatedPhone, partyB.phone)
         ? "B"
         : null;
   const currentPartyConfirmed =
     currentParty === "A"
-      ? consentA.confirmed
+      ? partyAConfirmed
       : currentParty === "B"
-        ? consentB.confirmed
+        ? partyBConfirmed
         : false;
+  const onlyPartyAConfirmed = partyAConfirmed && !partyBConfirmed;
+  const onlyPartyBConfirmed = partyBConfirmed && !partyAConfirmed;
   const otherPartyRole = currentParty === "A" ? roleB : roleA;
 
   // Cap state — either proactive (from plan hook) or reactive (from seal error)
@@ -117,6 +138,33 @@ export default function ConsentStep() {
         </Text>
       )}
 
+      <ConsentProgressCard
+        bothConfirmed={bothConfirmed}
+        consentExpired={consentExpired}
+        otpsSent={otpsSent}
+        partyAConfirmed={partyAConfirmed}
+        partyBConfirmed={partyBConfirmed}
+        roleA={roleA}
+        roleB={roleB}
+      />
+
+      {consentExpired && (
+        <View className="bg-amber-50 border border-amber-200 rounded-xl p-md gap-md">
+          <Text className="text-sm text-amber-900 leading-relaxed">
+            These consent codes have expired. Request new codes so both parties
+            can confirm within the active OTP window.
+          </Text>
+          <Button
+            title="Request new consent codes"
+            variant="primary"
+            size="md"
+            fullWidth
+            loading={requestOtp.isPending}
+            onPress={handleRequestCodes}
+          />
+        </View>
+      )}
+
       {otpsSent && (
         <View className="bg-surface-subtle border border-border-subtle rounded-xl p-md">
           <Text className="text-sm text-ink-secondary leading-relaxed">
@@ -126,7 +174,7 @@ export default function ConsentStep() {
         </View>
       )}
 
-      {otpsSent && !currentParty && (
+      {activeOtpsSent && !currentParty && (
         <View className="bg-amber-50 border border-amber-200 rounded-xl p-md">
           <Text className="text-sm text-amber-800 leading-relaxed">
             This signed-in phone is not one of the pending parties. Sign in with
@@ -135,11 +183,11 @@ export default function ConsentStep() {
         </View>
       )}
 
-      {otpsSent && currentParty === "A" && (
+      {activeOtpsSent && currentParty === "A" && (
         <ConsentPartyBlock
           role={roleA}
           phone={partyA.phone}
-          confirmed={consentA.confirmed}
+          confirmed={partyAConfirmed}
           code={codeA}
           onCodeChange={(v) => {
             setCodeA(v);
@@ -148,15 +196,15 @@ export default function ConsentStep() {
           onConfirm={handleConfirmCurrentParty}
           loading={confirmOtp.isPending}
           error={confirmError ?? undefined}
-          disabled={consentA.confirmed}
+          disabled={partyAConfirmed}
         />
       )}
 
-      {otpsSent && currentParty === "B" && (
+      {activeOtpsSent && currentParty === "B" && (
         <ConsentPartyBlock
           role={roleB}
           phone={partyB.phone}
-          confirmed={consentB.confirmed}
+          confirmed={partyBConfirmed}
           code={codeB}
           onCodeChange={(v) => {
             setCodeB(v);
@@ -165,11 +213,11 @@ export default function ConsentStep() {
           onConfirm={handleConfirmCurrentParty}
           loading={confirmOtp.isPending}
           error={confirmError ?? undefined}
-          disabled={consentB.confirmed}
+          disabled={partyBConfirmed}
         />
       )}
 
-      {otpsSent && currentParty && currentPartyConfirmed && !bothConfirmed && (
+      {activeOtpsSent && currentParty && currentPartyConfirmed && !bothConfirmed && (
         <View className="bg-emerald-50 border border-emerald-100 rounded-xl p-md">
           <Text className="text-sm text-emerald-800 leading-relaxed">
             Your consent is confirmed. Waiting for {otherPartyRole} to enter
@@ -178,13 +226,21 @@ export default function ConsentStep() {
         </View>
       )}
 
-      {otpsSent && currentParty && !currentPartyConfirmed && !bothConfirmed && (
+      {activeOtpsSent && currentParty && !currentPartyConfirmed && !bothConfirmed && (
         <View className="bg-blue-50 border border-blue-100 rounded-xl p-md">
           <Text className="text-sm text-blue-800 leading-relaxed">
             Enter the OTP sent to your phone. The agreement can only be sealed
             after both parties have confirmed.
           </Text>
         </View>
+      )}
+
+      {activeOtpsSent && !currentParty && onlyPartyAConfirmed && !bothConfirmed && (
+        <PendingPartyNotice confirmedRole={roleA} pendingRole={roleB} />
+      )}
+
+      {activeOtpsSent && !currentParty && onlyPartyBConfirmed && !bothConfirmed && (
+        <PendingPartyNotice confirmedRole={roleB} pendingRole={roleA} />
       )}
 
       {bothConfirmed && (
@@ -233,6 +289,112 @@ export default function ConsentStep() {
       )}
 
     </ScrollView>
+  );
+}
+
+function ConsentProgressCard({
+  bothConfirmed,
+  consentExpired,
+  otpsSent,
+  partyAConfirmed,
+  partyBConfirmed,
+  roleA,
+  roleB,
+}: {
+  bothConfirmed: boolean;
+  consentExpired: boolean;
+  otpsSent: boolean;
+  partyAConfirmed: boolean;
+  partyBConfirmed: boolean;
+  roleA: string;
+  roleB: string;
+}) {
+  const message = bothConfirmed
+    ? "Both parties have confirmed."
+    : consentExpired
+      ? "Consent codes have expired. Request new codes to continue."
+    : !otpsSent
+      ? "Both parties have not confirmed yet. Request consent codes to begin."
+      : partyAConfirmed && !partyBConfirmed
+        ? `${roleA} has confirmed. Waiting for ${roleB} to confirm.`
+        : partyBConfirmed && !partyAConfirmed
+          ? `${roleB} has confirmed. Waiting for ${roleA} to confirm.`
+          : "Both parties have not confirmed yet.";
+
+  return (
+    <View
+      className={[
+        "rounded-xl border p-md gap-sm",
+        bothConfirmed
+          ? "bg-emerald-50 border-emerald-100"
+          : consentExpired
+            ? "bg-amber-50 border-amber-200"
+          : "bg-blue-50 border-blue-100",
+      ].join(" ")}
+    >
+      <Text
+        className={[
+          "text-sm font-semibold",
+          bothConfirmed
+            ? "text-emerald-800"
+            : consentExpired
+              ? "text-amber-900"
+              : "text-blue-900",
+        ].join(" ")}
+      >
+        {message}
+      </Text>
+      <View className="gap-xs">
+        <ConsentProgressRow role={roleA} confirmed={partyAConfirmed} />
+        <ConsentProgressRow role={roleB} confirmed={partyBConfirmed} />
+      </View>
+    </View>
+  );
+}
+
+function ConsentProgressRow({
+  role,
+  confirmed,
+}: {
+  role: string;
+  confirmed: boolean;
+}) {
+  return (
+    <View className="flex-row items-center justify-between">
+      <Text className="text-xs text-ink-secondary">{role}</Text>
+      <View className="flex-row items-center gap-xs">
+        {confirmed ? (
+          <CheckCircle size={14} color={colors.success} />
+        ) : (
+          <Clock size={14} color={colors.inkMuted} />
+        )}
+        <Text
+          className={[
+            "text-xs font-medium",
+            confirmed ? "text-emerald-700" : "text-ink-muted",
+          ].join(" ")}
+        >
+          {confirmed ? "Confirmed" : "Pending"}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+function PendingPartyNotice({
+  confirmedRole,
+  pendingRole,
+}: {
+  confirmedRole: string;
+  pendingRole: string;
+}) {
+  return (
+    <View className="bg-emerald-50 border border-emerald-100 rounded-xl p-md">
+      <Text className="text-sm text-emerald-800 leading-relaxed">
+        {confirmedRole} has confirmed. Waiting for {pendingRole} to enter their
+        OTP before this agreement can be sealed.
+      </Text>
+    </View>
   );
 }
 

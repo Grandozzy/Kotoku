@@ -1,5 +1,20 @@
 import { useRouter } from "expo-router";
-import { Check, ChevronLeft, ShieldCheck, TrendingUp, Zap } from "lucide-react-native";
+import {
+  Archive,
+  BarChart3,
+  Check,
+  ChevronLeft,
+  Crown,
+  FileCheck2,
+  Headphones,
+  MessageSquareText,
+  Search,
+  ShieldCheck,
+  TrendingUp,
+  UserRound,
+  UsersRound,
+  Zap,
+} from "lucide-react-native";
 import { ScrollView, Text, View, Pressable, ActivityIndicator } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -18,6 +33,7 @@ interface PlanDefinition {
   id: string;
   name: string;
   family: PlanFamily;
+  icon: typeof ShieldCheck;
   price: number;
   sealsPerMonth: number | null; // null = unlimited
   features: string[];
@@ -28,6 +44,7 @@ const PLANS: PlanDefinition[] = [
     id: "personal_basic",
     name: "Personal Basic",
     family: "personal",
+    icon: UserRound,
     price: 10,
     sealsPerMonth: 1,
     features: ["1 sealed agreement / month", "Tamper-proof vault", "SMS consent delivery"],
@@ -36,6 +53,7 @@ const PLANS: PlanDefinition[] = [
     id: "personal_plus",
     name: "Personal Plus",
     family: "personal",
+    icon: Zap,
     price: 25,
     sealsPerMonth: 3,
     features: ["3 sealed agreements / month", "Tamper-proof vault", "SMS consent delivery", "Priority support"],
@@ -44,6 +62,7 @@ const PLANS: PlanDefinition[] = [
     id: "personal_protect",
     name: "Personal Protect",
     family: "personal",
+    icon: ShieldCheck,
     price: 60,
     sealsPerMonth: 10,
     features: ["10 sealed agreements / month", "Tamper-proof vault", "SMS consent delivery", "Priority support", "Extended 24-month retention"],
@@ -52,6 +71,7 @@ const PLANS: PlanDefinition[] = [
     id: "enterprise_standard",
     name: "Enterprise Standard",
     family: "enterprise",
+    icon: UsersRound,
     price: 400,
     sealsPerMonth: 30,
     features: ["30 sealed agreements / month", "Team seats", "Bulk creation", "Reporting dashboard", "36-month retention"],
@@ -60,6 +80,7 @@ const PLANS: PlanDefinition[] = [
     id: "enterprise_plus",
     name: "Enterprise Plus",
     family: "enterprise",
+    icon: Crown,
     price: 1200,
     sealsPerMonth: null,
     features: ["Unlimited sealed agreements", "Team seats", "Bulk creation", "Reporting dashboard", "Archive search", "48-month retention", "Dedicated support"],
@@ -67,6 +88,19 @@ const PLANS: PlanDefinition[] = [
 ];
 
 // ── Screen ───────────────────────────────────────────────────────────────────
+
+function getFeatureIcon(feature: string) {
+  const text = feature.toLowerCase();
+  if (text.includes("sms")) return MessageSquareText;
+  if (text.includes("vault") || text.includes("tamper")) return ShieldCheck;
+  if (text.includes("team")) return UsersRound;
+  if (text.includes("bulk")) return FileCheck2;
+  if (text.includes("report")) return BarChart3;
+  if (text.includes("archive") || text.includes("retention")) return Archive;
+  if (text.includes("search")) return Search;
+  if (text.includes("support")) return Headphones;
+  return Check;
+}
 
 export default function PlansScreen() {
   const router = useRouter();
@@ -167,6 +201,7 @@ function PlanCard({
   onPress: () => void;
 }) {
   const isPopular = plan.id === "personal_plus";
+  const PlanIcon = plan.icon;
 
   return (
     <View
@@ -203,7 +238,15 @@ function PlanCard({
       <View className="px-lg py-md gap-md">
         {/* Name + price */}
         <View className="flex-row items-start justify-between">
-          <Text className="text-md font-semibold text-ink-primary">{plan.name}</Text>
+          <View className="flex-row items-center gap-sm flex-1 pr-md">
+            <View className="w-10 h-10 rounded-xl bg-brand-primary/10 items-center justify-center">
+              <PlanIcon size={20} color={colors.brandPrimary} strokeWidth={1.9} />
+            </View>
+            <View className="flex-1">
+              <Text className="text-md font-semibold text-ink-primary">{plan.name}</Text>
+              <Text className="text-xs text-ink-muted capitalize">{plan.family}</Text>
+            </View>
+          </View>
           <View className="items-end">
             <Text className="text-lg font-bold text-ink-primary">
               {plan.price} <Text className="text-sm font-normal text-ink-secondary">GHS</Text>
@@ -224,10 +267,7 @@ function PlanCard({
         {/* Features */}
         <View className="gap-xs">
           {plan.features.map((f) => (
-            <View key={f} className="flex-row items-center gap-sm">
-              <Check size={14} color={colors.brandPrimary} strokeWidth={2.5} />
-              <Text className="text-sm text-ink-secondary flex-1">{f}</Text>
-            </View>
+            <FeatureRow key={f} label={f} />
           ))}
         </View>
 
@@ -250,6 +290,16 @@ function PlanCard({
           </Pressable>
         )}
       </View>
+    </View>
+  );
+}
+
+function FeatureRow({ label }: { label: string }) {
+  const FeatureIcon = getFeatureIcon(label);
+  return (
+    <View className="flex-row items-center gap-sm">
+      <FeatureIcon size={14} color={colors.brandPrimary} strokeWidth={2.2} />
+      <Text className="text-sm text-ink-secondary flex-1">{label}</Text>
     </View>
   );
 }

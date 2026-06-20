@@ -16,6 +16,7 @@ import { createDispute } from "@/api/disputes";
 import { useAgreementStore, type PartyDraft } from "@/features/agreements/agreementStore";
 import { useAuditLog, useRequestExport, useRetryExport, useVaultRecord } from "@/features/vault/useVault";
 import { getApiErrorMessage } from "@/lib/errorHandler";
+import { isSamePhone } from "@/lib/phone";
 import type { ScenarioId } from "@/constants/scenarios";
 import { colors } from "@/theme/tokens";
 
@@ -73,7 +74,7 @@ export default function VaultDetailScreen() {
 
   const handleSubmitDispute = async () => {
     if (!record) return;
-    const userParty = record.parties.find((p) => p.phone === currentPhone);
+    const userParty = record.parties.find((p) => isSamePhone(p.phone, currentPhone));
     if (!userParty) return;
     const trimmed = disputeReason.trim();
     if (trimmed.length < 10) {
@@ -104,7 +105,7 @@ export default function VaultDetailScreen() {
 
   if (isLoading || !record) return <ScreenLoader rows={4} />;
 
-  const userParty = record.parties.find((p) => p.phone === currentPhone);
+  const userParty = record.parties.find((p) => isSamePhone(p.phone, currentPhone));
   const canAddNote = ["sealed", "reopen_requested", "active"].includes(record.agreementStatus);
   const canRaiseDispute = record.agreementStatus === "sealed";
 

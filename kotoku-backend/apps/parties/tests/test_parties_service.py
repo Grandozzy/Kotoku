@@ -76,6 +76,33 @@ class TestSetParties:
         assert seller.id_type == "ghana_card"
         assert seller.id_number == "GHA-111"
 
+    def test_normalizes_party_phone_and_matches_initiator_by_user_phone(self):
+        acct = _account()
+        agreement = _agreement(acct)
+        PartyService.set_parties(
+            agreement_id=agreement.pk,
+            initiator_account=acct,
+            parties_data=[
+                {**_SELLER, "phone": "0" + acct.phone[-9:]},
+                _BUYER,
+            ],
+        )
+        seller = Party.objects.get(agreement=agreement, role="seller")
+        assert seller.phone == acct.user.phone
+
+    def test_raises_on_duplicate_equivalent_phone_numbers(self):
+        acct = _account()
+        agreement = _agreement(acct)
+        with pytest.raises(DomainError, match="unique phone"):
+            PartyService.set_parties(
+                agreement_id=agreement.pk,
+                initiator_account=acct,
+                parties_data=[
+                    {**_SELLER, "phone": acct.phone},
+                    {**_BUYER, "phone": "0" + acct.phone[-9:]},
+                ],
+            )
+
     def test_accepts_national_id_type(self):
         acct = _account()
         agreement = _agreement(acct)
@@ -203,6 +230,24 @@ class TestPatchParties:
             parties_data=[{"role": "buyer", "phone": "+233300000099"}],
         )
         assert Party.objects.get(agreement=agreement, role="buyer").phone == "+233300000099"
+
+    def test_patch_normalizes_local_phone(self):
+        acct, agreement = self._setup()
+        PartyService.patch_parties(
+            agreement_id=agreement.pk,
+            initiator_account=acct,
+            parties_data=[{"role": "buyer", "phone": "0300000099"}],
+        )
+        assert Party.objects.get(agreement=agreement, role="buyer").phone == "+233300000099"
+
+    def test_patch_rejects_duplicate_equivalent_phone(self):
+        acct, agreement = self._setup()
+        with pytest.raises(DomainError, match="unique phone"):
+            PartyService.patch_parties(
+                agreement_id=agreement.pk,
+                initiator_account=acct,
+                parties_data=[{"role": "buyer", "phone": "0" + acct.phone[-9:]}],
+            )
 
     def test_updates_only_supplied_fields(self):
         acct, agreement = self._setup()

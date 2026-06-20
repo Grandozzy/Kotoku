@@ -1,6 +1,7 @@
 from apps.accounts.models import Account, User
 from apps.audit.services import AuditService
 from common.exceptions import DomainError
+from common.phone_numbers import normalize_phone_to_e164
 
 
 class AccountService:
@@ -44,6 +45,7 @@ class AccountService:
         phone: str = "",
         actor: str = "system",
     ) -> Account:
+        phone = normalize_phone_to_e164(phone)
         user = User.objects.create_user(phone=phone or email)
         account = Account.objects.create(
             user=user,
