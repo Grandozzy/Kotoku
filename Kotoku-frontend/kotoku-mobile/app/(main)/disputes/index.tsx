@@ -3,7 +3,7 @@ import { Pressable, RefreshControl, ScrollView, Text, View } from "react-native"
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { CardSkeleton, EmptyState } from "@/components/ui";
+import { CardSkeleton, EmptyState, ErrorState } from "@/components/ui";
 import { useDisputes } from "@/hooks/useDisputes";
 import { colors } from "@/theme/tokens";
 
@@ -16,7 +16,7 @@ const STATUS_CONFIG: Record<string, { bg: string; text: string; label: string }>
 export default function DisputesIndexScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { data: disputes = [], isLoading, refetch } = useDisputes();
+  const { data: disputes = [], isError, isLoading, refetch } = useDisputes();
 
   return (
     <ScrollView
@@ -45,7 +45,15 @@ export default function DisputesIndexScreen() {
         </View>
       )}
 
-      {!isLoading && disputes.length === 0 && (
+      {isError && !isLoading && (
+        <ErrorState
+          title="Could not load disputes"
+          body="Check your connection and try again. Existing dispute records will appear once Kotoku reconnects."
+          onAction={() => refetch()}
+        />
+      )}
+
+      {!isLoading && !isError && disputes.length === 0 && (
         <EmptyState
           icon={Scale}
           title="No disputes raised"
@@ -53,7 +61,7 @@ export default function DisputesIndexScreen() {
         />
       )}
 
-      {!isLoading && disputes.length > 0 && (
+      {!isLoading && !isError && disputes.length > 0 && (
         <View className="gap-sm">
           {disputes.map((item) => {
             const config = STATUS_CONFIG[item.status] ?? STATUS_CONFIG.closed;

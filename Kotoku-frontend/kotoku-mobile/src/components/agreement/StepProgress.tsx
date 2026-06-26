@@ -27,6 +27,9 @@ export function StepProgress({ currentIndex, onStepPress }: StepProgressProps) {
               <Pressable
                 onPress={() => onStepPress?.(idx)}
                 disabled={!tappable}
+                accessibilityRole="button"
+                accessibilityLabel={`${label} step${active ? ", current" : done ? ", completed" : ""}`}
+                accessibilityState={{ disabled: !tappable, selected: active }}
                 className="items-center"
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 style={({ pressed }) => pressed && tappable ? { opacity: 0.7 } : undefined}

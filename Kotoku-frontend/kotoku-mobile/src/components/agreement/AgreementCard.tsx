@@ -48,6 +48,8 @@ export function AgreementCard({ agreement }: AgreementCardProps) {
   return (
     <Pressable
       onPress={() => router.push(`/agreement/${agreement.id}/steps/review`)}
+      accessibilityRole="button"
+      accessibilityLabel={`Open agreement ${agreement.title}`}
       className="bg-surface-card rounded-lg p-lg flex-row items-center justify-between border border-border-subtle active:opacity-70"
     >
       <View className="flex-1 gap-xs mr-md">

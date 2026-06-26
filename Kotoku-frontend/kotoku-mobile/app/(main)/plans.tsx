@@ -15,9 +15,10 @@ import {
   UsersRound,
   Zap,
 } from "lucide-react-native";
-import { ScrollView, Text, View, Pressable, ActivityIndicator } from "react-native";
+import { ScrollView, Text, View, Pressable, ActivityIndicator, RefreshControl } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { ErrorState } from "@/components/ui";
 import { usePlan } from "@/features/billing/usePlan";
 import { useSubscription } from "@/features/billing/useSubscription";
 import { useInitiatePayment } from "@/features/billing/usePayment";
@@ -105,18 +106,42 @@ function getFeatureIcon(feature: string) {
 export default function PlansScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { data: plan } = usePlan();
-  const { data: subscription } = useSubscription();
+  const {
+    data: plan,
+    isError: planError,
+    isFetching: planFetching,
+    refetch: refetchPlan,
+  } = usePlan();
+  const {
+    data: subscription,
+    isError: subscriptionError,
+    isFetching: subscriptionFetching,
+    refetch: refetchSubscription,
+  } = useSubscription();
   const { mutate: initiate, isPending, variables: pendingPlanId, error } = useInitiatePayment();
 
   const currentPlanId = plan?.plan.id;
   const activePlanId = subscription?.has_subscription ? subscription.plan_id : null;
+
+  const hasLoadError = planError || subscriptionError;
+  const refreshing = planFetching || subscriptionFetching;
+  const handleRefresh = () => {
+    void refetchPlan();
+    void refetchSubscription();
+  };
 
   return (
     <ScrollView
       className="flex-1 bg-surface-canvas"
       contentContainerClassName="px-lg pb-2xl gap-lg"
       contentContainerStyle={{ paddingTop: insets.top + 12 }}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={handleRefresh}
+          tintColor={colors.brandPrimary}
+        />
+      }
     >
       {/* Header */}
       <View className="flex-row items-center gap-md">
@@ -137,6 +162,14 @@ export default function PlansScreen() {
         <View className="bg-red-50 border border-red-200 rounded-xl px-lg py-md">
           <Text className="text-sm text-red-700">{getApiErrorMessage(error)}</Text>
         </View>
+      )}
+
+      {hasLoadError && (
+        <ErrorState
+          title="Could not load billing status"
+          body="Plans are still shown below, but your current plan may be out of date. Refresh before starting payment."
+          onAction={handleRefresh}
+        />
       )}
 
       {/* Personal plans */}

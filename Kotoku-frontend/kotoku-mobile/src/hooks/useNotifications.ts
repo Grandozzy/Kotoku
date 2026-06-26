@@ -2,8 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { AppState, type AppStateStatus } from "react-native";
 
 import { API_BASE_URL } from "@/constants/config";
-import { getToken } from "@/lib/secureStore";
 import { queryClient } from "@/lib/queryClient";
+import { useSessionStore } from "@/store/sessionStore";
 
 const RECONNECT_BASE_MS = 1000;
 const RECONNECT_MAX_MS = 30_000;
@@ -45,15 +45,25 @@ function handleEvent(event: WsEvent) {
 }
 
 export function useNotifications() {
+  const token = useSessionStore((s) => s.token);
+  const isAuthenticated = useSessionStore((s) => s.isAuthenticated);
   const [connected, setConnected] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectDelay = useRef(RECONNECT_BASE_MS);
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cancelledRef = useRef(false);
+  const appActiveRef = useRef(AppState.currentState === "active");
 
   const connect = useCallback(async () => {
-    const token = await getToken();
-    if (!token || cancelledRef.current) return;
+    if (!token || !isAuthenticated || cancelledRef.current || !appActiveRef.current) {
+      return;
+    }
+    if (
+      wsRef.current?.readyState === WebSocket.OPEN ||
+      wsRef.current?.readyState === WebSocket.CONNECTING
+    ) {
+      return;
+    }
 
     const ws = new WebSocket(getWsUrl(token));
     wsRef.current = ws;
@@ -77,16 +87,25 @@ export function useNotifications() {
     ws.onclose = () => {
       if (cancelledRef.current) return;
       setConnected(false);
+      wsRef.current = null;
       scheduleReconnect();
     };
 
     ws.onerror = () => {
       ws.close();
     };
-  }, []);
+  }, [isAuthenticated, token]);
 
   const scheduleReconnect = useCallback(() => {
-    if (cancelledRef.current) return;
+    if (
+      cancelledRef.current ||
+      !isAuthenticated ||
+      !token ||
+      !appActiveRef.current
+    ) {
+      return;
+    }
+    if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
     reconnectTimer.current = setTimeout(() => {
       reconnectDelay.current = Math.min(
         reconnectDelay.current * 2,
@@ -94,21 +113,28 @@ export function useNotifications() {
       );
       connect();
     }, reconnectDelay.current);
-  }, [connect]);
+  }, [connect, isAuthenticated, token]);
 
   useEffect(() => {
     cancelledRef.current = false;
-    connect();
+    if (isAuthenticated && token) {
+      connect();
+    } else {
+      wsRef.current?.close();
+      wsRef.current = null;
+      setConnected(false);
+    }
 
     return () => {
       cancelledRef.current = true;
       wsRef.current?.close();
       if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
     };
-  }, [connect]);
+  }, [connect, isAuthenticated, token]);
 
   useEffect(() => {
     const handleAppState = (nextState: AppStateStatus) => {
+      appActiveRef.current = nextState === "active";
       if (nextState === "active") {
         if (
           !wsRef.current ||
@@ -118,7 +144,10 @@ export function useNotifications() {
           connect();
         }
       } else if (nextState === "background") {
+        if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
         wsRef.current?.close();
+        wsRef.current = null;
+        setConnected(false);
       }
     };
 

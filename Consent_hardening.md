@@ -15,11 +15,13 @@ This guide defines Kotoku's production consent model: bilateral consent remains 
 
 ## Counterparty Consent Link
 
-When consent codes are requested, each SMS should contain:
+When consent codes are requested, the counterparty SMS should contain:
 
 - The OTP.
 - A signed, expiring consent link.
 - Clear instruction that the party should review the agreement and enter their own code.
+
+The creator/Party A SMS should contain only their OTP and expiry warning. It must not include the public consent link.
 
 Example:
 
@@ -66,6 +68,7 @@ The token must not grant consent by itself. OTP is still required.
 - Public confirm must not require full app authentication, but it must require the OTP.
 - Public confirm must only operate on the party encoded in the signed token.
 - Reissuing OTP may keep the same link semantics, but only the latest ungranted OTP record should confirm.
+- Expired consent OTPs must not leave the agreement stuck. The creator may request a fresh set while the agreement remains `pending_consent`.
 
 ## UX Checklist
 
@@ -74,6 +77,8 @@ The token must not grant consent by itself. OTP is still required.
 - [x] Public consent page is read-only.
 - [x] Public confirm requires Party B's OTP.
 - [x] Creator cannot submit Party B's code from the mobile app.
+- [x] Creator/Party A SMS contains no consent link.
+- [x] Creator can re-request fresh consent codes after OTP expiry.
 - [ ] Mobile Consent tab polls or refreshes status after Party B confirms.
 - [ ] Creator sees “Ready to seal” only after backend `all_consented` is true.
 - [ ] Manual QA covers Party A app confirm + Party B public link confirm + seal + Vault.
@@ -86,4 +91,3 @@ The token must not grant consent by itself. OTP is still required.
 4. Add a public web route `/consent/[token]`.
 5. Keep mobile participant-driven confirmation unchanged.
 6. Add consent status refresh/polling on the creator's Consent tab.
-

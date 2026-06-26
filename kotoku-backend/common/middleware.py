@@ -6,8 +6,8 @@ RequestIdMiddleware
   log line produced during that request. The ID is also echoed back in the
   response header so clients can correlate their own logs.
 """
-import uuid
 import re
+import uuid
 
 from django.conf import settings
 from django.http import HttpResponse, HttpResponseNotFound
@@ -65,9 +65,18 @@ class ProbeShieldMiddleware:
     _probe_patterns = (
         re.compile(r"^/(?:.*?/)?\.env(?:[.\w-]*)?$", re.IGNORECASE),
         re.compile(r"^/\.aws/(?:config|credentials)$", re.IGNORECASE),
+        re.compile(r"^/\.git(?:/|$)", re.IGNORECASE),
         re.compile(r"^/(?:_phpinfo|phpinfo|info|test|server[-_]?info)(?:\.php)?$", re.IGNORECASE),
-        re.compile(r"^/(?:xmlrpc\.php|wp(?:/|$)|wordpress(?:/|$)|wp-config(?:\.php(?:\.\w+)?)?)", re.IGNORECASE),
-        re.compile(r"^/(?:_profiler|xampp|laravel|vendor|storage|docker|config)(?:/|$)", re.IGNORECASE),
+        re.compile(
+            r"^/(?:xmlrpc\.php|wp(?:/|$)|wordpress(?:/|$)|wp-config(?:\.php(?:\.\w+)?)?)",
+            re.IGNORECASE,
+        ),
+        re.compile(
+            r"^/(?:_profiler|xampp|laravel|vendor|storage|docker|config)(?:/|$)",
+            re.IGNORECASE,
+        ),
+        re.compile(r"^/(?:h5|m|wap|im|pc|xy|dwcc|app|apps|mobile)(?:/|$)", re.IGNORECASE),
+        re.compile(r"^/(?:api\.php|zz\.php)(?:/|$)", re.IGNORECASE),
     )
 
     def __init__(self, get_response):

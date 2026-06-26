@@ -94,7 +94,16 @@ def _is_creator_party(*, agreement: Agreement, party: Party) -> bool:
         normalize_phone_for_compare(getattr(creator_user, "phone", "")),
     }
     creator_phones.discard("")
-    return bool(party_phone and party_phone in creator_phones)
+    if party_phone and party_phone in creator_phones:
+        return True
+
+    party_a_id = (
+        Party.objects.filter(agreement=agreement)
+        .order_by("id")
+        .values_list("id", flat=True)
+        .first()
+    )
+    return party.pk == party_a_id
 
 
 def _get_party_by_phone(*, agreement_id: int, phone: str) -> Party:
@@ -228,7 +237,7 @@ class ConsentService:
             agreement=agreement,
             purpose=ConsentRecord.Purpose.CONSENT,
         ).delete()
-        parties = list(Party.objects.filter(agreement=agreement))
+        parties = list(Party.objects.filter(agreement=agreement).order_by("id"))
         if not parties:
             raise DomainError("Cannot request consent: agreement has no parties")
         return ConsentService._issue_party_otps(
@@ -358,7 +367,7 @@ class ConsentService:
             purpose=ConsentRecord.Purpose.CONSENT,
         ).delete()
 
-        parties = list(Party.objects.filter(agreement=agreement))
+        parties = list(Party.objects.filter(agreement=agreement).order_by("id"))
         if not parties:
             raise DomainError("Cannot issue OTPs: agreement has no parties.")
 

@@ -50,6 +50,14 @@ export interface PublicConsentContext {
 
 type ApiEnvelope<T> = { status: "ok"; data: T };
 
+function encodeConsentToken(token: string): string {
+  try {
+    return encodeURIComponent(decodeURIComponent(token));
+  } catch {
+    return encodeURIComponent(token);
+  }
+}
+
 async function publicRequest<T>(
   path: string,
   options: RequestInit = {},
@@ -80,7 +88,7 @@ async function publicRequest<T>(
 
 export function getPublicConsent(token: string): Promise<PublicConsentContext> {
   return publicRequest<PublicConsentContext>(
-    `/api/consent-links/${encodeURIComponent(token)}/`,
+    `/api/consent-links/${encodeConsentToken(token)}/`,
   );
 }
 
@@ -88,7 +96,7 @@ export function confirmPublicConsent(
   token: string,
   otpCode: string,
 ): Promise<{ consent_record: PublicConsentRecord; all_consented: boolean }> {
-  return publicRequest(`/api/consent-links/${encodeURIComponent(token)}/confirm/`, {
+  return publicRequest(`/api/consent-links/${encodeConsentToken(token)}/confirm/`, {
     method: "POST",
     body: JSON.stringify({ otp_code: otpCode }),
   });

@@ -53,6 +53,8 @@ export function VaultCard({
   return (
     <Pressable
       onPress={() => router.push(`/(main)/vault/${record.agreementId}`)}
+      accessibilityRole="button"
+      accessibilityLabel={`Open vaulted agreement ${title}`}
       className={[
         "bg-surface-card rounded-lg border border-border-subtle p-lg flex-row items-center gap-md active:opacity-70",
         borderClass,

@@ -20,6 +20,18 @@ def test_probe_shield_blocks_php_probe():
     assert response.status_code == 404
 
 
+def test_probe_shield_blocks_git_probe():
+    request = RequestFactory().get("/.git/config")
+    response = ProbeShieldMiddleware(_ok_response)(request)
+    assert response.status_code == 404
+
+
+def test_probe_shield_blocks_common_scanner_app_paths():
+    request = RequestFactory().get("/h5/")
+    response = ProbeShieldMiddleware(_ok_response)(request)
+    assert response.status_code == 404
+
+
 def test_probe_shield_allows_normal_api_request():
     request = RequestFactory().get("/api/health/")
     response = ProbeShieldMiddleware(_ok_response)(request)

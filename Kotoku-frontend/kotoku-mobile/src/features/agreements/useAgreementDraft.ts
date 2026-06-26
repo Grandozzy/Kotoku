@@ -6,6 +6,7 @@ import type { ScenarioId } from "@/constants/scenarios";
 import { LOCAL_TEMPLATES } from "@/constants/templates";
 import type { ScenarioTemplate } from "@/types/template";
 import { useAgreementStore } from "./agreementStore";
+import { feedbackSuccess } from "@/lib/feedback";
 import { useSessionStore } from "@/store/sessionStore";
 
 // ---------- Draft creation ----------
@@ -63,6 +64,7 @@ export function useSealAgreement(id: number) {
   return useMutation({
     mutationFn: () => sealAgreement(id),
     onSuccess: () => {
+      feedbackSuccess();
       const wasReopened = isReopened;
       queryClient.invalidateQueries({ queryKey: ["agreement", id] });
       queryClient.invalidateQueries({ queryKey: ["agreements"] });

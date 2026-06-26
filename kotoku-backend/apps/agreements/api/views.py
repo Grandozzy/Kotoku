@@ -88,8 +88,14 @@ class AgreementDetailView(APIView):
             )
         except Agreement.DoesNotExist:
             raise Http404 from None
-        if agreement.status != AgreementStatus.DRAFT:
-            raise DomainError("Only draft agreements can be deleted.")
+        deletable_statuses = {
+            AgreementStatus.DRAFT,
+            AgreementStatus.PENDING_CONSENT,
+        }
+        if agreement.status not in deletable_statuses:
+            raise DomainError(
+                "Only draft or pending-consent agreements can be deleted."
+            )
         agreement.delete()
         return ok({})
 

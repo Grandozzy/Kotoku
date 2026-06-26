@@ -4,5 +4,6 @@ export { TextInput } from "./TextInput";
 export { Badge } from "./Badge";
 export { OTPInput } from "./OTPInput";
 export { EmptyState } from "./EmptyState";
+export { ErrorState } from "./ErrorState";
 export { Skeleton, CardSkeleton } from "./Skeleton";
 export { ScreenLoader } from "./ScreenLoader";

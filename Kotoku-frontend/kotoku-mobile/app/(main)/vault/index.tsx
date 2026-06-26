@@ -1,8 +1,8 @@
-import { AlertCircle, Lock } from "lucide-react-native";
-import { FlatList, Pressable, RefreshControl, Text, View } from "react-native";
+import { Lock } from "lucide-react-native";
+import { FlatList, RefreshControl, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { CardSkeleton, EmptyState } from "@/components/ui";
+import { CardSkeleton, EmptyState, ErrorState } from "@/components/ui";
 import { VaultCard } from "@/components/vault/VaultCard";
 import { useVaultList } from "@/features/vault/useVault";
 import { colors } from "@/theme/tokens";
@@ -29,20 +29,11 @@ export default function VaultScreen() {
       )}
 
       {error && !isLoading && (
-        <View className="flex-1 items-center justify-center px-2xl gap-md">
-          <View className="w-14 h-14 rounded-2xl bg-semantic-error/10 items-center justify-center">
-            <AlertCircle size={24} color={colors.error} strokeWidth={1.6} />
-          </View>
-          <Text className="text-md font-semibold text-ink-primary text-center">
-            Could not load vault
-          </Text>
-          <Text className="text-sm text-ink-secondary text-center">
-            Check your connection and pull down to retry.
-          </Text>
-          <Pressable onPress={() => refetch()} className="active:opacity-70">
-            <Text className="text-sm text-brand-primary font-medium">Try again</Text>
-          </Pressable>
-        </View>
+        <ErrorState
+          title="Could not load vault"
+          body="Check your connection and try again. Your sealed agreements remain safe in the vault."
+          onAction={() => refetch()}
+        />
       )}
 
       {!isLoading && !error && records?.length === 0 && (

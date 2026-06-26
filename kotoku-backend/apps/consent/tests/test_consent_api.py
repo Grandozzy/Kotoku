@@ -164,6 +164,38 @@ class TestRequestOtpApi:
         assert "/consent/" not in messages[creator_party_phone]
         assert "/consent/" in messages[second_phone]
 
+    def test_party_a_sms_has_no_link_when_creator_phone_is_stale(self, mock_delay):
+        client, acct = _make_client("+233500100021")
+        agreement = _draft_agreement(acct)
+        party_a_phone = "+233500100022"
+        party_b_phone = "+233500100023"
+        Party.objects.create(
+            agreement=agreement,
+            role=Party.Role.SELLER,
+            display_name="Kofi",
+            phone=party_a_phone,
+            id_type=Party.IdType.GHANA_CARD,
+            id_number="GHA-S",
+        )
+        Party.objects.create(
+            agreement=agreement,
+            role=Party.Role.BUYER,
+            display_name="Ama",
+            phone=party_b_phone,
+            id_type=Party.IdType.GHANA_CARD,
+            id_number="GHA-B",
+        )
+
+        resp = client.post(_REQUEST_OTP_PATH.format(id=agreement.pk))
+
+        assert resp.status_code == 201
+        messages = {
+            call.kwargs["to"]: call.kwargs["body"]
+            for call in mock_delay.call_args_list
+        }
+        assert "/consent/" not in messages[party_a_phone]
+        assert "/consent/" in messages[party_b_phone]
+
     def test_reissue_from_pending_consent(self, mock_delay):
         client, acct = _make_client("+233500100007")
         agreement = _draft_agreement(acct)

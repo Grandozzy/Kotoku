@@ -5,6 +5,7 @@ import { confirmOtp, getConsentStatus, requestOtp } from "@/api/consent";
 import { validateAgreement } from "@/api/agreements";
 import { useAgreementStore } from "@/features/agreements/agreementStore";
 import { getApiErrorMessage } from "@/lib/errorHandler";
+import { feedbackSuccess } from "@/lib/feedback";
 import { isSamePhone, normalizePhoneToE164 } from "@/lib/phone";
 import { useSessionStore } from "@/store/sessionStore";
 
@@ -24,27 +25,34 @@ export function useRequestOtp(agreementId: number) {
   const partyB = useAgreementStore((s) => s.partyB);
 
   return useMutation({
-    mutationFn: async () => {
+    mutationFn: async (options?: { validateBeforeRequest?: boolean }) => {
       resetConsentState();
-      const validation = await validateAgreement(agreementId);
-      if (!validation.valid) {
-        throw new Error(formatValidationErrors(validation.errors));
+      if (options?.validateBeforeRequest !== false) {
+        const validation = await validateAgreement(agreementId);
+        if (!validation.valid) {
+          throw new Error(formatValidationErrors(validation.errors));
+        }
       }
       return requestOtp(agreementId);
     },
-    onSuccess: () => {
-      setConsentState("A", { otpSent: true, confirmed: false });
-      setConsentState("B", { otpSent: true, confirmed: false });
+    onSuccess: (data) => {
+      feedbackSuccess();
+      const partyARecord = data.consentRecords.find((record) =>
+        isSamePhone(record.partyPhone, partyA.phone),
+      );
+      const partyBRecord = data.consentRecords.find((record) =>
+        isSamePhone(record.partyPhone, partyB.phone),
+      );
+
+      setConsentState("A", {
+        otpSent: Boolean(partyARecord),
+        confirmed: partyARecord?.granted ?? false,
+      });
+      setConsentState("B", {
+        otpSent: Boolean(partyBRecord),
+        confirmed: partyBRecord?.granted ?? false,
+      });
       queryClient.invalidateQueries({ queryKey: ["consent", "status", agreementId] });
-    },
-    onError: (error) => {
-      if (
-        partyA.phone && partyB.phone &&
-        getApiErrorMessage(error).includes("already consented")
-      ) {
-        setConsentState("A", { otpSent: true, confirmed: true });
-        setConsentState("B", { otpSent: true, confirmed: true });
-      }
     },
   });
 }
@@ -68,6 +76,7 @@ export function useConfirmOtp(agreementId: number) {
       return confirmOtp(agreementId, normalizePhoneToE164(authenticatedPhone), otpCode);
     },
     onSuccess: (_data, { party }) => {
+      feedbackSuccess();
       setConsentConfirmed(party);
       queryClient.invalidateQueries({ queryKey: ["consent", "status", agreementId] });
       queryClient.invalidateQueries({ queryKey: ["agreement", agreementId] });
@@ -83,6 +92,11 @@ export function useConsentStatus(agreementId: number) {
     queryKey: ["consent", "status", agreementId],
     queryFn: () => getConsentStatus(agreementId),
     enabled: agreementId > 0,
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnReconnect: true,
+    refetchOnWindowFocus: true,
+    refetchIntervalInBackground: true,
     refetchInterval: (query) =>
       query.state.data?.allConsented ? false : 5000,
   });

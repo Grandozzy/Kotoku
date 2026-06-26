@@ -116,7 +116,12 @@ export default function EvidenceStep() {
       )}
 
       {error && (
-        <Text className="text-sm text-semantic-error">{error}</Text>
+        <View className="bg-rose-50 border border-rose-100 rounded-xl p-md gap-xs">
+          <Text className="text-sm font-semibold text-rose-800">
+            Evidence upload needs attention
+          </Text>
+          <Text className="text-xs text-rose-700 leading-relaxed">{error}</Text>
+        </View>
       )}
 
       {!canProceed && (

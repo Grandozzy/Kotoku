@@ -12,7 +12,7 @@ import {
 import { Alert, Pressable, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { Card, ScreenLoader } from "@/components/ui";
+import { Card, ErrorState, ScreenLoader } from "@/components/ui";
 import { useCancelSubscription } from "@/features/billing/usePayment";
 import { useSubscription } from "@/features/billing/useSubscription";
 import { getApiErrorMessage } from "@/lib/errorHandler";
@@ -46,10 +46,25 @@ function formatDate(iso: string): string {
 export default function SubscriptionScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { data: sub, isLoading } = useSubscription();
+  const { data: sub, isError, isLoading, refetch } = useSubscription();
   const { mutate: cancel, isPending: cancelling, error: cancelError } = useCancelSubscription();
 
   if (isLoading) return <ScreenLoader />;
+
+  if (isError) {
+    return (
+      <View
+        className="flex-1 bg-surface-canvas"
+        style={{ paddingTop: insets.top }}
+      >
+        <ErrorState
+          title="Could not load subscription"
+          body="Check your connection and try again before changing or cancelling a plan."
+          onAction={() => refetch()}
+        />
+      </View>
+    );
+  }
 
   function handleCancel() {
     Alert.alert(

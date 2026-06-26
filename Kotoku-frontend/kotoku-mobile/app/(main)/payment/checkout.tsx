@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import WebView, { type WebViewNavigation } from "react-native-webview";
 import type { ShouldStartLoadRequest } from "react-native-webview/lib/WebViewTypes";
 
+import { ErrorState } from "@/components/ui";
 import { colors } from "@/theme/tokens";
 
 const CALLBACK_SCHEME = "kotoku://payment/callback";
@@ -20,6 +21,7 @@ export default function CheckoutScreen() {
   }>();
 
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const handledRef = useRef(false);
 
   function handleCancel() {
@@ -90,6 +92,20 @@ export default function CheckoutScreen() {
     );
   }
 
+  if (loadError) {
+    return (
+      <View className="flex-1 bg-surface-canvas" style={{ paddingTop: insets.top }}>
+        <ErrorState
+          title="Could not load payment"
+          body="Check your connection and try again. Your plan will not change until payment succeeds."
+          actionLabel="Back to plans"
+          onAction={() => router.back()}
+          icon={CreditCard}
+        />
+      </View>
+    );
+  }
+
   return (
     <View className="flex-1 bg-surface-canvas" style={{ paddingTop: insets.top }}>
       {/* Header */}
@@ -124,13 +140,7 @@ export default function CheckoutScreen() {
         onLoad={() => setLoading(false)}
         onShouldStartLoadWithRequest={handleShouldStartLoadWithRequest}
         onNavigationStateChange={handleNavigationStateChange}
-        onError={() => {
-          Alert.alert(
-            "Connection error",
-            "Could not load the payment page. Please check your connection and try again.",
-            [{ text: "OK", onPress: () => router.back() }]
-          );
-        }}
+        onError={() => setLoadError(true)}
         originWhitelist={["https://*", "http://*", "kotoku://*"]}
         startInLoadingState={false}
         javaScriptEnabled

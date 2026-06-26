@@ -39,6 +39,9 @@ export function PhotoSlot({
     <Pressable
       onPress={onPress}
       disabled={busy}
+      accessibilityRole="button"
+      accessibilityLabel={`${failed ? failedActionLabel : filled ? "Replace" : "Add"} ${label}`}
+      accessibilityState={{ disabled: busy, busy }}
       className={[
         "rounded-lg border-2 overflow-hidden",
         failed

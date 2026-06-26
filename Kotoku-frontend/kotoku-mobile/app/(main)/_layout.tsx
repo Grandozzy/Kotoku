@@ -68,6 +68,18 @@ export default function MainLayout() {
         name="about"
         options={{ href: null }}
       />
+      <Tabs.Screen
+        name="plans"
+        options={{ href: null }}
+      />
+      <Tabs.Screen
+        name="subscription"
+        options={{ href: null }}
+      />
+      <Tabs.Screen
+        name="payment"
+        options={{ href: null }}
+      />
     </Tabs>
   );
 }

@@ -1,16 +1,24 @@
 import { useRouter } from "expo-router";
-import { AlertTriangle, ChevronRight, FileText, Handshake, TrendingUp } from "lucide-react-native";
+import {
+  ChevronRight,
+  FileText,
+  Handshake,
+  Trash2,
+  TrendingUp,
+} from "lucide-react-native";
 import { useState } from "react";
 import { Alert, Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { Button, CardSkeleton, EmptyState } from "@/components/ui";
+import { Badge, Button, CardSkeleton, EmptyState, ErrorState } from "@/components/ui";
 import { deleteDraft, getAgreement } from "@/api/agreements";
 import { usePendingActions } from "@/features/agreements/usePendingActions";
 import { useAgreementStore } from "@/features/agreements/agreementStore";
 import { usePlan } from "@/features/billing/usePlan";
 import type { ScenarioId } from "@/constants/scenarios";
 import { SCENARIOS } from "@/constants/scenarios";
+import { isSamePhone } from "@/lib/phone";
+import { useSessionStore } from "@/store/sessionStore";
 import { colors } from "@/theme/tokens";
 
 const SCENARIO_LABELS: Record<string, string> = {};
@@ -18,10 +26,19 @@ for (const s of SCENARIOS) {
   SCENARIO_LABELS[s.id] = s.label;
 }
 
+type HomeAgreementItem = {
+  id: number;
+  title: string;
+  updated_at?: string;
+  scenario_template: string;
+  status: string;
+  parties?: Array<{ role: string; full_name: string; phone?: string }>;
+};
+
 export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { data, isLoading, refetch } = usePendingActions();
+  const { data, isError, isLoading, refetch } = usePendingActions();
   const { data: plan } = usePlan();
 
   const actionRequired = data?.action_required ?? [];
@@ -119,18 +136,26 @@ export default function HomeScreen() {
         </View>
       )}
 
-      {!isLoading && actionRequired.length > 0 && (
+      {isError && !isLoading && (
+        <ErrorState
+          title="Could not load your agreements"
+          body="Check your connection and try again. Your drafts and pending actions will appear once Kotoku reconnects."
+          onAction={() => refetch()}
+        />
+      )}
+
+      {!isLoading && !isError && actionRequired.length > 0 && (
         <View className="gap-sm">
           <Text className="text-xs font-semibold text-amber-600 uppercase tracking-widest">
             Action required
           </Text>
           {actionRequired.map((item) => (
-            <ActionCard key={item.id} item={item} />
+            <ActionCard key={item.id} item={item} onDeleted={refetch} />
           ))}
         </View>
       )}
 
-      {!isLoading && drafts.length > 0 && (
+      {!isLoading && !isError && drafts.length > 0 && (
         <View className="gap-sm">
           <Text className="text-xs font-semibold text-ink-muted uppercase tracking-widest">
             Drafts
@@ -141,7 +166,7 @@ export default function HomeScreen() {
         </View>
       )}
 
-      {isEmpty && (
+      {isEmpty && !isError && (
         <EmptyState
           icon={Handshake}
           title="Your first agreement is one tap away"
@@ -156,9 +181,10 @@ export default function HomeScreen() {
   );
 }
 
-function ActionCard({ item }: { item: { id: number; title: string; status: string; scenario_template: string } }) {
+function ActionCard({ item, onDeleted }: { item: HomeAgreementItem; onDeleted: () => void }) {
   const router = useRouter();
   const initForConsent = useAgreementStore((s) => s.initForConsent);
+  const sessionPhone = useSessionStore((s) => s.phone);
   const [loading, setLoading] = useState(false);
 
   const handlePress = async () => {
@@ -186,34 +212,83 @@ function ActionCard({ item }: { item: { id: number; title: string; status: strin
     }
   };
 
+  const handleDelete = () => {
+    if (item.status !== "pending_consent") return;
+    Alert.alert(
+      "Delete uncompleted agreement",
+      `Delete "${item.title}"? This removes the pending agreement and cannot be undone.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deleteDraft(item.id);
+              onDeleted();
+            } catch {
+              Alert.alert(
+                "Could not delete agreement",
+                "Only the creator can delete an uncompleted agreement. If you are the creator, try again.",
+              );
+            }
+          },
+        },
+      ],
+    );
+  };
+
   const label =
     item.status === "reopen_requested"
       ? "Reopen requested. Enter your code."
       : item.status === "pending_consent"
         ? "Pending your consent. Enter your code."
         : item.status;
+  const canDeletePendingAgreement =
+    item.status === "pending_consent" &&
+    isSamePhone(sessionPhone, item.parties?.[0]?.phone);
 
   return (
     <Pressable
       onPress={handlePress}
       disabled={loading}
+      accessibilityRole="button"
+      accessibilityLabel={`Open ${item.title}`}
       className="bg-surface-card rounded-xl border border-amber-200 p-lg active:opacity-70"
     >
-      <Text className="text-md font-semibold text-ink-primary" numberOfLines={1}>
-        {item.title}
-      </Text>
-      <Text className="text-sm text-amber-600 mt-xs">{label}</Text>
-      <View className="flex-row items-center gap-xs mt-xs">
-        <Text className="text-xs text-brand-primary">
-          {loading ? "Loading…" : "Tap to continue"}
-        </Text>
-        {!loading && <ChevronRight size={12} color={colors.brandPrimary} strokeWidth={2} />}
+      <View className="flex-row items-start gap-md">
+        <View className="flex-1">
+          <View className="flex-row items-center gap-sm">
+            <Text className="text-md font-semibold text-ink-primary flex-1" numberOfLines={1}>
+              {item.title}
+            </Text>
+            <AgreementStatusBadge status={item.status} />
+          </View>
+          <Text className="text-sm text-amber-600 mt-xs">{label}</Text>
+          <View className="flex-row items-center gap-xs mt-xs">
+            <Text className="text-xs text-brand-primary">
+              {loading ? "Loading…" : "Tap to continue"}
+            </Text>
+            {!loading && <ChevronRight size={12} color={colors.brandPrimary} strokeWidth={2} />}
+          </View>
+        </View>
+        {canDeletePendingAgreement && (
+          <Pressable
+            onPress={handleDelete}
+            hitSlop={10}
+            accessibilityRole="button"
+            accessibilityLabel={`Delete ${item.title}`}
+            className="w-9 h-9 rounded-full bg-rose-50 items-center justify-center active:opacity-70"
+          >
+            <Trash2 size={16} color="#dc2626" strokeWidth={2} />
+          </Pressable>
+        )}
       </View>
     </Pressable>
   );
 }
 
-function DraftCard({ item, onDeleted }: { item: { id: number; title: string; updated_at: string; scenario_template: string; status: string; parties?: Array<{ role: string; full_name: string }> }; onDeleted: () => void }) {
+function DraftCard({ item, onDeleted }: { item: HomeAgreementItem; onDeleted: () => void }) {
   const router = useRouter();
   const hydrateDraft = useAgreementStore((s) => s.hydrateDraft);
   const [loading, setLoading] = useState(false);
@@ -297,15 +372,16 @@ function DraftCard({ item, onDeleted }: { item: { id: number; title: string; upd
     );
   };
 
-  const relativeTime = getRelativeTime(item.updated_at);
+  const relativeTime = item.updated_at ? getRelativeTime(item.updated_at) : "Recently updated";
   const scenarioLabel = SCENARIO_LABELS[item.scenario_template] ?? item.scenario_template;
   const partyNames = item.parties?.map(p => p.full_name).join(", ");
 
   return (
     <Pressable
       onPress={handlePress}
-      onLongPress={handleDelete}
       disabled={loading}
+      accessibilityRole="button"
+      accessibilityLabel={`Continue ${item.title}`}
       className="bg-surface-card rounded-xl border border-border-subtle p-lg active:opacity-70"
     >
       <View className="flex-row items-start gap-md">
@@ -313,9 +389,12 @@ function DraftCard({ item, onDeleted }: { item: { id: number; title: string; upd
           <FileText size={16} color={colors.inkSecondary} strokeWidth={1.8} />
         </View>
         <View className="flex-1">
-          <Text className="text-md font-semibold text-ink-primary" numberOfLines={1}>
-            {item.title}
-          </Text>
+          <View className="flex-row items-center gap-sm">
+            <Text className="text-md font-semibold text-ink-primary flex-1" numberOfLines={1}>
+              {item.title}
+            </Text>
+            <AgreementStatusBadge status={item.status} />
+          </View>
           <Text className="text-xs text-ink-muted mt-xs">{scenarioLabel} · {relativeTime}</Text>
           {partyNames && <Text className="text-xs text-ink-secondary mt-xs">{partyNames}</Text>}
           <View className="flex-row items-center justify-between mt-xs">
@@ -325,12 +404,33 @@ function DraftCard({ item, onDeleted }: { item: { id: number; title: string; upd
               </Text>
               {!loading && <ChevronRight size={12} color={colors.brandPrimary} strokeWidth={2} />}
             </View>
-            <Text className="text-xs text-ink-muted">Hold to delete</Text>
+            <Pressable
+              onPress={handleDelete}
+              hitSlop={10}
+              accessibilityRole="button"
+              accessibilityLabel={`Delete ${item.title}`}
+              className="flex-row items-center gap-xs rounded-full bg-rose-50 px-sm py-xs active:opacity-70"
+            >
+              <Trash2 size={12} color="#dc2626" strokeWidth={2} />
+              <Text className="text-xs font-medium text-rose-700">Delete</Text>
+            </Pressable>
           </View>
         </View>
       </View>
     </Pressable>
   );
+}
+
+function AgreementStatusBadge({ status }: { status: string }) {
+  if (status === "draft") return <Badge label="Draft" variant="draft" />;
+  if (status === "pending_consent") {
+    return <Badge label="Awaiting consent" variant="warning" />;
+  }
+  if (status === "reopen_requested") {
+    return <Badge label="Reopen" variant="info" />;
+  }
+  if (status === "active") return <Badge label="Ready" variant="success" />;
+  return <Badge label={status.replaceAll("_", " ")} variant="default" />;
 }
 
 function getRelativeTime(isoDate: string): string {

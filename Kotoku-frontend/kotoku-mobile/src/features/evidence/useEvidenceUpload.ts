@@ -5,6 +5,7 @@ import { listEvidence } from "@/api/evidence";
 import { getEvidenceFileDescriptor } from "@/features/evidence/evidenceFile";
 import { uploadEvidenceItem } from "@/features/evidence/evidenceUploadService";
 import { getApiErrorMessage } from "@/lib/errorHandler";
+import { feedbackSuccess, feedbackWarning } from "@/lib/feedback";
 import type { UploadStatus } from "@/types/evidence";
 
 function isNonRetryableEvidenceError(message: string): boolean {
@@ -83,6 +84,7 @@ export function useEvidenceUpload(
           error: undefined,
         },
       }));
+      feedbackSuccess();
     } catch (err) {
       const prefix = `[step:${step}]`;
       const msg = getApiErrorMessage(err, `${prefix} Failed to upload photo.`);
@@ -90,6 +92,7 @@ export function useEvidenceUpload(
       if (__DEV__) {
         console.error(`[EVIDENCE-${agreementId}] ${prefix}`, err);
       }
+      feedbackWarning();
       setError(msg);
       setItems((prev) => {
         if (!prev[item.slotId]) return prev;
@@ -177,6 +180,7 @@ export function useEvidenceUpload(
       if (__DEV__) {
         console.error(`[EVIDENCE-${agreementId}] ${prefix}`, err);
       }
+      feedbackWarning();
       setError(msg);
       setItems((prev) => {
         if (!prev[slotId]) return prev;

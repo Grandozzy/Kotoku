@@ -1,7 +1,15 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { CheckCircle, Clock, TrendingUp } from "lucide-react-native";
+import { CheckCircle, Clock, RefreshCw, TrendingUp } from "lucide-react-native";
 import { useState } from "react";
-import { ScrollView, Text, View } from "react-native";
+import {
+  KeyboardAvoidingView,
+  Platform,
+  RefreshControl,
+  ScrollView,
+  Text,
+  View,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Button, OTPInput } from "@/components/ui";
 import { useAgreementStore } from "@/features/agreements/agreementStore";
@@ -20,6 +28,7 @@ import { colors } from "@/theme/tokens";
 
 export default function ConsentStep() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
   const agreementId = Number(id);
 
@@ -56,8 +65,7 @@ export default function ConsentStep() {
   const activeOtpsSent = otpsSent && !consentExpired;
   const partyAConfirmed = otpsSent && consentA.confirmed;
   const partyBConfirmed = otpsSent && consentB.confirmed;
-  const bothConfirmed =
-    activeOtpsSent && (consentStatus.data?.allConsented ?? (partyAConfirmed && partyBConfirmed));
+  const bothConfirmed = activeOtpsSent && consentStatus.data?.allConsented === true;
   const currentParty =
     authenticatedPhone && isSamePhone(authenticatedPhone, partyA.phone)
       ? "A"
@@ -80,8 +88,8 @@ export default function ConsentStep() {
   const capReached = proactiveCapReached || reactiveCapReached;
   const upgradeOption = plan?.recommended_upgrades[0];
 
-  const handleRequestCodes = () => {
-    requestOtp.mutate();
+  const handleRequestCodes = (validateBeforeRequest = true) => {
+    requestOtp.mutate({ validateBeforeRequest });
   };
 
   const handleConfirmCurrentParty = () => {
@@ -96,11 +104,26 @@ export default function ConsentStep() {
     confirmOtp.isError ? getApiErrorMessage(confirmOtp.error) : null;
 
   return (
-    <ScrollView
+    <KeyboardAvoidingView
       className="flex-1 bg-surface-canvas"
-      contentContainerClassName="px-lg py-xl gap-xl"
-      contentContainerStyle={{ paddingBottom: 60 }}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 96 : 0}
     >
+      <ScrollView
+        className="flex-1"
+        contentContainerClassName="px-lg py-xl gap-xl"
+        contentContainerStyle={{ paddingBottom: insets.bottom + 180 }}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+        automaticallyAdjustKeyboardInsets
+        refreshControl={
+          <RefreshControl
+            refreshing={consentStatus.isRefetching}
+            onRefresh={() => consentStatus.refetch()}
+            tintColor={colors.brandPrimary}
+          />
+        }
+      >
       <View className="gap-sm">
         <Text className="text-xl font-semibold text-ink-primary">
           Confirm consent
@@ -128,11 +151,11 @@ export default function ConsentStep() {
           size="lg"
           fullWidth
           loading={requestOtp.isPending}
-          onPress={handleRequestCodes}
+          onPress={() => handleRequestCodes()}
         />
       )}
 
-      {requestOtp.isError && !otpsSent && (
+      {requestOtp.isError && (!otpsSent || consentExpired) && (
         <Text className="text-sm text-semantic-error text-center">
           {getApiErrorMessage(requestOtp.error)}
         </Text>
@@ -148,6 +171,48 @@ export default function ConsentStep() {
         roleB={roleB}
       />
 
+      {otpsSent && !bothConfirmed && (
+        <View className="bg-surface-card border border-border-subtle rounded-xl p-md gap-sm">
+          <View className="flex-row items-center gap-sm">
+            <RefreshCw size={16} color={colors.inkSecondary} strokeWidth={2} />
+            <Text className="text-sm font-semibold text-ink-primary flex-1">
+              Waiting for consent updates
+            </Text>
+          </View>
+          <Text className="text-xs text-ink-secondary leading-relaxed">
+            Kotoku checks automatically. Pull down or tap refresh after the
+            other party confirms from their link.
+          </Text>
+          <Button
+            title="Refresh consent status"
+            variant="secondary"
+            size="md"
+            fullWidth
+            loading={consentStatus.isFetching}
+            onPress={() => consentStatus.refetch()}
+          />
+        </View>
+      )}
+
+      {consentStatus.isError && (
+        <View className="bg-rose-50 border border-rose-100 rounded-xl p-md gap-sm">
+          <Text className="text-sm font-semibold text-rose-800">
+            Could not refresh consent status
+          </Text>
+          <Text className="text-xs text-rose-700 leading-relaxed">
+            {getApiErrorMessage(consentStatus.error)}
+          </Text>
+          <Button
+            title="Try again"
+            variant="secondary"
+            size="md"
+            fullWidth
+            loading={consentStatus.isFetching}
+            onPress={() => consentStatus.refetch()}
+          />
+        </View>
+      )}
+
       {consentExpired && (
         <View className="bg-amber-50 border border-amber-200 rounded-xl p-md gap-md">
           <Text className="text-sm text-amber-900 leading-relaxed">
@@ -160,7 +225,7 @@ export default function ConsentStep() {
             size="md"
             fullWidth
             loading={requestOtp.isPending}
-            onPress={handleRequestCodes}
+            onPress={() => handleRequestCodes(false)}
           />
         </View>
       )}
@@ -288,7 +353,8 @@ export default function ConsentStep() {
         </View>
       )}
 
-    </ScrollView>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
