@@ -24,6 +24,9 @@ interface OTPInputProps {
   secureTextEntry?: boolean;
 }
 
+const normalizeOtpValue = (text: string, length: number) =>
+  text.replace(/\D/g, "").slice(0, length);
+
 export const OTPInput: React.FC<OTPInputProps> = ({
   length = 8,
   value,
@@ -33,35 +36,68 @@ export const OTPInput: React.FC<OTPInputProps> = ({
   secureTextEntry,
 }) => {
   const inputs = useRef<Array<TextInput | null>>([]);
+  const displayValue = normalizeOtpValue(value, length);
+
+  const focusCell = useCallback((index: number) => {
+    requestAnimationFrame(() => {
+      inputs.current[Math.max(0, Math.min(index, length - 1))]?.focus();
+    });
+  }, [length]);
 
   // Android: auto-fill via SMS User Consent API when an SMS arrives.
   const handleSmsCode = useCallback(
     (code: string) => {
-      onChange(code);
+      const digits = normalizeOtpValue(code, length);
+      onChange(digits);
       // Focus the last filled cell (or last cell if fully filled).
-      const nextFocus = Math.min(code.length, length - 1);
-      inputs.current[nextFocus]?.focus();
+      focusCell(digits.length);
     },
-    [length, onChange],
+    [focusCell, length, onChange],
   );
   useSmsOtp(length, handleSmsCode);
 
   const handleChange = (text: string, index: number) => {
-    // iOS OTP autofill pastes the full code into the focused cell at once.
-    // Distribute digits across all cells starting from index 0.
-    if (text.length > 1) {
-      const digits = text.replace(/\D/g, "").slice(0, length);
-      onChange(digits.padEnd(length, " ").slice(0, length).trimEnd());
-      const nextFocus = Math.min(digits.length, length - 1);
-      inputs.current[nextFocus]?.focus();
+    const digits = normalizeOtpValue(text, length);
+
+    // Pasting/autofill can insert the full OTP into a single focused cell.
+    // Replace the full OTP value so this behaves consistently across flows.
+    if (
+      digits.length === 2 &&
+      displayValue[index] &&
+      digits.startsWith(displayValue[index])
+    ) {
+      const typedDigit = digits.slice(-1);
+      const next =
+        displayValue.substring(0, index) +
+        typedDigit +
+        displayValue.substring(index + 1);
+      onChange(next);
+      if (index < length - 1) {
+        focusCell(index + 1);
+      }
       return;
     }
-    const digit = text.slice(-1);
+
+    if (digits.length > 1) {
+      onChange(digits);
+      focusCell(digits.length);
+      return;
+    }
+
+    if (!digits) {
+      const next =
+        displayValue.substring(0, index) + displayValue.substring(index + 1);
+      onChange(next);
+      return;
+    }
+
     const next =
-      value.substring(0, index) + digit + value.substring(index + 1);
+      displayValue.substring(0, index) +
+      digits +
+      displayValue.substring(index + 1);
     onChange(next);
-    if (digit && index < length - 1) {
-      inputs.current[index + 1]?.focus();
+    if (index < length - 1) {
+      focusCell(index + 1);
     }
   };
 
@@ -69,8 +105,8 @@ export const OTPInput: React.FC<OTPInputProps> = ({
     e: NativeSyntheticEvent<KeyboardEventData>,
     index: number,
   ) => {
-    if (e.nativeEvent.key === "Backspace" && !value[index] && index > 0) {
-      inputs.current[index - 1]?.focus();
+    if (e.nativeEvent.key === "Backspace" && !displayValue[index] && index > 0) {
+      focusCell(index - 1);
     }
   };
 
@@ -81,7 +117,7 @@ export const OTPInput: React.FC<OTPInputProps> = ({
     <View>
       <View className="flex-row justify-center gap-xs">
         {Array.from({ length }).map((_, idx) => {
-          const filled = Boolean(value[idx]);
+          const filled = Boolean(displayValue[idx]);
           return (
             <View
               key={idx}
@@ -96,9 +132,9 @@ export const OTPInput: React.FC<OTPInputProps> = ({
               <TextInput
                 ref={(ref) => { inputs.current[idx] = ref; }}
                 keyboardType="number-pad"
-                maxLength={Platform.OS === "ios" ? length : 1}
+                maxLength={length}
                 textContentType={Platform.OS === "ios" ? "oneTimeCode" : undefined}
-                value={secureTextEntry && value[idx] ? "•" : (value[idx] ?? "")}
+                value={secureTextEntry && displayValue[idx] ? "•" : (displayValue[idx] ?? "")}
                 editable={!disabled}
                 onChangeText={(t) => handleChange(t, idx)}
                 onKeyPress={(e) => handleKeyPress(e, idx)}

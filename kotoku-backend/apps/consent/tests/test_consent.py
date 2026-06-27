@@ -150,6 +150,40 @@ class TestRequestConsent:
         with pytest.raises(DomainError, match="no parties"):
             ConsentService.request_consent(agreement_id=agreement.pk)
 
+    @pytest.mark.django_db(transaction=True)
+    def test_sms_is_not_enqueued_when_transaction_rolls_back(self):
+        a1 = _account("rollback-buyer@test.com")
+        a2 = _account("rollback-seller@test.com")
+        id1 = _identity(a1, "rollback-buyer")
+        id2 = _identity(a2, "rollback-seller")
+        agreement = AgreementService.create_draft(title="Rollback", created_by=a1)
+        AgreementService.add_party(
+            agreement_id=agreement.pk,
+            identity_id=id1.pk,
+            role=Party.Role.BUYER,
+            display_name="Buyer",
+        )
+        AgreementService.add_party(
+            agreement_id=agreement.pk,
+            identity_id=id2.pk,
+            role=Party.Role.SELLER,
+            display_name="Seller",
+        )
+        agreement.status = AgreementStatus.PENDING_CONSENT
+        agreement.save(update_fields=["status", "updated_at"])
+
+        with (
+            patch("apps.consent.services.AuditService.record_event") as mock_audit,
+            patch("apps.consent.services.send_sms_message.delay") as mock_delay,
+        ):
+            mock_audit.side_effect = RuntimeError("force rollback")
+
+            with pytest.raises(RuntimeError, match="force rollback"):
+                ConsentService.request_consent(agreement_id=agreement.pk)
+
+        assert not mock_delay.called
+        assert not ConsentRecord.objects.filter(agreement=agreement).exists()
+
 
 class TestVerifyOtp:
     def test_grants_on_valid_otp(self, db):

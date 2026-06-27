@@ -6,7 +6,6 @@ Covers issue #8:
 
 Uses the console SMS backend to capture OTPs programmatically.
 """
-import apps.vault.pdf  # noqa: F401
 import re
 from datetime import timedelta
 from unittest.mock import patch
@@ -16,6 +15,7 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import AccessToken
 
+import apps.vault.pdf  # noqa: F401
 from apps.accounts.models import Account, User
 from apps.agreements.domain.enums import AgreementStatus
 from apps.agreements.models import Agreement
@@ -55,7 +55,17 @@ def _otp_capture(to, body):
     return match.group(1) if match else None
 
 
-@pytest.mark.django_db
+def _capture_otp_task_calls(mock_delay, otp_map):
+    def _capture(*, to, body):
+        otp = _otp_capture(to, body)
+        if otp:
+            otp_map[to] = otp
+        return None
+
+    mock_delay.side_effect = _capture
+
+
+@pytest.mark.django_db(transaction=True)
 class TestFullSealFlow:
     def test_complete_seal_to_vault_and_pdf_export(self):
         acct, client = _make_account("00010001")
@@ -98,14 +108,8 @@ class TestFullSealFlow:
 
         otp_map = {}
 
-        class MockGateway:
-            def send(self, to, body):
-                otp = _otp_capture(to, body)
-                if otp:
-                    otp_map[to] = otp
-                return True
-
-        with patch("apps.consent.services.get_sms_gateway", return_value=MockGateway()):
+        with patch("apps.consent.services.send_sms_message.delay") as mock_delay:
+            _capture_otp_task_calls(mock_delay, otp_map)
             resp = client.post(_REQUEST_OTP_PATH.format(id=agreement_id))
         assert resp.status_code == 201
         assert len(otp_map) == 2

@@ -15,14 +15,11 @@ from rest_framework_simplejwt.tokens import AccessToken
 
 from apps.accounts.models import Account, User
 from apps.agreements.domain.enums import AgreementStatus
-from apps.agreements.models import Agreement
 from apps.agreements.services import AgreementService
 from apps.audit.models import AuditLog
 from apps.consent.models import ConsentRecord
-from apps.consent.services import generate_otp, hash_otp
 from apps.evidence.models import EvidenceItem
 from apps.parties.services import PartyService
-from apps.vault.models import VaultEntry
 from apps.vault.services import VaultService
 
 _REOPEN_REQUEST = "/api/agreements/{id}/reopen-request/"
@@ -87,7 +84,17 @@ def _otp_capture(to, body):
     return match.group(1) if match else None
 
 
-@pytest.mark.django_db
+def _capture_otp_task_calls(mock_delay, otp_map):
+    def _capture(*, to, body):
+        otp = _otp_capture(to, body)
+        if otp:
+            otp_map[to] = otp
+        return None
+
+    mock_delay.side_effect = _capture
+
+
+@pytest.mark.django_db(transaction=True)
 class TestBilateralReopenFlow:
     def test_full_reopen_both_parties_confirm_returns_active(self):
         acct, client = _make_account("00010001")
@@ -98,20 +105,8 @@ class TestBilateralReopenFlow:
 
         otp_map = {}
 
-        def _capture(to, body):
-            otp = _otp_capture(to, body)
-            if otp:
-                otp_map[to] = otp
-            return True
-
-        class MockGateway:
-            def send(self, to, body):
-                otp = _otp_capture(to, body)
-                if otp:
-                    otp_map[to] = otp
-                return True
-
-        with patch("apps.consent.services.get_sms_gateway", return_value=MockGateway()):
+        with patch("apps.consent.services.send_sms_message.delay") as mock_delay:
+            _capture_otp_task_calls(mock_delay, otp_map)
             resp = client.post(_REOPEN_REQUEST.format(id=agr.pk))
         assert resp.status_code == 200
         assert resp.json()["data"]["agreement"]["status"] == AgreementStatus.REOPEN_REQUESTED
@@ -165,14 +160,8 @@ class TestBilateralReopenFlow:
 
         otp_map = {}
 
-        class MockGateway:
-            def send(self, to, body):
-                otp = _otp_capture(to, body)
-                if otp:
-                    otp_map[to] = otp
-                return True
-
-        with patch("apps.consent.services.get_sms_gateway", return_value=MockGateway()):
+        with patch("apps.consent.services.send_sms_message.delay") as mock_delay:
+            _capture_otp_task_calls(mock_delay, otp_map)
             client.post(_REOPEN_REQUEST.format(id=agr.pk))
 
         first_phone = seller_phone

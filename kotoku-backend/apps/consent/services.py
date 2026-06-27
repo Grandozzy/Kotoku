@@ -114,6 +114,32 @@ def _get_party_by_phone(*, agreement_id: int, phone: str) -> Party:
     raise Party.DoesNotExist
 
 
+def _enqueue_consent_sms_after_commit(
+    *,
+    agreement_id: int,
+    party_id: int,
+    to: str,
+    body: str,
+) -> None:
+    def _send_sms() -> None:
+        try:
+            send_sms_message.delay(to=to, body=body)
+        except Exception as exc:
+            logger.exception(
+                "Failed to enqueue consent OTP SMS",
+                extra={
+                    "agreement_id": agreement_id,
+                    "party_id": party_id,
+                    "sms_error": exc.__class__.__name__,
+                },
+            )
+            raise ServiceUnavailableError(
+                "Consent codes could not be sent right now. Please try again."
+            ) from None
+
+    transaction.on_commit(_send_sms)
+
+
 class ConsentService:
     @staticmethod
     def make_consent_link_token(
@@ -188,20 +214,12 @@ class ConsentService:
                         f"Your Kotoku {sms_label} code is {otp_code}. "
                         f"Valid for 10 minutes. Do not share this code."
                     )
-                try:
-                    send_sms_message.delay(to=phone, body=body)
-                except Exception as exc:
-                    logger.exception(
-                        "Failed to enqueue consent OTP SMS",
-                        extra={
-                            "agreement_id": agreement.pk,
-                            "party_id": party.pk,
-                            "sms_error": exc.__class__.__name__,
-                        },
-                    )
-                    raise ServiceUnavailableError(
-                        "Consent codes could not be sent right now. Please try again."
-                    ) from None
+                _enqueue_consent_sms_after_commit(
+                    agreement_id=agreement.pk,
+                    party_id=party.pk,
+                    to=phone,
+                    body=body,
+                )
             AuditService.record_event(
                 event_type=event_type,
                 entity_type="consent_record",

@@ -8,6 +8,7 @@ import { getApiErrorMessage } from "@/lib/errorHandler";
 import { feedbackSuccess } from "@/lib/feedback";
 import { isSamePhone, normalizePhoneToE164 } from "@/lib/phone";
 import { useSessionStore } from "@/store/sessionStore";
+import type { ConsentStatus } from "@/api/consent";
 
 function formatValidationErrors(errors: { field: string; message: string }[]) {
   if (errors.length === 0) return "Agreement is not ready for consent.";
@@ -37,6 +38,14 @@ export function useRequestOtp(agreementId: number) {
     },
     onSuccess: (data) => {
       feedbackSuccess();
+      queryClient.setQueryData<ConsentStatus>(
+        ["consent", "status", agreementId],
+        {
+          agreementId,
+          allConsented: false,
+          records: data.consentRecords,
+        },
+      );
       const partyARecord = data.consentRecords.find((record) =>
         isSamePhone(record.partyPhone, partyA.phone),
       );
@@ -75,9 +84,26 @@ export function useConfirmOtp(agreementId: number) {
       }
       return confirmOtp(agreementId, normalizePhoneToE164(authenticatedPhone), otpCode);
     },
-    onSuccess: (_data, { party }) => {
+    onSuccess: (data, { party }) => {
       feedbackSuccess();
       setConsentConfirmed(party);
+      queryClient.setQueryData<ConsentStatus>(
+        ["consent", "status", agreementId],
+        (current) => {
+          if (!current) return current;
+          const records = current.records.map((record) =>
+            record.id === data.id ? data : record,
+          );
+          const nextRecords = records.some((record) => record.id === data.id)
+            ? records
+            : [data, ...records];
+          return {
+            ...current,
+            records: nextRecords,
+            allConsented: current.allConsented,
+          };
+        },
+      );
       queryClient.invalidateQueries({ queryKey: ["consent", "status", agreementId] });
       queryClient.invalidateQueries({ queryKey: ["agreement", agreementId] });
     },

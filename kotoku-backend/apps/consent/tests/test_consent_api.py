@@ -90,7 +90,7 @@ def _add_confirmed_evidence(agreement):
 # ────────────────────────────────────────────────────────────────────────────
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 @patch("apps.consent.services.send_sms_message.delay", return_value=None)
 class TestRequestOtpApi:
     def test_returns_201_with_consent_records(self, mock_delay):
@@ -251,7 +251,21 @@ class TestRequestOtpApi:
         assert resp.json()["message"] == (
             "Consent codes could not be sent right now. Please try again."
         )
-        assert ConsentRecord.objects.filter(agreement=agreement).count() == 0
+        agreement.refresh_from_db()
+        assert agreement.status == AgreementStatus.PENDING_CONSENT
+        assert ConsentRecord.objects.filter(agreement=agreement).count() == 2
+        first_ids = set(
+            ConsentRecord.objects.filter(agreement=agreement).values_list("pk", flat=True)
+        )
+
+        mock_delay.side_effect = None
+        retry = client.post(_REQUEST_OTP_PATH.format(id=agreement.pk))
+        assert retry.status_code == 201
+        second_ids = set(
+            ConsentRecord.objects.filter(agreement=agreement).values_list("pk", flat=True)
+        )
+        assert len(second_ids) == 2
+        assert first_ids.isdisjoint(second_ids)
 
 
 # ────────────────────────────────────────────────────────────────────────────

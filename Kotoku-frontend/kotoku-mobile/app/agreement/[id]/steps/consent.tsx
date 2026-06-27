@@ -11,15 +11,15 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { Button, OTPInput } from "@/components/ui";
-import { useAgreementStore } from "@/features/agreements/agreementStore";
+import { Button, OTPInput, ScreenLoader } from "@/components/ui";
+import { useAgreementStore, type PartyDraft } from "@/features/agreements/agreementStore";
 import {
   useConfirmOtp,
   useConsentStatus,
   useRequestOtp,
   getApiErrorMessage,
 } from "@/features/consent/useConsentFlow";
-import { useSealAgreement, useTemplate } from "@/features/agreements/useAgreementDraft";
+import { useAgreement, useSealAgreement, useTemplate } from "@/features/agreements/useAgreementDraft";
 import { usePlan } from "@/features/billing/usePlan";
 import { isCapReachedError } from "@/lib/errorHandler";
 import { isSamePhone } from "@/lib/phone";
@@ -41,10 +41,34 @@ export default function ConsentStep() {
   const [codeB, setCodeB] = useState("");
 
   const { data: plan } = usePlan();
+  const agreementQuery = useAgreement(agreementId);
   const requestOtp = useRequestOtp(agreementId);
   const confirmOtp = useConfirmOtp(agreementId);
   const consentStatus = useConsentStatus(agreementId);
   const sealMutation = useSealAgreement(agreementId);
+  const backendPartyA = agreementQuery.data?.parties[0];
+  const backendPartyB = agreementQuery.data?.parties[1];
+  const effectivePartyA: PartyDraft = partyA.phone
+    ? partyA
+    : backendPartyA
+      ? {
+          fullName: backendPartyA.displayName,
+          phone: backendPartyA.phone,
+          idType: backendPartyA.idType ?? "ghana_card",
+          idNumber: backendPartyA.idNumber ?? "",
+        }
+      : partyA;
+  const effectivePartyB: PartyDraft = partyB.phone
+    ? partyB
+    : backendPartyB
+      ? {
+          fullName: backendPartyB.displayName,
+          phone: backendPartyB.phone,
+          idType: backendPartyB.idType ?? "ghana_card",
+          idNumber: backendPartyB.idNumber ?? "",
+        }
+      : partyB;
+  const missingPartyContext = !effectivePartyA.phone || !effectivePartyB.phone;
 
   const records = consentStatus.data?.records ?? [];
   const latestRecords = [...records].sort((left, right) => {
@@ -52,8 +76,8 @@ export default function ConsentStep() {
     const rightCreatedAt = right.createdAt ? Date.parse(right.createdAt) : 0;
     return rightCreatedAt - leftCreatedAt || right.id - left.id;
   });
-  const partyARecord = latestRecords.find((record) => isSamePhone(record.partyPhone, partyA.phone));
-  const partyBRecord = latestRecords.find((record) => isSamePhone(record.partyPhone, partyB.phone));
+  const partyARecord = latestRecords.find((record) => isSamePhone(record.partyPhone, effectivePartyA.phone));
+  const partyBRecord = latestRecords.find((record) => isSamePhone(record.partyPhone, effectivePartyB.phone));
   const pendingRecords = [partyARecord, partyBRecord].filter(
     (record) => record && !record.granted,
   );
@@ -63,13 +87,13 @@ export default function ConsentStep() {
   const hasBackendConsentRecords = (consentStatus.data?.records.length ?? 0) > 0;
   const otpsSent = hasBackendConsentRecords || (consentA.otpSent && consentB.otpSent);
   const activeOtpsSent = otpsSent && !consentExpired;
-  const partyAConfirmed = otpsSent && consentA.confirmed;
-  const partyBConfirmed = otpsSent && consentB.confirmed;
+  const partyAConfirmed = otpsSent && (partyARecord?.granted ?? consentA.confirmed);
+  const partyBConfirmed = otpsSent && (partyBRecord?.granted ?? consentB.confirmed);
   const bothConfirmed = activeOtpsSent && consentStatus.data?.allConsented === true;
   const currentParty =
-    authenticatedPhone && isSamePhone(authenticatedPhone, partyA.phone)
+    authenticatedPhone && isSamePhone(authenticatedPhone, effectivePartyA.phone)
       ? "A"
-      : authenticatedPhone && isSamePhone(authenticatedPhone, partyB.phone)
+      : authenticatedPhone && isSamePhone(authenticatedPhone, effectivePartyB.phone)
         ? "B"
         : null;
   const currentPartyConfirmed =
@@ -102,6 +126,10 @@ export default function ConsentStep() {
 
   const confirmError =
     confirmOtp.isError ? getApiErrorMessage(confirmOtp.error) : null;
+
+  if (missingPartyContext && agreementQuery.isLoading) {
+    return <ScreenLoader rows={4} />;
+  }
 
   return (
     <KeyboardAvoidingView
@@ -251,7 +279,7 @@ export default function ConsentStep() {
       {activeOtpsSent && currentParty === "A" && (
         <ConsentPartyBlock
           role={roleA}
-          phone={partyA.phone}
+          phone={effectivePartyA.phone}
           confirmed={partyAConfirmed}
           code={codeA}
           onCodeChange={(v) => {
@@ -268,7 +296,7 @@ export default function ConsentStep() {
       {activeOtpsSent && currentParty === "B" && (
         <ConsentPartyBlock
           role={roleB}
-          phone={partyB.phone}
+          phone={effectivePartyB.phone}
           confirmed={partyBConfirmed}
           code={codeB}
           onCodeChange={(v) => {
