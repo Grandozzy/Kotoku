@@ -1,19 +1,117 @@
 import logging
 
+from django.conf import settings
+from django.core import signing
 from django.db import transaction
 
 from apps.agreements.domain.enums import AgreementStatus
 from apps.agreements.models import Agreement
 from apps.audit.services import AuditService
+from apps.evidence.models import EvidenceItem
 from apps.notifications.push import send_to_user
 from apps.parties.models import Party
 from apps.vault.models import VaultEntry
 from common.exceptions import DomainError
+from infrastructure.storage.s3 import S3StorageClient
 
 logger = logging.getLogger(__name__)
+_SEALED_RECEIPT_LINK_SALT = "kotoku.sealed-receipt-link.v1"
+
+
+def _public_evidence_payload(item: EvidenceItem) -> dict:
+    view_url = None
+    if item.file_key:
+        try:
+            view_url = S3StorageClient().generate_presigned_view_url(
+                item.file_key,
+                content_type=item.mime_type,
+                expires_in=settings.EVIDENCE_VIEW_URL_TTL_SECONDS,
+            )
+        except Exception:
+            logger.exception(
+                "Failed to generate sealed receipt evidence view URL",
+                extra={"evidence_id": item.pk, "agreement_id": item.agreement_id},
+            )
+
+    return {
+        "id": item.pk,
+        "evidence_type": item.evidence_type,
+        "file_type": item.file_type,
+        "mime_type": item.mime_type,
+        "size_bytes": item.size_bytes,
+        "original_name": item.original_name,
+        "upload_status": item.upload_status,
+        "uploaded_by_role": item.uploaded_by.role if item.uploaded_by_id else None,
+        "created_at": item.created_at,
+        "view_url": view_url,
+    }
 
 
 class VaultService:
+    @staticmethod
+    def make_sealed_receipt_token(*, agreement_id: int, party_id: int) -> str:
+        return signing.dumps(
+            {"agreement_id": agreement_id, "party_id": party_id},
+            salt=_SEALED_RECEIPT_LINK_SALT,
+        )
+
+    @staticmethod
+    def load_sealed_receipt_token(token: str) -> dict:
+        try:
+            payload = signing.loads(
+                token,
+                salt=_SEALED_RECEIPT_LINK_SALT,
+                max_age=settings.SEALED_RECEIPT_LINK_MAX_AGE_SECONDS,
+            )
+        except signing.BadSignature:
+            raise DomainError("Invalid or expired sealed receipt link.") from None
+        if not isinstance(payload, dict):
+            raise DomainError("Invalid or expired sealed receipt link.")
+        return payload
+
+    @staticmethod
+    def get_public_receipt_context(*, token: str) -> dict:
+        payload = VaultService.load_sealed_receipt_token(token)
+        agreement_id = int(payload.get("agreement_id") or 0)
+        party_id = int(payload.get("party_id") or 0)
+
+        try:
+            entry = (
+                VaultEntry.objects.select_related("agreement", "agreement__created_by")
+                .get(agreement_id=agreement_id)
+            )
+            party = Party.objects.get(pk=party_id, agreement_id=agreement_id)
+        except (VaultEntry.DoesNotExist, Party.DoesNotExist):
+            raise DomainError("Invalid or expired sealed receipt link.") from None
+
+        agreement = entry.agreement
+        if agreement.status not in (
+            AgreementStatus.SEALED,
+            AgreementStatus.REOPEN_REQUESTED,
+            AgreementStatus.ACTIVE,
+            AgreementStatus.CLOSED,
+        ):
+            raise DomainError("This sealed receipt is not available.")
+
+        parties = list(Party.objects.filter(agreement=agreement).order_by("id"))
+        evidence = [
+            _public_evidence_payload(item)
+            for item in EvidenceItem.objects.filter(
+                agreement=agreement,
+                upload_status=EvidenceItem.UploadStatus.CONFIRMED,
+            )
+            .select_related("uploaded_by")
+            .order_by("-created_at")
+        ]
+
+        return {
+            "vault_entry": entry,
+            "agreement": agreement,
+            "party": party,
+            "parties": parties,
+            "evidence": evidence,
+        }
+
     @staticmethod
     def create_for_agreement(*, agreement_id: int) -> VaultEntry:
         """Create a VaultEntry immediately after an agreement is sealed.

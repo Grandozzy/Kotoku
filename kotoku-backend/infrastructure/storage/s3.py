@@ -1,3 +1,5 @@
+from urllib.parse import urlparse
+
 import boto3
 from botocore.config import Config as BotoConfig
 from django.conf import settings
@@ -11,28 +13,63 @@ def _endpoint(name: str) -> str | None:
     return val
 
 
+def _is_aws_s3_endpoint(url: str | None) -> bool:
+    if not url:
+        return False
+    host = urlparse(url).netloc.lower()
+    return host.endswith(".amazonaws.com") and (
+        host.startswith("s3.") or ".s3." in host
+    )
+
+
+def _is_bucket_hosted_url(url: str | None) -> bool:
+    if not url:
+        return False
+    bucket = settings.AWS_STORAGE_BUCKET_NAME.lower()
+    host = urlparse(url).netloc.lower()
+    return host == f"{bucket}.s3.amazonaws.com" or host.startswith(f"{bucket}.s3.")
+
+
+def _client_endpoint(name: str) -> str | None:
+    endpoint_url = _endpoint(name)
+    if _is_aws_s3_endpoint(endpoint_url):
+        return None
+    return endpoint_url
+
+
 def _get_client(external: bool = False):
     if external:
-        endpoint_url = _endpoint("AWS_S3_EXTERNAL_URL") or _endpoint("AWS_ENDPOINT_URL_S3")
+        endpoint_url = _client_endpoint("AWS_S3_EXTERNAL_URL") or _client_endpoint("AWS_ENDPOINT_URL_S3")
     else:
-        endpoint_url = _endpoint("AWS_ENDPOINT_URL_S3")
+        endpoint_url = _client_endpoint("AWS_ENDPOINT_URL_S3")
+    config_kwargs = {"signature_version": "s3v4"}
+    if endpoint_url:
+        config_kwargs["s3"] = {"addressing_style": "path"}
+
     return boto3.client(
         "s3",
         endpoint_url=endpoint_url,
         aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
         aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
         region_name=settings.AWS_S3_REGION_NAME.strip(),
-        config=BotoConfig(signature_version="s3v4"),
+        config=BotoConfig(**config_kwargs),
     )
+
+
+def _build_url_from_base(base_url: str, key: str) -> str:
+    base = base_url.rstrip("/")
+    if _is_bucket_hosted_url(base):
+        return f"{base}/{key}"
+    return f"{base}/{settings.AWS_STORAGE_BUCKET_NAME}/{key}"
 
 
 def _build_object_url(key: str) -> str:
     external_url = _endpoint("AWS_S3_EXTERNAL_URL")
     if external_url:
-        return f"{external_url.rstrip('/')}/{settings.AWS_STORAGE_BUCKET_NAME}/{key}"
+        return _build_url_from_base(external_url, key)
     endpoint_url = _endpoint("AWS_ENDPOINT_URL_S3")
-    if endpoint_url:
-        return f"{endpoint_url.rstrip('/')}/{settings.AWS_STORAGE_BUCKET_NAME}/{key}"
+    if endpoint_url and not _is_aws_s3_endpoint(endpoint_url):
+        return _build_url_from_base(endpoint_url, key)
     return f"https://{settings.AWS_STORAGE_BUCKET_NAME}.s3.{settings.AWS_S3_REGION_NAME.strip()}.amazonaws.com/{key}"
 
 

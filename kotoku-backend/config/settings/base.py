@@ -215,6 +215,9 @@ PAYSTACK_WEBHOOK_SECRET = os.getenv("PAYSTACK_WEBHOOK_SECRET", "")
 
 KOTOKU_WEB_URL = os.getenv("KOTOKU_WEB_URL", "http://localhost:3000").rstrip("/")
 CONSENT_LINK_MAX_AGE_SECONDS = int(os.getenv("CONSENT_LINK_MAX_AGE_SECONDS", "604800"))
+SEALED_RECEIPT_LINK_MAX_AGE_SECONDS = int(
+    os.getenv("SEALED_RECEIPT_LINK_MAX_AGE_SECONDS", "2592000")
+)
 # Map billing plan IDs → Paystack plan codes.
 # Set each via env var after creating plans in the Paystack dashboard.
 PAYSTACK_PLAN_CODES: dict[str, str] = {

@@ -77,7 +77,7 @@ def _build_snapshot(agreement) -> dict:
     }
 
 
-def _build_seal_receipt_sms(agreement) -> str:
+def _build_seal_receipt_sms(agreement, party: Party) -> str:
     evidence_labels = list(
         agreement.evidence_items.filter(upload_status="confirmed")
         .order_by("evidence_type", "file_key")
@@ -94,9 +94,17 @@ def _build_seal_receipt_sms(agreement) -> str:
 
     sealed_at = agreement.sealed_at or timezone.now()
     sealed_at_str = sealed_at.astimezone(dt_timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    from apps.vault.services import VaultService  # noqa: PLC0415
+
+    token = VaultService.make_sealed_receipt_token(
+        agreement_id=agreement.pk,
+        party_id=party.pk,
+    )
+    receipt_url = f"{settings.KOTOKU_WEB_URL}/vault/receipt/{token}"
     return (
         f"Kotoku receipt. Agreement #{agreement.pk} sealed {sealed_at_str}. "
-        f"Files: {files_summary}. Keep this SMS for support."
+        f"Files: {files_summary}. View: {receipt_url}. "
+        "Sign in with this phone to access Vault, download PDF, or raise a dispute."
     )
 
 
@@ -281,10 +289,10 @@ class AgreementService:
         agreement.seal_hash = _compute_seal_hash(agreement)
         agreement.save(update_fields=["status", "sealed_at", "seal_hash", "updated_at"])
         parties = Party.objects.filter(agreement=agreement)
-        receipt_sms = _build_seal_receipt_sms(agreement)
         seal_notifications = [
             (
                 p.phone,
+                _build_seal_receipt_sms(agreement, p),
                 {
                     "agreement_id": agreement.pk,
                     "title": agreement.title,
@@ -300,7 +308,7 @@ class AgreementService:
         )
 
         def _send_seal_notifications() -> None:
-            for phone, payload in seal_notifications:
+            for phone, receipt_sms, payload in seal_notifications:
                 send_to_user(phone, "agreement.sealed", payload)
                 send_sms_message.delay(to=phone, body=receipt_sms)
 

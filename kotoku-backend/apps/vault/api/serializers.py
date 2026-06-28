@@ -54,3 +54,42 @@ class VaultEntrySerializer(serializers.ModelSerializer):
             )
         except Exception:
             return None
+
+
+class PublicReceiptAgreementSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    title = serializers.CharField()
+    status = serializers.CharField()
+    scenario_template = serializers.CharField()
+    sealed_at = serializers.DateTimeField()
+    seal_hash = serializers.CharField()
+    field_data = serializers.DictField()
+
+
+class PublicReceiptVaultSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    pdf_status = serializers.CharField()
+    retain_until = serializers.DateTimeField()
+    archived = serializers.BooleanField()
+    created_at = serializers.DateTimeField()
+
+
+class PublicReceiptEvidenceSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    evidence_type = serializers.CharField()
+    file_type = serializers.CharField()
+    mime_type = serializers.CharField()
+    size_bytes = serializers.IntegerField(allow_null=True)
+    original_name = serializers.CharField()
+    upload_status = serializers.CharField()
+    uploaded_by_role = serializers.CharField(allow_null=True)
+    created_at = serializers.DateTimeField()
+    view_url = serializers.URLField(allow_null=True)
+
+
+class PublicSealedReceiptSerializer(serializers.Serializer):
+    vault_entry = PublicReceiptVaultSerializer()
+    agreement = PublicReceiptAgreementSerializer()
+    party = PartySummarySerializer()
+    parties = PartySummarySerializer(many=True)
+    evidence = PublicReceiptEvidenceSerializer(many=True)

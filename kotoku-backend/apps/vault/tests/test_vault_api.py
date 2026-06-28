@@ -28,6 +28,7 @@ _LIST_PATH = "/api/vault/"
 _DETAIL_PATH = "/api/vault/{id}/"
 _EXPORT_PATH = "/api/vault/{id}/export/"
 _RETRY_PATH = "/api/vault/{id}/retry-export/"
+_PUBLIC_RECEIPT_PATH = "/api/vault-receipts/{token}/"
 
 _seq = 0
 
@@ -186,6 +187,38 @@ class TestVaultDetail:
         resp = participant_client.get(_DETAIL_PATH.format(id=agreement.pk))
         assert resp.status_code == 200
         assert resp.json()["data"]["vault_entry"]["agreement"]["id"] == agreement.pk
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# GET /api/vault-receipts/{token}/
+# ──────────────────────────────────────────────────────────────────────────────
+
+@pytest.mark.django_db
+class TestPublicSealedReceipt:
+    def test_returns_view_only_receipt_without_authentication(self):
+        owner_client, acct = _make_client("+233700250001")
+        agreement, _ = _sealed_agreement_with_vault(acct, acct.phone, "+233700250002")
+        party = agreement.parties.order_by("id").first()
+        token = VaultService.make_sealed_receipt_token(
+            agreement_id=agreement.pk,
+            party_id=party.pk,
+        )
+
+        resp = APIClient().get(_PUBLIC_RECEIPT_PATH.format(token=token))
+
+        assert resp.status_code == 200
+        data = resp.json()["data"]
+        assert data["agreement"]["id"] == agreement.pk
+        assert data["agreement"]["seal_hash"] == agreement.seal_hash
+        assert data["party"]["id"] == party.pk
+        assert len(data["parties"]) == 2
+        assert len(data["evidence"]) == 1
+        assert "pdf_url" not in data["vault_entry"]
+
+    def test_invalid_receipt_token_returns_400(self):
+        resp = APIClient().get(_PUBLIC_RECEIPT_PATH.format(token="bad-token"))
+
+        assert resp.status_code == 400
 
 
 # ──────────────────────────────────────────────────────────────────────────────

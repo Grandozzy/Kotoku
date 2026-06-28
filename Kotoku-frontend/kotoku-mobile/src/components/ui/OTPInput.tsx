@@ -1,18 +1,16 @@
 // src/components/ui/OTPInput.tsx
 import React, { useCallback, useRef } from "react";
 import {
-  NativeSyntheticEvent,
   Platform,
+  Pressable,
+  StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
 
-// KeyboardEventData is the non-deprecated successor to TextInputKeyPressEventData
-type KeyboardEventData = { key: string };
-
-import { cn } from "@/lib/cn";
 import { useSmsOtp } from "@/hooks/useSmsOtp";
+import { cn } from "@/lib/cn";
 
 interface OTPInputProps {
   // Default is 8 to match Kotoku's OTP policy (8-digit codes).
@@ -35,118 +33,82 @@ export const OTPInput: React.FC<OTPInputProps> = ({
   disabled,
   secureTextEntry,
 }) => {
-  const inputs = useRef<Array<TextInput | null>>([]);
+  const inputRef = useRef<TextInput | null>(null);
   const displayValue = normalizeOtpValue(value, length);
 
-  const focusCell = useCallback((index: number) => {
-    requestAnimationFrame(() => {
-      inputs.current[Math.max(0, Math.min(index, length - 1))]?.focus();
-    });
-  }, [length]);
+  const focusInput = useCallback(() => {
+    if (disabled) return;
+    inputRef.current?.focus();
+  }, [disabled]);
+
+  const handleOtpChange = useCallback(
+    (text: string) => {
+      onChange(normalizeOtpValue(text, length));
+    },
+    [length, onChange],
+  );
 
   // Android: auto-fill via SMS User Consent API when an SMS arrives.
   const handleSmsCode = useCallback(
     (code: string) => {
-      const digits = normalizeOtpValue(code, length);
-      onChange(digits);
-      // Focus the last filled cell (or last cell if fully filled).
-      focusCell(digits.length);
+      handleOtpChange(code);
+      focusInput();
     },
-    [focusCell, length, onChange],
+    [focusInput, handleOtpChange],
   );
   useSmsOtp(length, handleSmsCode);
-
-  const handleChange = (text: string, index: number) => {
-    const digits = normalizeOtpValue(text, length);
-
-    // Pasting/autofill can insert the full OTP into a single focused cell.
-    // Replace the full OTP value so this behaves consistently across flows.
-    if (
-      digits.length === 2 &&
-      displayValue[index] &&
-      digits.startsWith(displayValue[index])
-    ) {
-      const typedDigit = digits.slice(-1);
-      const next =
-        displayValue.substring(0, index) +
-        typedDigit +
-        displayValue.substring(index + 1);
-      onChange(next);
-      if (index < length - 1) {
-        focusCell(index + 1);
-      }
-      return;
-    }
-
-    if (digits.length > 1) {
-      onChange(digits);
-      focusCell(digits.length);
-      return;
-    }
-
-    if (!digits) {
-      const next =
-        displayValue.substring(0, index) + displayValue.substring(index + 1);
-      onChange(next);
-      return;
-    }
-
-    const next =
-      displayValue.substring(0, index) +
-      digits +
-      displayValue.substring(index + 1);
-    onChange(next);
-    if (index < length - 1) {
-      focusCell(index + 1);
-    }
-  };
-
-  const handleKeyPress = (
-    e: NativeSyntheticEvent<KeyboardEventData>,
-    index: number,
-  ) => {
-    if (e.nativeEvent.key === "Backspace" && !displayValue[index] && index > 0) {
-      focusCell(index - 1);
-    }
-  };
 
   const cellBorder = error ? "border-semantic-error" : "border-border-subtle";
   const cellBorderFilled = error ? "border-semantic-error" : "border-brand-primary";
 
   return (
     <View>
-      <View className="flex-row justify-center gap-xs">
-        {Array.from({ length }).map((_, idx) => {
-          const filled = Boolean(displayValue[idx]);
-          return (
-            <View
-              key={idx}
-              className={cn(
-                // w-9 (36px) × 8 cells + gap-xs (4px) × 7 = 288 + 28 = 316px — fits 360px screens
-                "w-9 h-11 items-center justify-center rounded-md border",
-                filled ? cellBorderFilled : cellBorder,
-                "bg-surface-card",
-                disabled && "opacity-40",
-              )}
-            >
-              <TextInput
-                ref={(ref) => { inputs.current[idx] = ref; }}
-                keyboardType="number-pad"
-                maxLength={length}
-                textContentType={Platform.OS === "ios" ? "oneTimeCode" : undefined}
-                value={secureTextEntry && displayValue[idx] ? "•" : (displayValue[idx] ?? "")}
-                editable={!disabled}
-                onChangeText={(t) => handleChange(t, idx)}
-                onKeyPress={(e) => handleKeyPress(e, idx)}
-                className="w-full text-center text-lg font-semibold text-ink-primary"
-                style={{ height: "100%", paddingTop: 0, paddingBottom: 0 }}
-                textAlignVertical="center"
-                accessibilityLabel={`OTP digit ${idx + 1}`}
-              />
-            </View>
-          );
-        })}
-      </View>
+      <Pressable
+        className="items-center"
+        disabled={disabled}
+        onPress={focusInput}
+        accessibilityRole="button"
+        accessibilityLabel="OTP code input"
+      >
+        <View className="flex-row justify-center gap-xs">
+          {Array.from({ length }).map((_, idx) => {
+            const digit = displayValue[idx] ?? "";
+            const filled = Boolean(digit);
+            return (
+              <View
+                key={idx}
+                className={cn(
+                  "w-9 h-11 items-center justify-center rounded-md border",
+                  filled ? cellBorderFilled : cellBorder,
+                  "bg-surface-card",
+                  disabled && "opacity-40",
+                )}
+              >
+                <Text className="text-lg font-semibold text-ink-primary">
+                  {secureTextEntry && digit ? "•" : digit}
+                </Text>
+              </View>
+            );
+          })}
+        </View>
+
+        <TextInput
+          ref={inputRef}
+          keyboardType="number-pad"
+          maxLength={length}
+          textContentType={Platform.OS === "ios" ? "oneTimeCode" : undefined}
+          value={displayValue}
+          editable={!disabled}
+          onChangeText={handleOtpChange}
+          caretHidden
+          selectTextOnFocus={false}
+          contextMenuHidden={false}
+          className="text-transparent"
+          style={styles.hiddenInput}
+          accessibilityLabel="OTP code"
+          importantForAccessibility="no-hide-descendants"
+        />
+      </Pressable>
 
       {error && (
         <Text className="mt-xs text-xs text-semantic-error text-center">
@@ -156,3 +118,10 @@ export const OTPInput: React.FC<OTPInputProps> = ({
     </View>
   );
 };
+
+const styles = StyleSheet.create({
+  hiddenInput: {
+    ...StyleSheet.absoluteFillObject,
+    opacity: 0.01,
+  },
+});

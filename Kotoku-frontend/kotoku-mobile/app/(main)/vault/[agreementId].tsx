@@ -147,6 +147,28 @@ export default function VaultDetailScreen() {
       </View>
 
       <View className="px-lg gap-xl">
+        <View className="bg-surface-card rounded-lg border border-border-subtle p-lg gap-md">
+          <View>
+            <Text className="text-xs text-ink-muted uppercase tracking-widest">
+              Agreement summary
+            </Text>
+            <Text className="text-lg font-semibold text-ink-primary mt-xs">
+              {record.title}
+            </Text>
+          </View>
+          {record.parties.length > 0 && (
+            <View className="gap-sm">
+              {record.parties.map((party) => (
+                <DetailRow
+                  key={party.id}
+                  label={formatEventType(party.role)}
+                  value={party.displayName}
+                />
+              ))}
+            </View>
+          )}
+        </View>
+
         {/* Seal details — only shown when sealed */}
         {record.sealedAt && (
           <View className="bg-surface-card rounded-lg border border-border-subtle p-lg gap-sm">

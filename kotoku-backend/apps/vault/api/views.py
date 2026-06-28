@@ -4,7 +4,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
 from apps.vault.api.audit import AuditEventSerializer, build_audit_timeline
-from apps.vault.api.serializers import VaultEntrySerializer
+from apps.vault.api.serializers import PublicSealedReceiptSerializer, VaultEntrySerializer
 from apps.vault.models import VaultEntry
 from apps.vault.selectors import VaultSelector
 from apps.vault.services import VaultService
@@ -110,3 +110,12 @@ class VaultAuditLogView(APIView):
         events = build_audit_timeline(entry.agreement)
         serializer = AuditEventSerializer(events, many=True)
         return ok({"events": serializer.data})
+
+
+class PublicSealedReceiptView(APIView):
+    authentication_classes = []
+    permission_classes = []
+
+    def get(self, request, token: str):
+        context = VaultService.get_public_receipt_context(token=token)
+        return ok(PublicSealedReceiptSerializer(context).data)

@@ -300,7 +300,8 @@ class TestSealAgreement:
             assert f"Agreement #{agreement.pk}" in body
             assert "vehicle_photo_front" in body
             assert "seller_id_photo" in body
-            assert "Keep this SMS for support." in body
+            assert "/vault/receipt/" in body
+            assert "download PDF, or raise a dispute" in body
 
     def test_receipt_sms_summarizes_long_evidence_lists(
         self, db, monkeypatch, django_capture_on_commit_callbacks
@@ -359,6 +360,7 @@ class TestSealAgreement:
             assert "vehicle_photo_front" in body
             assert "vehicle_photo_side" not in body
             assert "+1 more" in body
+            assert "/vault/receipt/" in body
 
     def test_seal_notifications_wait_for_transaction_commit(self, db, monkeypatch):
         account = _account("seal_commit@test.com")

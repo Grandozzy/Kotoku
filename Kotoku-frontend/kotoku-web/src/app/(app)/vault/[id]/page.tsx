@@ -29,26 +29,40 @@ export default function VaultEntryPage() {
     <div className="flex flex-col gap-6 max-w-2xl">
       <div>
         <p className="text-xs text-neutral-400 uppercase tracking-widest mb-1">Vault Entry</p>
-        <h1 className="text-2xl font-bold tracking-tight">Sealed Agreement</h1>
+        <h1 className="text-2xl font-bold tracking-tight">{entry.title}</h1>
+        <p className="text-sm text-neutral-500 mt-1">
+          Tamper-proof sealed agreement stored in your vault.
+        </p>
       </div>
 
-      {/* Seal hash */}
-      <div className="bg-neutral-50 rounded-2xl p-5 border border-neutral-100">
-        <p className="text-xs font-semibold text-neutral-500 uppercase tracking-wide mb-2">
-          Seal hash (SHA-256)
-        </p>
-        <p className="font-mono text-xs break-all text-neutral-700">{entry.seal_hash}</p>
-        <p className="mt-3 text-xs text-neutral-400">
-          Sealed{" "}
-          {new Date(entry.sealed_at).toLocaleString("en-GB", {
+      <div className="grid gap-3 rounded-2xl border border-neutral-100 bg-white p-5">
+        <DetailRow label="Status" value={entry.status.replaceAll("_", " ")} />
+        <DetailRow
+          label="Sealed"
+          value={new Date(entry.sealed_at).toLocaleString("en-GB", {
             day: "numeric",
             month: "long",
             year: "numeric",
             hour: "2-digit",
             minute: "2-digit",
           })}
-          {" "}UTC
-        </p>
+        />
+        {entry.retain_until && (
+          <DetailRow
+            label="Retention"
+            value={new Date(entry.retain_until).toLocaleDateString("en-GB", {
+              day: "numeric",
+              month: "long",
+              year: "numeric",
+            })}
+          />
+        )}
+        <div className="pt-3 border-t border-neutral-100">
+          <p className="text-xs font-semibold text-neutral-500 uppercase tracking-wide mb-2">
+            Seal hash (SHA-256)
+          </p>
+          <p className="font-mono text-xs break-all text-neutral-700">{entry.seal_hash}</p>
+        </div>
       </div>
 
       {/* PDF */}
@@ -91,16 +105,15 @@ export default function VaultEntryPage() {
         )}
       </div>
 
-      {entry.retain_until && (
-        <p className="text-xs text-neutral-400">
-          Retained until{" "}
-          {new Date(entry.retain_until).toLocaleDateString("en-GB", {
-            day: "numeric",
-            month: "long",
-            year: "numeric",
-          })}
-        </p>
-      )}
+    </div>
+  );
+}
+
+function DetailRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between gap-4">
+      <p className="text-sm text-neutral-500">{label}</p>
+      <p className="text-sm font-medium text-neutral-800 text-right capitalize">{value}</p>
     </div>
   );
 }

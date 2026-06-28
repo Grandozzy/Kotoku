@@ -1,5 +1,5 @@
 import { useRouter } from "expo-router";
-import { ChevronRight, Lock } from "lucide-react-native";
+import { ChevronRight, FileText, Lock } from "lucide-react-native";
 import { Pressable, Text, View } from "react-native";
 
 import { Badge } from "@/components/ui";
@@ -19,21 +19,48 @@ function retentionLabel(expiresAt: string): string {
   });
 }
 
+function sealedDateLabel(sealedAt: string): string {
+  return new Date(sealedAt).toLocaleDateString("en-GH", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+function partySummary(record: VaultRecord): string {
+  if (record.parties.length >= 2) {
+    return `${record.parties[0].displayName} · ${record.parties[1].displayName}`;
+  }
+  if (record.parties.length === 1) {
+    return record.parties[0].displayName;
+  }
+  return "Sealed agreement";
+}
+
+function pdfBadge(record: VaultRecord): {
+  label: string;
+  variant: "default" | "success" | "warning" | "error" | "info";
+} {
+  if (record.pdfStatus === "ready") return { label: "PDF ready", variant: "success" };
+  if (record.pdfStatus === "generating") return { label: "Generating", variant: "info" };
+  if (record.pdfStatus === "failed") return { label: "PDF failed", variant: "error" };
+  return { label: "PDF pending", variant: "default" };
+}
+
 interface VaultCardProps {
   record: VaultRecord;
   title: string;
-  scenarioLabel: string;
   counterpartyName?: string;
 }
 
 export function VaultCard({
   record,
   title,
-  scenarioLabel,
   counterpartyName,
 }: VaultCardProps) {
   const router = useRouter();
   const expired = record.status === "expired";
+  const pdf = pdfBadge(record);
 
   let badgeLabel: string;
   let badgeVariant: "default" | "sealed";
@@ -56,7 +83,7 @@ export function VaultCard({
       accessibilityRole="button"
       accessibilityLabel={`Open vaulted agreement ${title}`}
       className={[
-        "bg-surface-card rounded-lg border border-border-subtle p-lg flex-row items-center gap-md active:opacity-70",
+        "bg-surface-card rounded-lg border border-border-subtle p-md flex-row items-center gap-md active:opacity-70",
         borderClass,
       ].join(" ")}
     >
@@ -82,17 +109,24 @@ export function VaultCard({
         >
           {title}
         </Text>
-        <Text className="text-xs text-ink-muted">{scenarioLabel}</Text>
+        <Text className="text-xs text-ink-secondary" numberOfLines={1}>
+          {counterpartyName ? `With ${counterpartyName}` : partySummary(record)}
+        </Text>
         {counterpartyName && (
-          <Text className="text-xs text-ink-secondary">
-            With {counterpartyName}
+          <Text className="text-xs text-ink-muted" numberOfLines={1}>
+            {partySummary(record)}
           </Text>
         )}
-        <View className="flex-row items-center gap-sm mt-xs">
+        <Text className="text-xs text-ink-muted">
+          Sealed {sealedDateLabel(record.sealedAt)} · Retention {retentionLabel(record.retentionExpiresAt)}
+        </Text>
+        <View className="flex-row items-center gap-sm mt-xs flex-wrap">
           <Badge label={badgeLabel} variant={badgeVariant} />
-          <Text className="text-xs text-ink-muted ml-auto">
-            {retentionLabel(record.retentionExpiresAt)}
-          </Text>
+          <Badge label={pdf.label} variant={pdf.variant} />
+          <View className="flex-row items-center gap-xs ml-auto">
+            <FileText size={12} color={colors.inkMuted} />
+            <Text className="text-xs text-ink-muted">Open</Text>
+          </View>
         </View>
       </View>
 

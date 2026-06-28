@@ -4,6 +4,23 @@ import Link from "next/link";
 import { ChevronRight, Lock } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { vaultApi } from "@/api/vault";
+import type { VaultEntry } from "@/types/vault";
+
+function pdfStatusLabel(status: VaultEntry["pdf_status"]): {
+  label: string;
+  className: string;
+} | null {
+  if (status === "ready") {
+    return { label: "PDF ready", className: "bg-emerald-50 text-emerald-700" };
+  }
+  if (status === "generating") {
+    return { label: "Generating…", className: "bg-blue-50 text-blue-700" };
+  }
+  if (status === "failed") {
+    return { label: "Export failed", className: "bg-red-50 text-red-700" };
+  }
+  return { label: "PDF pending", className: "bg-neutral-100 text-neutral-500" };
+}
 
 export default function VaultPage() {
   const { data, isLoading } = useQuery({
@@ -45,54 +62,50 @@ export default function VaultPage() {
 
       <div className="flex flex-col gap-3">
         {entries.map((entry) => (
-          <Link
-            key={entry.id}
-            href={`/vault/${entry.agreement}`}
-            className="flex items-center justify-between px-4 py-3 rounded-xl border border-neutral-100 hover:border-emerald-100 transition-colors"
-          >
-            <div>
-              <p className="text-sm font-medium text-neutral-700">
-                {entry.title}
-              </p>
-              <p className="text-xs font-mono text-neutral-400 mt-0.5">
-                {entry.seal_hash.slice(0, 16)}...
-              </p>
-              <p className="text-xs text-neutral-400 mt-0.5">
-                Sealed{" "}
-                {new Date(entry.sealed_at).toLocaleDateString("en-GB", {
-                  day: "numeric",
-                  month: "short",
-                  year: "numeric",
-                })}
-                {entry.retain_until && (
-                  <> · Retained until{" "}
-                    {new Date(entry.retain_until).toLocaleDateString("en-GB", {
-                      month: "short",
-                      year: "numeric",
-                    })}
-                  </>
-                )}
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              {entry.pdf_status === "ready" ? (
-                <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700">
-                  PDF ready
-                </span>
-              ) : entry.pdf_status === "generating" ? (
-                <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-blue-50 text-blue-700">
-                  Generating…
-                </span>
-              ) : entry.pdf_status === "failed" ? (
-                <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-red-50 text-red-700">
-                  Export failed
-                </span>
-              ) : null}
-              <ChevronRight size={16} className="text-neutral-300" strokeWidth={2} />
-            </div>
-          </Link>
+          <VaultListItem key={entry.id} entry={entry} />
         ))}
       </div>
     </div>
+  );
+}
+
+function VaultListItem({ entry }: { entry: VaultEntry }) {
+  const pdf = pdfStatusLabel(entry.pdf_status);
+
+  return (
+    <Link
+      href={`/vault/${entry.agreement}`}
+      className="flex items-center justify-between gap-4 px-4 py-3 rounded-xl border border-neutral-100 hover:border-emerald-100 transition-colors"
+    >
+      <div className="min-w-0">
+        <p className="text-sm font-semibold text-neutral-800 truncate">
+          {entry.title}
+        </p>
+        <p className="text-xs text-neutral-500 mt-0.5">
+          Sealed{" "}
+          {new Date(entry.sealed_at).toLocaleDateString("en-GB", {
+            day: "numeric",
+            month: "short",
+            year: "numeric",
+          })}
+          {entry.retain_until && (
+            <> · Retention{" "}
+              {new Date(entry.retain_until).toLocaleDateString("en-GB", {
+                month: "short",
+                year: "numeric",
+              })}
+            </>
+          )}
+        </p>
+      </div>
+      <div className="flex shrink-0 items-center gap-2">
+        {pdf && (
+          <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${pdf.className}`}>
+            {pdf.label}
+          </span>
+        )}
+        <ChevronRight size={16} className="text-neutral-300" strokeWidth={2} />
+      </div>
+    </Link>
   );
 }

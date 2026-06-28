@@ -57,7 +57,7 @@ export default function VaultScreen() {
             />
           }
           renderItem={({ item }) => (
-            <VaultCard record={item} title={item.title} scenarioLabel="Sealed Agreement" />
+            <VaultCard record={item} title={item.title} />
           )}
         />
       )}

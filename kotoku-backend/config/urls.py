@@ -5,6 +5,7 @@ from django.urls import include, path
 
 from apps.accounts.api.views import MeView
 from apps.consent.api.views import PublicConsentLinkConfirmView, PublicConsentLinkView
+from apps.vault.api.views import PublicSealedReceiptView
 
 
 def root(_: object) -> JsonResponse:
@@ -40,4 +41,9 @@ urlpatterns = [
         name="public-consent-link-confirm",
     ),
     path("api/consent-links/<str:token>/", PublicConsentLinkView.as_view(), name="public-consent-link"),
+    path(
+        "api/vault-receipts/<str:token>/",
+        PublicSealedReceiptView.as_view(),
+        name="public-sealed-receipt",
+    ),
 ]
