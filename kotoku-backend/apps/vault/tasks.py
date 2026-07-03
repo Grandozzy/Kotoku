@@ -78,7 +78,6 @@ generate_pdf_export.on_failure = _on_generate_pdf_failure
 @shared_task
 def recover_stuck_pdf_generating() -> dict:
     from apps.vault.models import VaultEntry
-    from apps.vault.services import VaultService
 
     cutoff = timezone.now() - timedelta(minutes=5)
     stuck = VaultEntry.objects.filter(
@@ -90,18 +89,12 @@ def recover_stuck_pdf_generating() -> dict:
     if not entry_ids:
         return {"recovered": 0}
 
-    for entry_id in entry_ids:
-        try:
-            VaultService.mark_pdf_failed(vault_entry_id=entry_id)
-            entry = VaultEntry.objects.select_related("agreement").get(pk=entry_id)
-            VaultService._push_vault_event(
-                agreement_id=entry.agreement_id,
-                event_type="vault.pdf_failed",
-            )
-        except Exception:
-            logger.exception("recover_stuck: failed for vault_entry=%s", entry_id)
+    stuck.update(pdf_status=VaultEntry.PdfStatus.PENDING)
 
-    logger.info("recover_stuck_pdf_generating: recovered %d entries", len(entry_ids))
+    for entry_id in entry_ids:
+        generate_pdf_export.delay(entry_id)
+
+    logger.info("recover_stuck_pdf_generating: re-enqueued %d entries", len(entry_ids))
     return {"recovered": len(entry_ids)}
 
 
