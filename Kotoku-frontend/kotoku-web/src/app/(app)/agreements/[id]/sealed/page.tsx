@@ -27,6 +27,8 @@ export default function SealedPage() {
     queryKey: ["vault"],
     queryFn: () => vaultApi.list(),
     enabled: !!agreement?.sealed_at,
+    refetchInterval: (query) =>
+      query.state.data?.results.some((v) => v.pdf_status === "generating") ? 3000 : false,
   });
 
   const vaultEntry = vaultList?.results.find((v) => v.agreement === agreementId);
