@@ -4,7 +4,7 @@ import { Controller, useForm } from "react-hook-form";
 import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from "react-native";
 import { z } from "zod";
 
-import { Button } from "@/components/ui";
+import { Button, ScreenLoader } from "@/components/ui";
 import { FieldRenderer } from "@/components/agreement/FieldRenderer";
 import {
   useAgreementStore,
@@ -48,13 +48,7 @@ export default function DetailsStep() {
     useAgreementStore();
   const template = useTemplate(scenarioId);
 
-  if (!template) {
-    return (
-      <View className="flex-1 items-center justify-center">
-        <Text className="text-ink-muted">Template not found.</Text>
-      </View>
-    );
-  }
+  if (!template) return <ScreenLoader />;
 
   const schema = buildDetailsSchema(template);
 

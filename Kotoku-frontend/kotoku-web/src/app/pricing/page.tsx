@@ -144,8 +144,7 @@ const ADDONS = [
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
-function PlanCard({ plan, family }: { plan: PlanDef; family: PlanFamily }) {
-  const isEnterprise = family === "enterprise";
+function PlanCard({ plan }: { plan: PlanDef; family: PlanFamily }) {
   return (
     <div
       className={`relative flex flex-col rounded-2xl border p-8 ${
@@ -193,7 +192,7 @@ function PlanCard({ plan, family }: { plan: PlanDef; family: PlanFamily }) {
             : "bg-neutral-900 text-white hover:bg-neutral-700"
         }`}
       >
-        {isEnterprise ? "Contact us" : "Get started"}
+        Get started
       </Link>
 
       {plan.helperText && (

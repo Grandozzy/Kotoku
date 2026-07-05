@@ -73,6 +73,14 @@ function getSteps(id: number): Step[] {
         !isPartiesComplete(a) || !isDetailsComplete(a) ? "blocked" : isEvidenceComplete(a),
     },
     {
+      href: `/agreements/${id}/review`,
+      label: "Review",
+      check: (a) =>
+        !isPartiesComplete(a) || !isDetailsComplete(a) || !isEvidenceComplete(a)
+          ? "blocked"
+          : isConsentComplete(a),
+    },
+    {
       href: `/agreements/${id}/consent`,
       label: "Consent",
       check: (a) =>

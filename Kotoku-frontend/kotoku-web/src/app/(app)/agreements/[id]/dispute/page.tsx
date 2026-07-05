@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useParams } from "next/navigation";
-import { Scale } from "lucide-react";
+import { ChevronDown, ChevronUp, Scale } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { agreementsApi } from "@/api/agreements";
 import { disputesApi } from "@/api/disputes";
@@ -49,7 +49,10 @@ function DisputeCard({ dispute }: { dispute: Dispute }) {
           >
             {STATUS_LABEL[dispute.status]}
           </span>
-          <span className="text-neutral-300 text-xs">{expanded ? "▲" : "▼"}</span>
+          {expanded
+            ? <ChevronUp size={14} className="text-neutral-300" strokeWidth={2} />
+            : <ChevronDown size={14} className="text-neutral-300" strokeWidth={2} />
+          }
         </div>
       </button>
       {expanded && (
@@ -174,7 +177,7 @@ export default function DisputePage() {
               placeholder="Describe the issue clearly and factually…"
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-red-400"
+              className="mt-1 w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
             <p className="text-xs text-neutral-400 mt-1">
               {reason.length} / 2000 characters

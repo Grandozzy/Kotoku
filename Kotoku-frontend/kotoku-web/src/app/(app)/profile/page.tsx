@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, Check, ChevronRight, LogOut, Pencil, ShieldCheck, TrendingUp, X } from "lucide-react";
+import { AlertCircle, ArrowRight, Check, ChevronRight, LogOut, Pencil, ShieldCheck, TrendingUp, X } from "lucide-react";
 import { useSessionStore } from "@/store/sessionStore";
 import { usePlan } from "@/hooks/usePlan";
 import { api } from "@/lib/apiClient";
@@ -102,7 +102,7 @@ export default function ProfilePage() {
   const { clearSession } = useSessionStore();
   const { data: plan } = usePlan();
 
-  const { data: me } = useQuery({
+  const { data: me, isError: meError } = useQuery({
     queryKey: ["me"],
     queryFn: fetchMe,
   });
@@ -132,9 +132,24 @@ export default function ProfilePage() {
   const usage = plan?.usage;
   const showUsage = plan && plan.flags.is_personal && usage;
 
+  const renewalDate = plan?.usage.period.end
+    ? new Date(plan.usage.period.end).toLocaleDateString("en-GB", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      })
+    : null;
+
   return (
     <div className="flex flex-col gap-6 max-w-lg">
       <h1 className="text-2xl font-bold tracking-tight">Profile</h1>
+
+      {meError && (
+        <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 flex items-center gap-3 text-sm text-red-700">
+          <AlertCircle size={15} className="shrink-0" strokeWidth={2} />
+          Could not load your profile. Check your connection and refresh.
+        </div>
+      )}
 
       {/* Identity card */}
       <div className="rounded-2xl border border-neutral-100 overflow-hidden">
@@ -193,11 +208,18 @@ export default function ProfilePage() {
             </div>
             <Link
               href="/plans"
-              className="text-xs text-blue-600 font-medium hover:underline"
+              className="text-xs font-medium text-blue-600 hover:underline"
             >
-              View plans
+              Manage plan
             </Link>
           </div>
+
+          {renewalDate && (
+            <div className="flex items-center justify-between px-4 py-3">
+              <span className="text-sm text-neutral-500">Billing period ends</span>
+              <span className="text-sm font-medium text-neutral-700">{renewalDate}</span>
+            </div>
+          )}
 
           {showUsage && (
             <div className="flex items-center justify-between px-4 py-3">

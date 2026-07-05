@@ -216,7 +216,7 @@ export default function EvidencePage() {
         <select
           value={selectedType}
           onChange={(e) => setSelectedType(e.target.value)}
-          className="mt-1 block w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+          className="mt-1 block w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
           {EVIDENCE_TYPES.map(({ value, label }) => (
             <option key={value} value={value}>
@@ -258,10 +258,10 @@ export default function EvidencePage() {
             {effectiveConfirmedCount} file{effectiveConfirmedCount > 1 ? "s" : ""} confirmed
           </div>
           <button
-            onClick={() => router.push(`/agreements/${agreementId}/consent`)}
+            onClick={() => router.push(`/agreements/${agreementId}/review`)}
             className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-neutral-900 text-white text-xs font-medium hover:bg-neutral-700 transition-colors shrink-0"
           >
-            <span>Proceed to Consent</span>
+            <span>Review agreement</span>
             <ArrowRight size={12} />
           </button>
         </div>

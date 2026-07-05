@@ -1,13 +1,11 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { Mic, MicOff } from "lucide-react-native";
 import { ScrollView, Text, View } from "react-native";
 
-import { Button } from "@/components/ui";
+import { Button, ScreenLoader } from "@/components/ui";
 import { PhotoSlot } from "@/components/evidence/PhotoSlot";
 import { useAgreementStore, STEPS } from "@/features/agreements/agreementStore";
 import { useEvidenceUpload } from "@/features/evidence/useEvidenceUpload";
 import { useTemplate } from "@/features/agreements/useAgreementDraft";
-import { colors } from "@/theme/tokens";
 
 export default function EvidenceStep() {
   const router = useRouter();
@@ -20,11 +18,10 @@ export default function EvidenceStep() {
 
   const { items, pickImage, retryUpload, error } = useEvidenceUpload(agreementId);
 
-  if (!template) return null;
+  if (!template) return <ScreenLoader />;
 
   const { slots, minimumPhotoCount } = template.evidenceRequirements;
   const photoSlots = slots.filter((s) => s.fileType === "photo");
-  const voiceSlots = slots.filter((s) => s.fileType === "voice_note");
 
   const uploadedPhotoCount = photoSlots.filter(
     (s) => items[s.id]?.uploadStatus === "uploaded",
@@ -83,37 +80,6 @@ export default function EvidenceStep() {
           })}
         </View>
       </View>
-
-      {/* Voice notes */}
-      {voiceSlots.length > 0 && (
-        <View className="gap-md">
-          <Text className="text-lg font-semibold text-ink-primary">
-            Voice summary
-          </Text>
-          <Text className="text-sm text-ink-secondary">
-            Optional — record a brief spoken summary of the agreement.
-          </Text>
-          {voiceSlots.map((slot) => {
-            const recorded = items[slot.id]?.uploadStatus === "uploaded";
-            return (
-              <View
-                key={slot.id}
-                className="flex-row items-center justify-between bg-surface-card rounded-lg p-lg border border-border-subtle"
-              >
-                <Text className="text-md text-ink-primary">{slot.label}</Text>
-                {recorded ? (
-                  <Mic size={22} color={colors.brandPrimary} />
-                ) : (
-                  <MicOff size={22} color={colors.inkMuted} />
-                )}
-              </View>
-            );
-          })}
-          <Text className="text-xs text-ink-muted">
-            Voice recording will be available in the next update.
-          </Text>
-        </View>
-      )}
 
       {error && (
         <View className="bg-rose-50 border border-rose-100 rounded-xl p-md gap-xs">

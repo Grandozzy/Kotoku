@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { ArrowLeft, Check, Loader2, ShieldCheck, Users } from "lucide-react";
+import { AlertCircle, ArrowLeft, Check, Loader2, ShieldCheck, Users } from "lucide-react";
 import { usePlan } from "@/hooks/usePlan";
 import { paymentsApi } from "@/api/payments";
 
@@ -217,7 +217,7 @@ function PlanCard({
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function PlansPage() {
-  const { data: subscription, isLoading } = usePlan();
+  const { data: subscription, isLoading, isError: planLoadError } = usePlan();
 
   const currentPlanId = subscription?.plan.id ?? null;
   const currentFamily = subscription?.plan.family ?? "personal";
@@ -295,6 +295,12 @@ export default function PlansPage() {
       </div>
 
       {/* Plan cards */}
+      {planLoadError && (
+        <div className="rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 flex items-center gap-3 text-sm text-amber-700">
+          <AlertCircle size={15} className="shrink-0" strokeWidth={2} />
+          Could not load your current plan. Plans are shown below — your current plan badge may be missing.
+        </div>
+      )}
       {error && (
         <div className="rounded-xl bg-red-50 border border-red-100 px-4 py-3 text-sm text-red-600">
           {error}

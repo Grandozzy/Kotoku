@@ -65,8 +65,8 @@ const PLANS: PlanDefinition[] = [
     family: "personal",
     icon: ShieldCheck,
     price: 60,
-    sealsPerMonth: 10,
-    features: ["10 sealed agreements / month", "Tamper-proof vault", "SMS consent delivery", "Priority support", "Extended 24-month retention"],
+    sealsPerMonth: 7,
+    features: ["7 sealed agreements / month", "Tamper-proof vault", "SMS consent delivery", "Priority support", "Extended 36-month retention"],
   },
   {
     id: "enterprise_standard",
@@ -74,8 +74,8 @@ const PLANS: PlanDefinition[] = [
     family: "enterprise",
     icon: UsersRound,
     price: 400,
-    sealsPerMonth: 30,
-    features: ["30 sealed agreements / month", "Team seats", "Bulk creation", "Reporting dashboard", "36-month retention"],
+    sealsPerMonth: 20,
+    features: ["20 sealed agreements / month", "Team seats", "Bulk creation", "Reporting dashboard", "5-year retention"],
   },
   {
     id: "enterprise_plus",
@@ -83,8 +83,8 @@ const PLANS: PlanDefinition[] = [
     family: "enterprise",
     icon: Crown,
     price: 1200,
-    sealsPerMonth: null,
-    features: ["Unlimited sealed agreements", "Team seats", "Bulk creation", "Reporting dashboard", "Archive search", "48-month retention", "Dedicated support"],
+    sealsPerMonth: 80,
+    features: ["80 sealed agreements / month", "Team seats", "Bulk creation", "Reporting dashboard", "Archive search", "10-year retention", "Dedicated support"],
   },
 ];
 

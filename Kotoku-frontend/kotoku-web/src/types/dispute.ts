@@ -10,6 +10,9 @@ export interface Dispute {
   resolved_at: string | null;
   created_at: string;
   updated_at: string;
+  agreement_id: number;
+  agreement_type: string | null;
+  agreement_sealed_at: string | null;
 }
 
 export interface DisputeCreate {

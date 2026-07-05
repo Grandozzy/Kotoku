@@ -5,14 +5,15 @@ import { usePathname, useRouter } from "next/navigation";
 import { useSessionStore } from "@/store/sessionStore";
 import { useEffect } from "react";
 
-import { Home, Lock, User, Zap } from "lucide-react";
+import { Home, Loader2, Lock, Scale, User, Zap } from "lucide-react";
 import { KotokuLogo } from "@/components/brand/KotokuLogo";
 
 const NAV = [
-  { href: "/dashboard", label: "Home",    Icon: Home },
-  { href: "/vault",     label: "Vault",   Icon: Lock },
-  { href: "/profile",   label: "Profile", Icon: User },
-  { href: "/plans",     label: "Plans",   Icon: Zap },
+  { href: "/dashboard", label: "Home",     Icon: Home },
+  { href: "/vault",     label: "Vault",    Icon: Lock },
+  { href: "/disputes",  label: "Disputes", Icon: Scale },
+  { href: "/profile",   label: "Profile",  Icon: User },
+  { href: "/plans",     label: "Plans",    Icon: Zap },
 ];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -29,7 +30,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     if (!isAuthenticated) router.replace("/login");
   }, [hasHydrated, isAuthenticated, isBootstrapping, isRecoveringSession, router]);
 
-  if (!hasHydrated || isBootstrapping || isRecoveringSession || !isAuthenticated) return null;
+  if (!hasHydrated || isBootstrapping || isRecoveringSession) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 size={24} className="animate-spin text-neutral-300" />
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) return null;
 
   return (
     <div className="min-h-screen flex flex-col">

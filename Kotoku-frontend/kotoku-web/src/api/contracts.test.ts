@@ -157,6 +157,9 @@ const dispute: Dispute = {
   resolved_at: null,
   created_at: "2026-05-19T12:00:00Z",
   updated_at: "2026-05-19T12:00:00Z",
+  agreement_id: 101,
+  agreement_type: "used_vehicle_sale",
+  agreement_sealed_at: "2026-05-19T11:00:00Z",
 };
 
 const disputeListResult: Awaited<ReturnType<typeof disputesApi.list>> = [dispute];

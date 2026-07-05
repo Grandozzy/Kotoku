@@ -7,7 +7,7 @@ import { agreementsApi } from "@/api/agreements";
 import { StepNav } from "@/components/agreement/StepNav";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import Link from "next/link";
-import { ChevronLeft } from "lucide-react";
+import { AlertCircle, ChevronLeft } from "lucide-react";
 
 export default function AgreementLayout({
   children,
@@ -29,7 +29,7 @@ export default function AgreementLayout({
     },
   });
 
-  const { data: agreement, isLoading } = useQuery({
+  const { data: agreement, isLoading, isError } = useQuery({
     queryKey: ["agreements", agreementId],
     queryFn: () => agreementsApi.get(agreementId),
   });
@@ -42,11 +42,28 @@ export default function AgreementLayout({
     );
   }
 
+  if (isError) {
+    return (
+      <div className="py-24 flex flex-col items-center gap-4 text-center">
+        <div className="w-12 h-12 rounded-xl bg-red-50 flex items-center justify-center">
+          <AlertCircle size={22} className="text-red-500" strokeWidth={1.6} />
+        </div>
+        <div>
+          <p className="font-semibold text-neutral-800">Could not load agreement</p>
+          <p className="text-sm text-neutral-500 mt-1">Check your connection and try again.</p>
+        </div>
+        <Link href="/dashboard" className="text-sm text-blue-600 hover:underline">
+          Back to home
+        </Link>
+      </div>
+    );
+  }
+
   if (!agreement) {
     return (
       <div className="py-24 text-center text-neutral-400">
         <p>Agreement not found.</p>
-        <Link href="/dashboard" className="mt-2 text-sm text-emerald-600 underline">
+        <Link href="/dashboard" className="mt-2 text-sm text-blue-600 hover:underline">
           Back to home
         </Link>
       </div>

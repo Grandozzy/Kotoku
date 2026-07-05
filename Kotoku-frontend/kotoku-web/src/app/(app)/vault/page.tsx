@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ChevronRight, Lock } from "lucide-react";
+import { AlertCircle, ChevronRight, Lock } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { vaultApi } from "@/api/vault";
 import type { VaultEntry } from "@/types/vault";
@@ -23,7 +23,7 @@ function pdfStatusLabel(status: VaultEntry["pdf_status"]): {
 }
 
 export default function VaultPage() {
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["vault"],
     queryFn: () => vaultApi.list(),
   });
@@ -42,7 +42,27 @@ export default function VaultPage() {
         </div>
       )}
 
-      {!isLoading && entries.length === 0 && (
+      {isError && (
+        <div className="flex flex-col items-center justify-center py-24 gap-4">
+          <div className="w-14 h-14 rounded-2xl bg-red-50 flex items-center justify-center">
+            <AlertCircle size={26} className="text-red-500" strokeWidth={1.6} />
+          </div>
+          <div className="text-center">
+            <p className="font-semibold text-neutral-800">Could not load vault</p>
+            <p className="text-sm text-neutral-500 mt-1 max-w-sm">
+              There was a problem fetching your sealed agreements.
+            </p>
+          </div>
+          <button
+            onClick={() => refetch()}
+            className="px-5 py-2 rounded-full border border-neutral-200 text-sm font-medium hover:bg-neutral-50 transition-colors"
+          >
+            Try again
+          </button>
+        </div>
+      )}
+
+      {!isLoading && !isError && entries.length === 0 && (
         <div className="flex flex-col items-center justify-center py-24 gap-4">
           <div className="w-14 h-14 rounded-2xl bg-blue-50 flex items-center justify-center">
             <Lock size={26} className="text-blue-600" strokeWidth={1.6} />

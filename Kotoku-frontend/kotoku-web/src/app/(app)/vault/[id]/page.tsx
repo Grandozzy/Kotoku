@@ -2,6 +2,7 @@
 
 import { useParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Loader2 } from "lucide-react";
 import { vaultApi } from "@/api/vault";
 
 export default function VaultEntryPage() {
@@ -20,7 +21,18 @@ export default function VaultEntryPage() {
   });
 
   if (isLoading) {
-    return <p className="text-sm text-neutral-400">Loading…</p>;
+    return (
+      <div className="flex flex-col gap-4 max-w-2xl animate-pulse">
+        <div className="h-6 w-48 bg-neutral-100 rounded-lg" />
+        <div className="h-4 w-72 bg-neutral-100 rounded-lg" />
+        <div className="rounded-2xl border border-neutral-100 p-5 flex flex-col gap-3">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-4 bg-neutral-100 rounded-lg" />
+          ))}
+        </div>
+        <div className="h-10 w-32 bg-neutral-100 rounded-full" />
+      </div>
+    );
   }
 
   if (!entry) return null;
@@ -77,17 +89,12 @@ export default function VaultEntryPage() {
             >
               Download PDF
             </a>
-            <iframe
-              src={entry.pdf_url}
-              className="w-full rounded-xl border border-neutral-200"
-              style={{ height: 600 }}
-              title="Sealed agreement PDF"
-            />
+            <p className="text-xs text-neutral-400">Opens in a new tab.</p>
           </div>
         ) : entry.pdf_status === "generating" ? (
           <div className="flex items-center gap-2 text-sm text-blue-600">
-            <span className="animate-spin">⏳</span>
-            <span>Generating PDF… refresh in a moment.</span>
+            <Loader2 size={16} className="animate-spin" />
+            <span>Generating PDF — check back in a moment.</span>
           </div>
         ) : entry.pdf_status === "failed" ? (
           <div className="flex flex-col gap-2">

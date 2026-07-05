@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, Check } from "lucide-react";
+import { ArrowRight, Check, Loader2 } from "lucide-react";
 import { agreementsApi } from "@/api/agreements";
 import { consentApi } from "@/api/consent";
 import { usePlan, useInvalidatePlan } from "@/hooks/usePlan";
@@ -32,11 +32,11 @@ export default function ConsentPage() {
     queryFn: () => agreementsApi.get(agreementId),
   });
 
-  const { data: consentStatus, refetch: refetchStatus } = useQuery({
+  const { data: consentStatus, refetch: refetchStatus, isFetching: isPolling } = useQuery({
     queryKey: ["consent-status", agreementId],
     queryFn: () => consentApi.status(agreementId),
     enabled: !!agreement && agreement.parties.length >= 2,
-    refetchInterval: 8000, // poll while waiting for counterparty
+    refetchInterval: 8000,
   });
 
   const [otp, setOtp] = useState("");
@@ -139,10 +139,16 @@ export default function ConsentPage() {
       {/* Consent status table */}
       {records.length > 0 && (
         <div className="rounded-2xl border border-neutral-100 overflow-hidden">
-          <div className="px-4 py-3 bg-neutral-50 border-b border-neutral-100">
+          <div className="px-4 py-3 bg-neutral-50 border-b border-neutral-100 flex items-center justify-between">
             <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
               Consent status
             </p>
+            {isPolling && (
+              <span className="inline-flex items-center gap-1.5 text-xs text-neutral-400">
+                <Loader2 size={11} className="animate-spin" strokeWidth={2} />
+                Checking…
+              </span>
+            )}
           </div>
           <div className="divide-y divide-neutral-50">
             {records.map((r) => {
@@ -245,7 +251,7 @@ export default function ConsentPage() {
                 placeholder="123456"
                 value={otp}
                 onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
-                className="mt-1 w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm font-mono tracking-widest text-center focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                className="mt-1 w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm font-mono tracking-widest text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
           </div>
