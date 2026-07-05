@@ -35,7 +35,7 @@ const PERSONAL_PLANS: PlanDef[] = [
     id: "personal_basic",
     name: "Personal Basic",
     tagline: "Protect one important deal each month",
-    price: 10,
+    price: 49,
     highlights: [
       "Up to 1 sealed agreement per month",
       "Keep each agreement for 12 months",
@@ -51,7 +51,7 @@ const PERSONAL_PLANS: PlanDef[] = [
     id: "personal_plus",
     name: "Personal Plus",
     tagline: "Ideal for side hustles and small landlords",
-    price: 25,
+    price: 79,
     isPopular: true,
     highlights: [
       "Up to 3 sealed agreements per month",
@@ -68,7 +68,7 @@ const PERSONAL_PLANS: PlanDef[] = [
     id: "personal_protect",
     name: "Personal Protect",
     tagline: "For serious individual dealmakers",
-    price: 60,
+    price: 99,
     highlights: [
       "Up to 7 sealed agreements per month",
       "Keep each agreement for 36 months",
