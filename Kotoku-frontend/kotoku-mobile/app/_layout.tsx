@@ -1,6 +1,5 @@
 import "@/lib/global.css";
 
-import * as Sentry from "@sentry/react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import {
   useFonts,
@@ -8,17 +7,6 @@ import {
   CormorantGaramond_600SemiBold,
 } from "@expo-google-fonts/cormorant-garamond";
 
-if (process.env.EXPO_PUBLIC_SENTRY_DSN) {
-  Sentry.init({
-    dsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
-    environment: process.env.EXPO_PUBLIC_API_URL?.includes("staging")
-      ? "staging"
-      : process.env.EXPO_PUBLIC_API_URL?.includes("localhost")
-        ? "development"
-        : "production",
-    enabled: !process.env.EXPO_PUBLIC_API_URL?.includes("localhost"),
-  });
-}
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Slot, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";

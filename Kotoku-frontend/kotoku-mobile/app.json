@@ -68,7 +68,6 @@
       ],
       "expo-sqlite",
       "expo-media-library",
-      "@sentry/react-native",
       "expo-build-properties"
     ],
     "experiments": {
