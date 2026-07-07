@@ -51,21 +51,32 @@ def _get_client(external: bool = False):
         config_kwargs["s3"] = {"addressing_style": "path"}
 
     region = settings.AWS_S3_REGION_NAME.strip()
+    key_id = settings.AWS_ACCESS_KEY_ID or ""
+    session_token = getattr(settings, "AWS_SESSION_TOKEN", "") or ""
     logger.info(
-        "[S3] _get_client external=%s endpoint_url=%r region=%r path_style=%s",
+        "[S3] _get_client external=%s endpoint_url=%r region=%r path_style=%s key_id_prefix=%r has_session_token=%s",
         external,
         endpoint_url,
         region,
         path_style,
+        key_id[:8],
+        bool(session_token),
     )
+
+    client_kwargs = {
+        "endpoint_url": endpoint_url,
+        "aws_access_key_id": settings.AWS_ACCESS_KEY_ID,
+        "aws_secret_access_key": settings.AWS_SECRET_ACCESS_KEY,
+        "region_name": region,
+        "config": BotoConfig(**config_kwargs),
+    }
+    session_token = getattr(settings, "AWS_SESSION_TOKEN", "")
+    if session_token:
+        client_kwargs["aws_session_token"] = session_token
 
     return boto3.client(
         "s3",
-        endpoint_url=endpoint_url,
-        aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-        aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
-        region_name=region,
-        config=BotoConfig(**config_kwargs),
+        **client_kwargs,
     )
 
 
