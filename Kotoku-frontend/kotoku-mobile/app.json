@@ -39,7 +39,6 @@
         "android.permission.READ_MEDIA_VIDEO",
         "android.permission.READ_MEDIA_AUDIO"
       ],
-      "versionCode": 2
     },
     "web": {
       "bundler": "metro",
