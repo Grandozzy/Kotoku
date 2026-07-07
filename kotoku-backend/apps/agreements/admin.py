@@ -5,8 +5,7 @@ from django.utils.html import format_html
 
 from apps.parties.models import Party
 
-from .models import Agreement, Annotation, AgreementRevision
-
+from .models import Agreement, AgreementRevision, Annotation
 
 # ── Status badge ────────────────────────────────────────────────────────────
 

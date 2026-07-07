@@ -10,6 +10,7 @@ from infrastructure.storage.s3 import S3StorageClient
     AWS_S3_REGION_NAME="eu-west-1",
     AWS_ACCESS_KEY_ID="test-key",
     AWS_SECRET_ACCESS_KEY="test-secret",
+    AWS_SESSION_TOKEN="",
     AWS_ENDPOINT_URL_S3="https://kotoku-evidence.s3.eu-west-1.amazonaws.com",
     AWS_S3_EXTERNAL_URL="",
 )
@@ -25,6 +26,7 @@ def test_upload_ignores_bucket_hosted_aws_endpoint_for_signing():
 
     _, kwargs = mock_client.call_args
     assert kwargs["endpoint_url"] is None
+    assert "aws_session_token" not in kwargs
     assert url == (
         "https://kotoku-evidence.s3.eu-west-1.amazonaws.com/exports/test.pdf"
     )
@@ -35,6 +37,7 @@ def test_upload_ignores_bucket_hosted_aws_endpoint_for_signing():
     AWS_S3_REGION_NAME="eu-west-1",
     AWS_ACCESS_KEY_ID="test-key",
     AWS_SECRET_ACCESS_KEY="test-secret",
+    AWS_SESSION_TOKEN="",
     AWS_ENDPOINT_URL_S3="https://storage.example.com",
     AWS_S3_EXTERNAL_URL="",
 )
@@ -50,6 +53,7 @@ def test_upload_keeps_custom_s3_endpoint_for_signing_and_url_building():
 
     _, kwargs = mock_client.call_args
     assert kwargs["endpoint_url"] == "https://storage.example.com"
+    assert "aws_session_token" not in kwargs
     assert url == "https://storage.example.com/kotoku-evidence/exports/test.pdf"
 
 
@@ -58,6 +62,7 @@ def test_upload_keeps_custom_s3_endpoint_for_signing_and_url_building():
     AWS_S3_REGION_NAME="eu-west-1",
     AWS_ACCESS_KEY_ID="test-key",
     AWS_SECRET_ACCESS_KEY="test-secret",
+    AWS_SESSION_TOKEN="",
     AWS_ENDPOINT_URL_S3="",
     AWS_S3_EXTERNAL_URL="https://kotoku-evidence.s3.eu-west-1.amazonaws.com",
 )
@@ -74,6 +79,29 @@ def test_build_object_url_does_not_duplicate_bucket_for_bucket_hosted_external_u
     assert url == (
         "https://kotoku-evidence.s3.eu-west-1.amazonaws.com/exports/test.pdf"
     )
+
+
+@override_settings(
+    AWS_STORAGE_BUCKET_NAME="kotoku-evidence",
+    AWS_S3_REGION_NAME="eu-west-1",
+    AWS_ACCESS_KEY_ID="test-key",
+    AWS_SECRET_ACCESS_KEY="test-secret",
+    AWS_SESSION_TOKEN="test-session-token",
+    AWS_ENDPOINT_URL_S3="",
+    AWS_S3_EXTERNAL_URL="",
+)
+def test_upload_passes_session_token_when_configured():
+    with patch("infrastructure.storage.s3.boto3.client") as mock_client:
+        mock_client.return_value.put_object.return_value = {}
+
+        S3StorageClient().upload(
+            "exports/test.pdf",
+            b"%PDF",
+            content_type="application/pdf",
+        )
+
+    _, kwargs = mock_client.call_args
+    assert kwargs["aws_session_token"] == "test-session-token"
 
 
 @override_settings(
@@ -100,3 +128,22 @@ def test_upload_includes_checksum_and_metadata_when_provided():
         "48c76d8e2f8d73c014f3535dd3f7f135f4a724c8f9909a7f9fbca9a3b7a9ac0e"
     )
     assert "ChecksumSHA256" in put_kwargs
+
+
+@override_settings(
+    AWS_STORAGE_BUCKET_NAME="kotoku-evidence",
+    AWS_S3_REGION_NAME="eu-west-1",
+    AWS_ACCESS_KEY_ID="test-key",
+    AWS_SECRET_ACCESS_KEY="test-secret",
+    AWS_SESSION_TOKEN="",
+    AWS_ENDPOINT_URL_S3="",
+    AWS_S3_EXTERNAL_URL="",
+)
+def test_check_bucket_access_calls_head_bucket():
+    with patch("infrastructure.storage.s3.boto3.client") as mock_client:
+        mock_client.return_value.head_bucket.return_value = {}
+
+        ok = S3StorageClient().check_bucket_access()
+
+    assert ok is True
+    mock_client.return_value.head_bucket.assert_called_once_with(Bucket="kotoku-evidence")

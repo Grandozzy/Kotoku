@@ -17,7 +17,6 @@ from datetime import date, timedelta
 from unittest.mock import patch
 
 import pytest
-from django.utils import timezone
 
 from apps.accounts.models import Account, User
 from apps.audit.models import AuditLog
@@ -194,7 +193,7 @@ def test_multiple_lapsed_subscriptions_all_downgraded(mock_notify):
 
     expire_lapsed_subscriptions()
 
-    for account, sub in zip(accounts, subs):
+    for account, sub in zip(accounts, subs, strict=False):
         account.refresh_from_db()
         sub.refresh_from_db()
         assert account.plan == "personal_basic"

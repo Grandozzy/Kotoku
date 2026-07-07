@@ -3,7 +3,8 @@ import secrets
 from django import forms
 from django.conf import settings
 from django.contrib import admin, messages
-from django.contrib.auth import REDIRECT_FIELD_NAME, login as auth_login
+from django.contrib.auth import REDIRECT_FIELD_NAME
+from django.contrib.auth import login as auth_login
 from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth.hashers import check_password, make_password
 from django.core.cache import cache

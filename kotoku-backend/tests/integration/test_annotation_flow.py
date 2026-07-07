@@ -5,7 +5,6 @@ Covers issue #10:
   + non-party 403, non-sealed 400, multiple annotations ordered by created_at
 """
 from datetime import timedelta
-from unittest.mock import patch
 
 import pytest
 from django.utils import timezone
@@ -14,7 +13,7 @@ from rest_framework_simplejwt.tokens import AccessToken
 
 from apps.accounts.models import Account, User
 from apps.agreements.domain.enums import AgreementStatus
-from apps.agreements.models import Agreement, Annotation
+from apps.agreements.models import Agreement
 from apps.agreements.services import AgreementService
 from apps.consent.models import ConsentRecord
 from apps.evidence.models import EvidenceItem

@@ -5,10 +5,10 @@ real object storage.
 """
 from unittest.mock import patch
 
-from botocore.exceptions import EndpointConnectionError
 import pytest
-from rest_framework_simplejwt.tokens import RefreshToken
+from botocore.exceptions import EndpointConnectionError
 from rest_framework.test import APIClient
+from rest_framework_simplejwt.tokens import RefreshToken
 
 from apps.accounts.models import Account, User
 from apps.agreements.domain.enums import AgreementStatus

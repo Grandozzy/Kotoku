@@ -1,12 +1,14 @@
 from datetime import timedelta
+
 from django.utils import timezone
-from apps.agreements.models import Agreement
+
 from apps.agreements.domain.enums import AgreementStatus
+from apps.agreements.models import Agreement
 from apps.agreements.tasks import cleanup_stale_drafts
 
 
 def test_cleanup_deletes_old_drafts(db):
-    from apps.accounts.models import User, Account
+    from apps.accounts.models import Account, User
     user = User.objects.create_user(phone="+1234567890")
     account = Account.objects.create(user=user, email="test@example.com")
     old_draft = Agreement.objects.create(

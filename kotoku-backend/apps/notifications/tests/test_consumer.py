@@ -19,7 +19,11 @@ def user_with_token(db, django_user_model):
 @pytest.mark.asyncio
 async def test_connect_with_valid_token(user_with_token):
     user, token = user_with_token
-    communicator = WebsocketCommunicator(application, f"/ws/notifications/?token={token}")
+    communicator = WebsocketCommunicator(
+        application,
+        "/ws/notifications/",
+        headers=[(b"authorization", f"Bearer {token}".encode())],
+    )
     connected, _ = await communicator.connect()
     assert connected
     await communicator.disconnect()
@@ -28,7 +32,11 @@ async def test_connect_with_valid_token(user_with_token):
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.asyncio
 async def test_connect_with_invalid_token_rejected(db):
-    communicator = WebsocketCommunicator(application, "/ws/notifications/?token=invalidtoken")
+    communicator = WebsocketCommunicator(
+        application,
+        "/ws/notifications/",
+        headers=[(b"authorization", b"Bearer invalidtoken")],
+    )
     connected, _ = await communicator.connect()
     assert not connected
     await communicator.disconnect()
@@ -38,7 +46,11 @@ async def test_connect_with_invalid_token_rejected(db):
 @pytest.mark.asyncio
 async def test_receive_push_notification(user_with_token):
     user, token = user_with_token
-    communicator = WebsocketCommunicator(application, f"/ws/notifications/?token={token}")
+    communicator = WebsocketCommunicator(
+        application,
+        "/ws/notifications/",
+        headers=[(b"authorization", f"Bearer {token}".encode())],
+    )
     connected, _ = await communicator.connect()
     assert connected
 

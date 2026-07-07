@@ -10,8 +10,8 @@ from unittest.mock import patch
 
 import pytest
 from django.utils import timezone
-from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.test import APIClient
+from rest_framework_simplejwt.tokens import RefreshToken
 
 import apps.vault.pdf  # noqa: F401 — ensures submodule is loaded so patch() can resolve it
 from apps.accounts.models import Account, User

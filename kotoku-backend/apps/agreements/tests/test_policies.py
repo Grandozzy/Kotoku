@@ -4,7 +4,12 @@ from django.utils import timezone
 
 from apps.accounts.models import Account, User
 from apps.agreements.domain.enums import AgreementStatus
-from apps.agreements.domain.policies import all_parties_confirmed_reopen, can_reopen, can_request_consent, can_seal
+from apps.agreements.domain.policies import (
+    all_parties_confirmed_reopen,
+    can_reopen,
+    can_request_consent,
+    can_seal,
+)
 from apps.agreements.models import Agreement
 from apps.identity.models import IdentityRecord
 from apps.parties.models import Party

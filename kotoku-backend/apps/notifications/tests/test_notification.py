@@ -144,8 +144,9 @@ class TestSmsGateway:
 
     @patch("infrastructure.sms.gateway.urllib.request.urlopen")
     def test_real_mode_returns_true_on_200(self, mock_urlopen, db):
-        from django.test import override_settings
         from unittest.mock import MagicMock
+
+        from django.test import override_settings
 
         mock_response = MagicMock()
         mock_response.read.return_value = b'{"SMSMessageData":{"Recipients":[{"status":"Success","messageId":"123"}]}}'

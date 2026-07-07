@@ -2,7 +2,7 @@
 Billing plan definitions — single source of truth for all plan metadata.
 Do NOT expose cost/margin or storage-in-GB fields to users.
 """
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import List
 
 

@@ -43,7 +43,9 @@ def _client_endpoint(name: str) -> str | None:
 
 def _get_client(external: bool = False):
     if external:
-        endpoint_url = _client_endpoint("AWS_S3_EXTERNAL_URL") or _client_endpoint("AWS_ENDPOINT_URL_S3")
+        endpoint_url = (
+            _client_endpoint("AWS_S3_EXTERNAL_URL") or _client_endpoint("AWS_ENDPOINT_URL_S3")
+        )
     else:
         endpoint_url = _client_endpoint("AWS_ENDPOINT_URL_S3")
     config_kwargs = {"signature_version": "s3v4"}
@@ -52,27 +54,27 @@ def _get_client(external: bool = False):
         config_kwargs["s3"] = {"addressing_style": "path"}
 
     region = settings.AWS_S3_REGION_NAME.strip()
-    key_id = settings.AWS_ACCESS_KEY_ID or ""
-    secret = settings.AWS_SECRET_ACCESS_KEY or ""
+    client_kwargs = {
+        "endpoint_url": endpoint_url,
+        "aws_access_key_id": settings.AWS_ACCESS_KEY_ID,
+        "aws_secret_access_key": settings.AWS_SECRET_ACCESS_KEY,
+        "region_name": region,
+        "config": BotoConfig(**config_kwargs),
+    }
+    session_token = getattr(settings, "AWS_SESSION_TOKEN", "")
+    if session_token:
+        client_kwargs["aws_session_token"] = session_token
+
     logger.info(
-        "[S3] _get_client external=%s endpoint_url=%r region=%r path_style=%s key_id_prefix=%r key_id_len=%d secret_len=%d",
+        "[S3] _get_client external=%s endpoint_url=%r region=%r path_style=%s has_session_token=%s",
         external,
         endpoint_url,
         region,
         path_style,
-        key_id[:8],
-        len(key_id),
-        len(secret),
+        bool(session_token),
     )
 
-    return boto3.client(
-        "s3",
-        endpoint_url=endpoint_url,
-        aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-        aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
-        region_name=region,
-        config=BotoConfig(**config_kwargs),
-    )
+    return boto3.client("s3", **client_kwargs)
 
 
 def _build_url_from_base(base_url: str, key: str) -> str:
@@ -93,6 +95,11 @@ def _build_object_url(key: str) -> str:
 
 
 class S3StorageClient:
+    def check_bucket_access(self) -> bool:
+        client = _get_client()
+        client.head_bucket(Bucket=settings.AWS_STORAGE_BUCKET_NAME)
+        return True
+
     def upload(
         self,
         key: str,

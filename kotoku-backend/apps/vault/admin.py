@@ -9,7 +9,6 @@ from infrastructure.storage.s3 import S3StorageClient
 
 from .models import VaultEntry
 
-
 # ── PDF status badge ─────────────────────────────────────────────────────────
 
 _PDF_STATUS_STYLES = {

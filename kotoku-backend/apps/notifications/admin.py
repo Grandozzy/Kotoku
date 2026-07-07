@@ -8,7 +8,6 @@ from apps.notifications.providers.sms_provider import SmsNotificationProvider
 
 from .models import Notification
 
-
 # ── Badges ───────────────────────────────────────────────────────────────────
 
 _STATUS_STYLES = {

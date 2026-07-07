@@ -1,5 +1,6 @@
-import pytest
 from unittest.mock import MagicMock
+
+import pytest
 
 from apps.accounts.models import Account, User
 from apps.accounts.permissions import IsAccountOwner

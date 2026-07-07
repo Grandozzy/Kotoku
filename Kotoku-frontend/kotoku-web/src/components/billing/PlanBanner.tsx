@@ -50,7 +50,7 @@ export function PlanBanner() {
       </div>
       {plan.recommended_upgrades[0] && (
         <Link
-          href="/pricing"
+          href="/plans"
           className={`inline-flex items-center gap-1 shrink-0 text-xs font-semibold px-3 py-1.5 rounded-full border ${
             isError
               ? "border-red-300 text-red-700 hover:bg-red-100"

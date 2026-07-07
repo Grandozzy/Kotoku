@@ -1,6 +1,6 @@
 from django.urls import path
 
-from .views import DisputeCollectionView, DisputeRootView, DisputeLookupView
+from .views import DisputeLookupView, DisputeRootView
 
 urlpatterns = [
     # Root-level: /api/disputes/ - list user's disputes

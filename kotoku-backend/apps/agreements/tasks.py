@@ -1,10 +1,11 @@
 import logging
-from celery import shared_task
-from django.utils import timezone
 from datetime import timedelta
 
-from apps.agreements.models import Agreement
+from celery import shared_task
+from django.utils import timezone
+
 from apps.agreements.domain.enums import AgreementStatus
+from apps.agreements.models import Agreement
 
 logger = logging.getLogger(__name__)
 

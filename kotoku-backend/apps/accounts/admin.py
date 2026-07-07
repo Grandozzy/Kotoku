@@ -9,7 +9,6 @@ from apps.billing.constants import PLANS, get_plan
 from .admin_mfa import install_admin_mfa
 from .models import Account, DeviceSession, User
 
-
 # ── Plan badge ────────────────────────────────────────────────────────────────
 
 _PLAN_STYLES = {

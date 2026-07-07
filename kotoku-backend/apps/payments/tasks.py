@@ -11,7 +11,8 @@ expire_lapsed_subscriptions — daily beat task (registered in settings).
 """
 
 import logging
-from datetime import date, datetime, timezone as dt_timezone
+from datetime import date, datetime
+from datetime import timezone as dt_timezone
 
 from celery import shared_task
 from django.db import transaction

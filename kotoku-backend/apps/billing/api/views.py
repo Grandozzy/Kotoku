@@ -1,6 +1,6 @@
-from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
+from rest_framework_simplejwt.authentication import JWTAuthentication
 
 from apps.billing.selectors import get_current_plan_usage
 from common.exceptions import DomainError

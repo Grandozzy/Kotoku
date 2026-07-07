@@ -5,7 +5,6 @@ Covers issue #11:
   + non-party 403, non-sealed 400, correct fields
 """
 from datetime import timedelta
-from unittest.mock import patch
 
 import pytest
 from django.utils import timezone

@@ -8,7 +8,6 @@ from apps.disputes.models import Dispute
 from apps.disputes.services import DisputeService
 from common.exceptions import DomainError
 
-
 # ── Inline resolution form ──────────────────────────────────────────────────
 
 class ResolutionForm(forms.Form):

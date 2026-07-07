@@ -1,10 +1,11 @@
+from unittest.mock import patch
+
 import pytest
 from django.utils import timezone
-from unittest.mock import patch
 
 from apps.accounts.models import Account, User
 from apps.agreements.domain.enums import AgreementStatus
-from apps.agreements.models import Agreement, AgreementRevision
+from apps.agreements.models import AgreementRevision
 from apps.agreements.services import AgreementService
 from apps.evidence.models import EvidenceItem
 from apps.identity.models import IdentityRecord

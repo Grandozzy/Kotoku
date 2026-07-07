@@ -364,7 +364,7 @@ class Command(BaseCommand):
             records = ConsentService.request_otp(agreement_id=agreement.pk)
 
         phone_to_otp = {}
-        for record, otp in zip(records, captured_otps):
+        for record, otp in zip(records, captured_otps, strict=False):
             phone_to_otp[record.party.phone] = otp
 
         for phone, otp in phone_to_otp.items():

@@ -1,7 +1,7 @@
 from django.http import Http404
-from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
+from rest_framework_simplejwt.authentication import JWTAuthentication
 
 from apps.vault.api.audit import AuditEventSerializer, build_audit_timeline
 from apps.vault.api.serializers import PublicSealedReceiptSerializer, VaultEntrySerializer

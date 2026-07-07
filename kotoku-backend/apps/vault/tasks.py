@@ -1,6 +1,6 @@
 import logging
-from hashlib import sha256
 from datetime import timedelta
+from hashlib import sha256
 
 from celery import shared_task
 from django.utils import timezone

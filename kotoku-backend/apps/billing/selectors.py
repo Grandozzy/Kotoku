@@ -1,6 +1,5 @@
 from datetime import date, timedelta
 
-from django.db.models import Count
 from django.utils import timezone
 
 from apps.billing.constants import (

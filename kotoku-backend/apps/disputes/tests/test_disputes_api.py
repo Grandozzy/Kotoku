@@ -1,13 +1,13 @@
 import pytest
-from django.utils import timezone
 from django.contrib.auth import get_user_model
-from rest_framework_simplejwt.tokens import RefreshToken
+from django.utils import timezone
 from rest_framework.test import APIClient
+from rest_framework_simplejwt.tokens import RefreshToken
 
 from apps.accounts.models import Account
 from apps.agreements.models import Agreement
-from apps.parties.models import Party
 from apps.disputes.models import Dispute
+from apps.parties.models import Party
 
 
 @pytest.fixture

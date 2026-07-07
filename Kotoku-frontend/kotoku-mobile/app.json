@@ -27,18 +27,7 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.kotoku.mobile",
-      "permissions": [
-        "android.permission.CAMERA",
-        "android.permission.RECORD_AUDIO",
-        "android.permission.MODIFY_AUDIO_SETTINGS",
-        "android.permission.READ_EXTERNAL_STORAGE",
-        "android.permission.WRITE_EXTERNAL_STORAGE",
-        "android.permission.READ_MEDIA_VISUAL_USER_SELECTED",
-        "android.permission.READ_MEDIA_IMAGES",
-        "android.permission.READ_MEDIA_VIDEO",
-        "android.permission.READ_MEDIA_AUDIO"
-      ],
+      "package": "com.kotoku.mobile"
     },
     "web": {
       "bundler": "metro",
@@ -59,14 +48,7 @@
           "photosPermission": "Kotoku needs photo library access to attach evidence from your gallery."
         }
       ],
-      [
-        "expo-av",
-        {
-          "microphonePermission": "Kotoku needs microphone access to record voice summaries."
-        }
-      ],
       "expo-sqlite",
-      "expo-media-library",
       "expo-build-properties"
     ],
     "experiments": {

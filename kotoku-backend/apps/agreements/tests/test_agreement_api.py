@@ -1,6 +1,6 @@
 import pytest
-from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.test import APIClient
+from rest_framework_simplejwt.tokens import RefreshToken
 
 from apps.accounts.models import Account, User
 from apps.agreements.domain.enums import AgreementStatus

@@ -15,9 +15,15 @@ interface WsEvent {
   timestamp: string;
 }
 
-function getWsUrl(token: string): string {
+type ReactNativeWebSocketCtor = new (
+  url: string,
+  protocols?: string | string[],
+  options?: { headers?: Record<string, string> },
+) => WebSocket;
+
+function getWsUrl(): string {
   const base = API_BASE_URL.replace(/^http/, "ws");
-  return `${base}${WS_PATH}?token=${token}`;
+  return `${base}${WS_PATH}`;
 }
 
 const INVALIDATION_MAP: Record<string, string[]> = {
@@ -65,7 +71,13 @@ export function useNotifications() {
       return;
     }
 
-    const ws = new WebSocket(getWsUrl(token));
+    const ReactNativeWebSocket = WebSocket as unknown as ReactNativeWebSocketCtor;
+    const ws = new ReactNativeWebSocket(getWsUrl(), undefined, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "X-Client-Type": "mobile",
+      },
+    });
     wsRef.current = ws;
 
     ws.onopen = () => {

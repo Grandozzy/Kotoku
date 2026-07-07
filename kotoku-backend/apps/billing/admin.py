@@ -7,7 +7,6 @@ from apps.accounts.models import Account
 from apps.billing.constants import PLANS, get_plan
 from apps.billing.selectors import _check_business_misuse
 
-
 # ── Plan badge ────────────────────────────────────────────────────────────────
 
 _PLAN_STYLES = {

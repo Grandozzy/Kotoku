@@ -11,6 +11,8 @@ from apps.auth.api.serializers import (
     VerifyOtpSerializer,
 )
 from apps.auth.services import AuthService, PinService, TokenService
+from common.exceptions import DomainError
+from common.responses import ok
 from common.throttling import (
     AuthIpRateThrottle,
     PinVerifyPhoneRateThrottle,
@@ -18,8 +20,6 @@ from common.throttling import (
     SendOtpPhoneRateThrottle,
     VerifyOtpPhoneRateThrottle,
 )
-from common.exceptions import DomainError
-from common.responses import ok
 
 
 # Reads the client_type claim from an already-validated JWT (request.auth).

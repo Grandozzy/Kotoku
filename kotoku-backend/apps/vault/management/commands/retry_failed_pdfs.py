@@ -12,9 +12,10 @@ to recover entries that ended up in FAILED or stuck-GENERATING state:
     # Dry-run to see what would be re-queued without actually doing it
     python manage.py retry_failed_pdfs --dry-run
 """
+from datetime import timedelta
+
 from django.core.management.base import BaseCommand
 from django.utils import timezone
-from datetime import timedelta
 
 
 class Command(BaseCommand):

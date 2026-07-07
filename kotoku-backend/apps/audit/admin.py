@@ -5,7 +5,6 @@ from django.utils.html import format_html
 
 from .models import AuditLog
 
-
 # ── Event type badge ─────────────────────────────────────────────────────────
 
 _EVENT_COLOURS = {

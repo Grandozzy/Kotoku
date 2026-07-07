@@ -5,6 +5,7 @@ from django.core.exceptions import ImproperlyConfigured
 from .base import *  # noqa: F403
 
 DEBUG = False
+STRICT_RUNTIME_VALIDATION = True
 
 _secret_key = os.getenv("DJANGO_SECRET_KEY", "")
 if (
@@ -13,7 +14,42 @@ if (
     or _secret_key.startswith("replace-with")
 ):
     raise ImproperlyConfigured(
-        "Production requires DJANGO_SECRET_KEY to be a strong, random value of at least 50 characters."
+        "Production requires DJANGO_SECRET_KEY to be a strong, random value"
+        " of at least 50 characters."
+    )
+
+
+def _missing_setting_names(names: tuple[str, ...]) -> list[str]:
+    missing: list[str] = []
+    for name in names:
+        value = globals().get(name, "")
+        if isinstance(value, str):
+            if not value.strip():
+                missing.append(name)
+        elif not value:
+            missing.append(name)
+    return missing
+
+
+_missing_runtime_settings = [
+    *_missing_setting_names(REQUIRED_STORAGE_SETTING_NAMES),  # noqa: F405
+    *_missing_setting_names(REQUIRED_PAYMENT_SETTING_NAMES),  # noqa: F405
+]
+if SMS_BACKEND != "stub":  # noqa: F405
+    _missing_runtime_settings.extend(_missing_setting_names(REQUIRED_SMS_SETTING_NAMES))  # noqa: F405
+if SMS_BACKEND == "console":  # noqa: F405
+    raise ImproperlyConfigured(
+        "Production cannot run with SMS_BACKEND=console because OTPs would be written to logs."
+    )
+
+for plan_id, env_name in PAYSTACK_PLAN_CODE_ENV_MAP.items():  # noqa: F405
+    if not PAYSTACK_PLAN_CODES.get(plan_id, ""):  # noqa: F405
+        _missing_runtime_settings.append(env_name)
+
+if _missing_runtime_settings:
+    raise ImproperlyConfigured(
+        "Production requires the following env vars to be configured: "
+        + ", ".join(sorted(set(_missing_runtime_settings)))
     )
 
 # Disable browsable API in production — pure JSON responses only

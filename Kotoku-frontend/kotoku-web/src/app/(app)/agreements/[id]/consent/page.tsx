@@ -122,7 +122,7 @@ export default function ConsentPage() {
             Upgrade your plan or wait until next month to seal more agreements.
           </p>
           <Link
-            href="/pricing"
+            href="/plans"
             className="inline-flex items-center gap-1 mt-3 px-4 py-1.5 rounded-full border border-red-300 text-red-700 text-xs font-semibold hover:bg-red-100 transition-colors"
           >
             View upgrade options <ArrowRight size={11} strokeWidth={2.5} />

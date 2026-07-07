@@ -1,7 +1,6 @@
-import pytest
 from datetime import timedelta
-from unittest.mock import MagicMock, patch
 
+import pytest
 from django.utils import timezone
 
 from apps.accounts.models import Account, User

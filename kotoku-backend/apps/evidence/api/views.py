@@ -1,9 +1,9 @@
 import logging
 
 from django.http import Http404
-from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
+from rest_framework_simplejwt.authentication import JWTAuthentication
 
 from apps.agreements.models import Agreement
 from apps.agreements.selectors import AgreementSelector
@@ -12,7 +12,6 @@ from apps.evidence.api.serializers import (
     EvidenceItemSerializer,
     UploadUrlRequestSerializer,
 )
-from apps.evidence.models import EvidenceItem
 from apps.evidence.selectors import EvidenceSelector
 from apps.evidence.services import EvidenceService
 from common.responses import ok

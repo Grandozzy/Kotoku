@@ -190,6 +190,7 @@ CHANNEL_LAYERS = {
 
 AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID", "")
 AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY", "")
+AWS_SESSION_TOKEN = os.getenv("AWS_SESSION_TOKEN", "").strip()
 AWS_STORAGE_BUCKET_NAME = os.getenv("AWS_STORAGE_BUCKET_NAME", "kotoku-evidence")
 AWS_S3_REGION_NAME = os.getenv("AWS_S3_REGION_NAME", "eu-west-1")
 AWS_ENDPOINT_URL_S3 = (
@@ -218,16 +219,35 @@ CONSENT_LINK_MAX_AGE_SECONDS = int(os.getenv("CONSENT_LINK_MAX_AGE_SECONDS", "60
 SEALED_RECEIPT_LINK_MAX_AGE_SECONDS = int(
     os.getenv("SEALED_RECEIPT_LINK_MAX_AGE_SECONDS", "2592000")
 )
+PAYSTACK_PLAN_CODE_ENV_MAP: dict[str, str] = {
+    "personal_basic": "PAYSTACK_PLAN_CODE_PERSONAL_BASIC",
+    "personal_plus": "PAYSTACK_PLAN_CODE_PERSONAL_PLUS",
+    "personal_protect": "PAYSTACK_PLAN_CODE_PERSONAL_PROTECT",
+    "enterprise_standard": "PAYSTACK_PLAN_CODE_ENTERPRISE_STANDARD",
+    "enterprise_plus": "PAYSTACK_PLAN_CODE_ENTERPRISE_PLUS",
+}
 # Map billing plan IDs → Paystack plan codes.
 # Set each via env var after creating plans in the Paystack dashboard.
 PAYSTACK_PLAN_CODES: dict[str, str] = {
-    "personal_basic":      os.getenv("PAYSTACK_PLAN_CODE_PERSONAL_BASIC", ""),
-    "personal_plus":       os.getenv("PAYSTACK_PLAN_CODE_PERSONAL_PLUS", ""),
-    "personal_protect":    os.getenv("PAYSTACK_PLAN_CODE_PERSONAL_PROTECT", ""),
-    "enterprise_standard": os.getenv("PAYSTACK_PLAN_CODE_ENTERPRISE_STANDARD", ""),
-    "enterprise_plus":     os.getenv("PAYSTACK_PLAN_CODE_ENTERPRISE_PLUS", ""),
+    plan_id: os.getenv(env_name, "")
+    for plan_id, env_name in PAYSTACK_PLAN_CODE_ENV_MAP.items()
 }
 PAYSTACK_CALLBACK_URL = os.getenv("PAYSTACK_CALLBACK_URL", "")
+
+REQUIRED_STORAGE_SETTING_NAMES = (
+    "AWS_ACCESS_KEY_ID",
+    "AWS_SECRET_ACCESS_KEY",
+    "AWS_STORAGE_BUCKET_NAME",
+    "AWS_S3_REGION_NAME",
+)
+REQUIRED_SMS_SETTING_NAMES = ("SMS_API_KEY",)
+REQUIRED_PAYMENT_SETTING_NAMES = (
+    "PAYSTACK_SECRET_KEY",
+    "PAYSTACK_PUBLIC_KEY",
+    "PAYSTACK_WEBHOOK_SECRET",
+    "PAYSTACK_CALLBACK_URL",
+)
+STRICT_RUNTIME_VALIDATION = False
 
 SENTRY_DSN = os.getenv("SENTRY_DSN", "")
 OTEL_EXPORTER_OTLP_ENDPOINT = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "")

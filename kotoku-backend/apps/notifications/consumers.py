@@ -11,14 +11,18 @@ logger = logging.getLogger(__name__)
 
 
 class NotificationConsumer(AsyncWebsocketConsumer):
+    @staticmethod
+    def _get_authorization_header(scope) -> str:
+        for key, value in scope.get("headers", []):
+            if key == b"authorization":
+                return value.decode("utf-8", errors="ignore")
+        return ""
+
     async def connect(self):
-        # Expect: ws://...?token=<access_jwt>
-        qs = self.scope.get("query_string", b"").decode()
+        auth_header = self._get_authorization_header(self.scope)
         token_str = ""
-        for part in qs.split("&"):
-            if part.startswith("token="):
-                token_str = part[6:]
-                break
+        if auth_header.lower().startswith("bearer "):
+            token_str = auth_header[7:].strip()
 
         if not token_str:
             await self.close(code=4001)
@@ -38,7 +42,9 @@ class NotificationConsumer(AsyncWebsocketConsumer):
             try:
                 session = await DeviceSession.objects.aget(id=session_id)
                 if session.is_revoked:
-                    logger.info("WS rejected: session %s revoked for user=%s", session_id, self.user)
+                    logger.info(
+                        "WS rejected: session %s revoked for user=%s", session_id, self.user
+                    )
                     await self.close(code=4003)
                     return
             except DeviceSession.DoesNotExist:

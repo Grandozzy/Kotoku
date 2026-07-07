@@ -1,13 +1,14 @@
 import logging
+
 import pytest
 
+from apps.notifications.providers.stub_provider import StubNotificationProvider
 from common import constants
-from common.logging import JsonFormatter, get_request_id, set_request_id, clear_request_id
+from common.logging import JsonFormatter, clear_request_id, get_request_id, set_request_id
 from common.mixins import TimestampedServiceMixin
 from common.permissions import IsSystemHealthy
 from common.types import HealthPayload
 from common.validators import ensure_present
-from apps.notifications.providers.stub_provider import StubNotificationProvider
 
 
 def test_service_name_constant():
