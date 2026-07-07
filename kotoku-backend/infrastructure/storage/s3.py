@@ -1,8 +1,11 @@
+import logging
 from urllib.parse import urlparse
 
 import boto3
 from botocore.config import Config as BotoConfig
 from django.conf import settings
+
+logger = logging.getLogger("kotoku")
 
 
 def _endpoint(name: str) -> str | None:
@@ -43,15 +46,25 @@ def _get_client(external: bool = False):
     else:
         endpoint_url = _client_endpoint("AWS_ENDPOINT_URL_S3")
     config_kwargs = {"signature_version": "s3v4"}
-    if endpoint_url:
+    path_style = bool(endpoint_url)
+    if path_style:
         config_kwargs["s3"] = {"addressing_style": "path"}
+
+    region = settings.AWS_S3_REGION_NAME.strip()
+    logger.info(
+        "[S3] _get_client external=%s endpoint_url=%r region=%r path_style=%s",
+        external,
+        endpoint_url,
+        region,
+        path_style,
+    )
 
     return boto3.client(
         "s3",
         endpoint_url=endpoint_url,
         aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
         aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
-        region_name=settings.AWS_S3_REGION_NAME.strip(),
+        region_name=region,
         config=BotoConfig(**config_kwargs),
     )
 
