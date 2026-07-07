@@ -49,6 +49,32 @@ def _public_evidence_payload(item: EvidenceItem) -> dict:
 
 class VaultService:
     @staticmethod
+    def _enqueue_pdf_export(vault_entry_id: int) -> None:
+        from apps.vault.tasks import generate_pdf_export  # noqa: PLC0415
+
+        generate_pdf_export.delay(vault_entry_id)
+
+    @staticmethod
+    def _set_generating_and_enqueue(
+        *,
+        entry: VaultEntry,
+        audit_event_type: str,
+        audit_metadata: dict | None = None,
+    ) -> VaultEntry:
+        entry.pdf_status = VaultEntry.PdfStatus.GENERATING
+        entry.pdf_key = ""
+        entry.pdf_url = ""
+        entry.save(update_fields=["pdf_status", "pdf_key", "pdf_url", "updated_at"])
+        VaultService._enqueue_pdf_export(entry.pk)
+        AuditService.record_event(
+            event_type=audit_event_type,
+            entity_type="vault_entry",
+            entity_id=str(entry.pk),
+            metadata=audit_metadata or {"agreement_id": entry.agreement_id},
+        )
+        return entry
+
+    @staticmethod
     def make_sealed_receipt_token(*, agreement_id: int, party_id: int) -> str:
         return signing.dumps(
             {"agreement_id": agreement_id, "party_id": party_id},
@@ -147,19 +173,11 @@ class VaultService:
         if entry.pdf_status == VaultEntry.PdfStatus.GENERATING:
             raise DomainError("PDF generation is already in progress.")
 
-        entry.pdf_status = VaultEntry.PdfStatus.GENERATING
-        entry.save(update_fields=["pdf_status", "updated_at"])
-
-        from apps.vault.tasks import generate_pdf_export  # noqa: PLC0415
-        generate_pdf_export.delay(entry.pk)
-
-        AuditService.record_event(
-            event_type="vault.export_requested",
-            entity_type="vault_entry",
-            entity_id=str(entry.pk),
-            metadata={"agreement_id": agreement_id},
+        return VaultService._set_generating_and_enqueue(
+            entry=entry,
+            audit_event_type="vault.export_requested",
+            audit_metadata={"agreement_id": agreement_id},
         )
-        return entry
 
     @staticmethod
     @transaction.atomic
@@ -201,19 +219,32 @@ class VaultService:
         if entry.pdf_status != VaultEntry.PdfStatus.FAILED:
             raise DomainError("Can only retry failed PDF generation.")
 
-        entry.pdf_status = VaultEntry.PdfStatus.PENDING
-        entry.save(update_fields=["pdf_status", "updated_at"])
+        return VaultService._set_generating_and_enqueue(
+            entry=entry,
+            audit_event_type="vault.export_retry_requested",
+            audit_metadata={"agreement_id": agreement_id},
+        )
 
-        from apps.vault.tasks import generate_pdf_export  # noqa: PLC0415
-        generate_pdf_export.delay(entry.pk)
+    @staticmethod
+    @transaction.atomic
+    def recover_stuck_export(*, vault_entry_id: int) -> bool:
+        try:
+            entry = VaultEntry.objects.select_for_update().get(pk=vault_entry_id)
+        except VaultEntry.DoesNotExist:
+            return False
 
+        if entry.pdf_status != VaultEntry.PdfStatus.GENERATING:
+            return False
+
+        entry.save(update_fields=["updated_at"])
+        VaultService._enqueue_pdf_export(entry.pk)
         AuditService.record_event(
-            event_type="vault.export_retry_requested",
+            event_type="vault.export_recovered",
             entity_type="vault_entry",
             entity_id=str(entry.pk),
-            metadata={"agreement_id": agreement_id},
+            metadata={"agreement_id": entry.agreement_id},
         )
-        return entry
+        return True
 
     @staticmethod
     def _push_vault_event(*, agreement_id: int, event_type: str, payload: dict | None = None):

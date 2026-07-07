@@ -1,9 +1,13 @@
+import logging
+
 from rest_framework import serializers
 
 from apps.vault.models import VaultEntry
+from common.exceptions import ServiceUnavailableError
 from infrastructure.storage.s3 import S3StorageClient
 
 _PDF_SIGNED_URL_TTL = 3600  # 1 hour
+logger = logging.getLogger(__name__)
 
 
 class PartySummarySerializer(serializers.Serializer):
@@ -46,14 +50,24 @@ class VaultEntrySerializer(serializers.ModelSerializer):
         )
 
     def get_pdf_url(self, obj: VaultEntry) -> str | None:
-        if obj.pdf_status != VaultEntry.PdfStatus.READY or not obj.pdf_key:
+        if obj.pdf_status != VaultEntry.PdfStatus.READY:
             return None
+        if not obj.pdf_key:
+            raise ServiceUnavailableError(
+                "Vault PDF is temporarily unavailable. Please try again."
+            )
         try:
             return S3StorageClient().generate_presigned_url(
                 obj.pdf_key, expires_in=_PDF_SIGNED_URL_TTL
             )
         except Exception:
-            return None
+            logger.exception(
+                "Could not generate vault PDF presigned URL",
+                extra={"vault_entry_id": obj.pk},
+            )
+            raise ServiceUnavailableError(
+                "Vault PDF is temporarily unavailable. Please try again."
+            ) from None
 
 
 class PublicReceiptAgreementSerializer(serializers.Serializer):

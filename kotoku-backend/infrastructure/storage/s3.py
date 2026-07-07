@@ -1,3 +1,4 @@
+import base64
 import logging
 from urllib.parse import urlparse
 
@@ -101,14 +102,31 @@ def _build_object_url(key: str) -> str:
 
 
 class S3StorageClient:
-    def upload(self, key: str, data: bytes, content_type: str = "application/octet-stream") -> str:
+    def upload(
+        self,
+        key: str,
+        data: bytes,
+        content_type: str = "application/octet-stream",
+        *,
+        metadata: dict[str, str] | None = None,
+        checksum_sha256: str | None = None,
+    ) -> str:
         client = _get_client()
-        client.put_object(
-            Bucket=settings.AWS_STORAGE_BUCKET_NAME,
-            Key=key,
-            Body=data,
-            ContentType=content_type,
-        )
+        put_kwargs = {
+            "Bucket": settings.AWS_STORAGE_BUCKET_NAME,
+            "Key": key,
+            "Body": data,
+            "ContentType": content_type,
+        }
+        metadata = dict(metadata or {})
+        if checksum_sha256:
+            metadata.setdefault("sha256", checksum_sha256)
+            put_kwargs["ChecksumSHA256"] = base64.b64encode(
+                bytes.fromhex(checksum_sha256)
+            ).decode("ascii")
+        if metadata:
+            put_kwargs["Metadata"] = metadata
+        client.put_object(**put_kwargs)
         return _build_object_url(key)
 
     def generate_presigned_url(self, key: str, expires_in: int = 3600) -> str:

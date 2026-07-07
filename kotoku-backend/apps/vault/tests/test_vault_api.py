@@ -89,7 +89,18 @@ def _sealed_agreement_with_vault(account, initiator_phone, second_phone):
     fake_pdf = b"%PDF-fake"
     fake_url = "https://storage.kotoku/exports/test.pdf"
     with patch("apps.vault.pdf.render_vault_pdf", return_value=fake_pdf), \
-         patch("infrastructure.storage.s3.S3StorageClient.upload", return_value=fake_url):
+         patch("infrastructure.storage.s3.S3StorageClient.upload", return_value=fake_url), \
+         patch(
+             "infrastructure.storage.s3.S3StorageClient.head_object",
+             return_value={
+                 "content_length": len(fake_pdf),
+                 "content_type": "application/pdf",
+                 "etag": "fake-etag",
+                 "metadata": {
+                     "sha256": "9d75a845cfb792718578edb7cec48a82c7cd60a3c3b91009f326e52ce16891f9",
+                 },
+             },
+         ):
         entry = VaultService.create_for_agreement(agreement_id=agreement.pk)
 
     return agreement, entry
@@ -188,6 +199,21 @@ class TestVaultDetail:
         assert resp.status_code == 200
         assert resp.json()["data"]["vault_entry"]["agreement"]["id"] == agreement.pk
 
+    def test_returns_503_when_pdf_presign_fails_for_ready_entry(self):
+        client, acct = _make_client("+233700200012")
+        agreement, entry = _sealed_agreement_with_vault(acct, acct.phone, "+233700200013")
+        entry.pdf_status = VaultEntry.PdfStatus.READY
+        entry.pdf_key = "exports/test.pdf"
+        entry.save()
+
+        with patch(
+            "infrastructure.storage.s3.S3StorageClient.generate_presigned_url",
+            side_effect=RuntimeError("presign fail"),
+        ):
+            resp = client.get(_DETAIL_PATH.format(id=agreement.pk))
+
+        assert resp.status_code == 503
+
 
 # ──────────────────────────────────────────────────────────────────────────────
 # GET /api/vault-receipts/{token}/
@@ -235,7 +261,18 @@ class TestVaultExport:
         fake_url = "https://storage.kotoku/exports/test.pdf"
 
         with patch("apps.vault.pdf.render_vault_pdf", return_value=fake_pdf), \
-             patch("infrastructure.storage.s3.S3StorageClient.upload", return_value=fake_url):
+             patch("infrastructure.storage.s3.S3StorageClient.upload", return_value=fake_url), \
+             patch(
+                 "infrastructure.storage.s3.S3StorageClient.head_object",
+                 return_value={
+                     "content_length": len(fake_pdf),
+                     "content_type": "application/pdf",
+                     "etag": "fake-etag",
+                     "metadata": {
+                         "sha256": "9d75a845cfb792718578edb7cec48a82c7cd60a3c3b91009f326e52ce16891f9",
+                     },
+                 },
+             ):
             resp = client.post(_EXPORT_PATH.format(id=agreement.pk))
 
         assert resp.status_code == 202
@@ -348,12 +385,23 @@ class TestVaultRetryExport:
         fake_pdf = b"%PDF-fake"
         fake_url = "https://storage.kotoku/exports/retry.pdf"
         with patch("apps.vault.pdf.render_vault_pdf", return_value=fake_pdf), \
-             patch("infrastructure.storage.s3.S3StorageClient.upload", return_value=fake_url):
+             patch("infrastructure.storage.s3.S3StorageClient.upload", return_value=fake_url), \
+             patch(
+                 "infrastructure.storage.s3.S3StorageClient.head_object",
+                 return_value={
+                     "content_length": len(fake_pdf),
+                     "content_type": "application/pdf",
+                     "etag": "fake-etag",
+                     "metadata": {
+                         "sha256": "9d75a845cfb792718578edb7cec48a82c7cd60a3c3b91009f326e52ce16891f9",
+                     },
+                 },
+             ):
             resp = client.post(_RETRY_PATH.format(id=agreement.pk))
 
         assert resp.status_code == 202
         data = resp.json()["data"]["vault_entry"]
-        assert data["pdf_status"] in (VaultEntry.PdfStatus.READY, VaultEntry.PdfStatus.PENDING)
+        assert data["pdf_status"] == VaultEntry.PdfStatus.GENERATING
 
     def test_retry_non_failed_returns_400(self):
         client, acct = _make_client("+233700500003")

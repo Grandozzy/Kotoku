@@ -1,4 +1,5 @@
 import logging
+from hashlib import sha256
 from datetime import timedelta
 
 from celery import shared_task
@@ -30,8 +31,29 @@ def generate_pdf_export(self, vault_entry_id: int) -> None:
         )
 
         pdf_bytes = render_vault_pdf(vault_entry_id)
+        pdf_sha256 = sha256(pdf_bytes).hexdigest()
         key = f"exports/agreement-{entry.agreement_id}-vault-{vault_entry_id}.pdf"
-        pdf_url = S3StorageClient().upload(key, pdf_bytes, content_type="application/pdf")
+        storage = S3StorageClient()
+        pdf_url = storage.upload(
+            key,
+            pdf_bytes,
+            content_type="application/pdf",
+            checksum_sha256=pdf_sha256,
+        )
+        object_meta = storage.head_object(key)
+        if object_meta.get("content_length") != len(pdf_bytes):
+            raise RuntimeError(
+                f"Uploaded PDF size mismatch for vault_entry={vault_entry_id}"
+            )
+        if object_meta.get("content_type") != "application/pdf":
+            raise RuntimeError(
+                f"Uploaded PDF content type mismatch for vault_entry={vault_entry_id}"
+            )
+        stored_checksum = object_meta.get("metadata", {}).get("sha256", "")
+        if stored_checksum != pdf_sha256:
+            raise RuntimeError(
+                f"Uploaded PDF checksum mismatch for vault_entry={vault_entry_id}"
+            )
 
         VaultService.mark_pdf_ready(vault_entry_id=vault_entry_id, pdf_key=key, pdf_url=pdf_url)
         VaultService._push_vault_event(
@@ -76,6 +98,7 @@ generate_pdf_export.on_failure = _on_generate_pdf_failure
 @shared_task
 def recover_stuck_pdf_generating() -> dict:
     from apps.vault.models import VaultEntry
+    from apps.vault.services import VaultService
 
     cutoff = timezone.now() - timedelta(minutes=5)
     stuck = VaultEntry.objects.filter(
@@ -87,13 +110,13 @@ def recover_stuck_pdf_generating() -> dict:
     if not entry_ids:
         return {"recovered": 0}
 
-    stuck.update(pdf_status=VaultEntry.PdfStatus.PENDING)
-
+    recovered = 0
     for entry_id in entry_ids:
-        generate_pdf_export.delay(entry_id)
+        if VaultService.recover_stuck_export(vault_entry_id=entry_id):
+            recovered += 1
 
-    logger.info("recover_stuck_pdf_generating: re-enqueued %d entries", len(entry_ids))
-    return {"recovered": len(entry_ids)}
+    logger.info("recover_stuck_pdf_generating: re-enqueued %d entries", recovered)
+    return {"recovered": recovered}
 
 
 @shared_task
