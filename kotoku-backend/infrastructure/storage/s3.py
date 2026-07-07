@@ -52,14 +52,17 @@ def _get_client(external: bool = False):
 
     region = settings.AWS_S3_REGION_NAME.strip()
     key_id = settings.AWS_ACCESS_KEY_ID or ""
+    secret = settings.AWS_SECRET_ACCESS_KEY or ""
     session_token = getattr(settings, "AWS_SESSION_TOKEN", "") or ""
     logger.info(
-        "[S3] _get_client external=%s endpoint_url=%r region=%r path_style=%s key_id_prefix=%r has_session_token=%s",
+        "[S3] _get_client external=%s endpoint_url=%r region=%r path_style=%s key_id_prefix=%r key_id_len=%d secret_len=%d has_session_token=%s",
         external,
         endpoint_url,
         region,
         path_style,
         key_id[:8],
+        len(key_id),
+        len(secret),
         bool(session_token),
     )
 
