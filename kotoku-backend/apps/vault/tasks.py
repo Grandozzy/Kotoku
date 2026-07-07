@@ -41,16 +41,14 @@ def generate_pdf_export(self, vault_entry_id: int) -> None:
         )
         logger.info("PDF generated for vault_entry=%s key=%s", vault_entry_id, key)
     except Exception as exc:
-        logger.exception("PDF generation failed for vault_entry=%s", vault_entry_id)
-        try:
-            VaultService.mark_pdf_failed(vault_entry_id=vault_entry_id)
-            entry = VaultEntry.objects.select_related("agreement").get(pk=vault_entry_id)
-            VaultService._push_vault_event(
-                agreement_id=entry.agreement_id,
-                event_type="vault.pdf_failed",
-            )
-        except Exception:
-            logger.exception("Could not mark vault_entry=%s as failed", vault_entry_id)
+        # Stay GENERATING while retries remain — on_failure handles the terminal failure.
+        logger.warning(
+            "PDF generation attempt %d/%d failed for vault_entry=%s: %s",
+            self.request.retries + 1,
+            self.max_retries + 1,
+            vault_entry_id,
+            exc,
+        )
         raise self.retry(exc=exc) from None
 
 
