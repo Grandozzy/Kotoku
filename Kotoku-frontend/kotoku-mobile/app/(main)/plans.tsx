@@ -1,5 +1,6 @@
 import { useRouter } from "expo-router";
 import {
+  AlertCircle,
   Archive,
   BarChart3,
   Check,
@@ -21,7 +22,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ErrorState } from "@/components/ui";
 import { usePlan } from "@/features/billing/usePlan";
 import { useSubscription } from "@/features/billing/useSubscription";
-import { useInitiatePayment } from "@/features/billing/usePayment";
+import { useCancelCheckout, useInitiatePayment } from "@/features/billing/usePayment";
 import { getApiErrorMessage } from "@/lib/errorHandler";
 import { colors } from "@/theme/tokens";
 
@@ -119,6 +120,7 @@ export default function PlansScreen() {
     refetch: refetchSubscription,
   } = useSubscription();
   const { mutate: initiate, isPending, variables: pendingPlanId, error } = useInitiatePayment();
+  const { mutate: cancelCheckout, isPending: cancelling } = useCancelCheckout();
 
   const currentPlanId = plan?.plan.id;
   const activePlanId = subscription?.has_subscription ? subscription.plan_id : null;
@@ -129,6 +131,17 @@ export default function PlansScreen() {
     void refetchPlan();
     void refetchSubscription();
   };
+
+  const errorMsg = error ? getApiErrorMessage(error) : null;
+  const sessionBlocked = !!errorMsg?.toLowerCase().includes("already in progress");
+
+  function handleCancelAndRetry() {
+    if (!pendingPlanId) return;
+    const planId = pendingPlanId;
+    cancelCheckout(undefined, {
+      onSuccess: () => initiate(planId),
+    });
+  }
 
   return (
     <ScrollView
@@ -157,10 +170,38 @@ export default function PlansScreen() {
         </View>
       </View>
 
-      {/* Error banner */}
-      {!!error && (
+      {/* Stuck-session banner — recoverable via cancel & retry */}
+      {sessionBlocked && (
+        <View className="bg-amber-50 border border-amber-200 rounded-xl px-lg py-md gap-sm">
+          <View className="flex-row items-start gap-sm">
+            <AlertCircle size={16} color="#d97706" strokeWidth={2} />
+            <View className="flex-1">
+              <Text className="text-sm font-semibold text-amber-800">
+                A payment session is already open
+              </Text>
+              <Text className="text-xs text-amber-700 mt-xs">
+                You may have closed Paystack before finishing. Cancel the previous session to start again.
+              </Text>
+            </View>
+          </View>
+          <Pressable
+            onPress={handleCancelAndRetry}
+            disabled={cancelling}
+            className="bg-amber-800 rounded-xl py-sm items-center justify-center active:opacity-70 disabled:opacity-50"
+          >
+            {cancelling ? (
+              <ActivityIndicator color="#fff" size="small" />
+            ) : (
+              <Text className="text-white text-sm font-semibold">Cancel & retry</Text>
+            )}
+          </Pressable>
+        </View>
+      )}
+
+      {/* Generic error banner */}
+      {!!error && !sessionBlocked && (
         <View className="bg-red-50 border border-red-200 rounded-xl px-lg py-md">
-          <Text className="text-sm text-red-700">{getApiErrorMessage(error)}</Text>
+          <Text className="text-sm text-red-700">{errorMsg}</Text>
         </View>
       )}
 

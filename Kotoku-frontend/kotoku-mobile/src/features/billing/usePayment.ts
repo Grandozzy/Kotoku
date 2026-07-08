@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 
-import { cancelSubscription, initiatePayment } from "@/api/payments";
+import { cancelCheckout, cancelSubscription, initiatePayment } from "@/api/payments";
 import { WEB_BASE_URL } from "@/constants/config";
 import { getApiErrorMessage } from "@/lib/errorHandler";
 
@@ -34,6 +34,20 @@ export function useInitiatePayment() {
     onError: (error) => {
       // Caller is responsible for surfacing this via getApiErrorMessage(error)
       console.warn("[useInitiatePayment] error:", getApiErrorMessage(error));
+    },
+  });
+}
+
+/**
+ * Cancel an open (pending/charged) checkout so the account can start a new
+ * payment attempt. Safe to call after the user abandons the Paystack WebView —
+ * if they actually paid, the webhook will have already closed the checkout.
+ */
+export function useCancelCheckout() {
+  return useMutation({
+    mutationFn: cancelCheckout,
+    onError: (error) => {
+      console.warn("[useCancelCheckout] error:", getApiErrorMessage(error));
     },
   });
 }

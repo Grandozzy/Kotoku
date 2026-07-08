@@ -55,3 +55,10 @@ export async function getSubscriptionStatus(): Promise<SubscriptionStatusRespons
 export async function cancelSubscription(): Promise<void> {
   await apiClient.post("/payments/cancel/");
 }
+
+export async function cancelCheckout(): Promise<{ cancelled: boolean }> {
+  const res = await apiClient.post<ApiResponse<{ cancelled: boolean }>>(
+    "/payments/checkout/cancel/",
+  );
+  return res.data.data;
+}
