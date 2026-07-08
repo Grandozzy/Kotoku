@@ -92,7 +92,7 @@ export default function EvidenceStep() {
 
       {!canProceed && (
         <Text className="text-xs text-ink-muted text-center">
-          Upload at least {minimumPhotoCount} photo{minimumPhotoCount !== 1 ? "s" : ""}, including all required ID photos, to continue.
+          Upload at least {minimumPhotoCount} photo{minimumPhotoCount !== 1 ? "s" : ""} to continue.
         </Text>
       )}
 

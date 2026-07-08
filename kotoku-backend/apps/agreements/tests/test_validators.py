@@ -37,14 +37,18 @@ def _agreement(account, scenario="", title="Test Agreement"):
     return Agreement.objects.create(title=title, created_by=account, scenario_template=scenario)
 
 
-def _party(agreement, role, id_type="ghana_card", id_number="GHA-DEFAULT"):
+def _pin(index: int) -> str:
+    return f"GHA-{index:09d}-{index % 10}"
+
+
+def _party(agreement, role, id_type="ghana_card", id_number=None):
     return Party.objects.create(
         agreement=agreement,
         role=role,
         display_name=role.title(),
         phone="",
         id_type=id_type,
-        id_number=id_number,
+        id_number=id_number if id_number is not None else _pin(abs(hash(role)) % 1_000_000_000),
     )
 
 
@@ -56,6 +60,11 @@ def _evidence(agreement, evidence_type, status=EvidenceItem.UploadStatus.CONFIRM
         mime_type="image/jpeg",
         upload_status=status,
     )
+
+
+def _identity_evidence(agreement, role):
+    _evidence(agreement, f"{role}_ghana_card_front")
+    _evidence(agreement, f"{role}_ghana_card_back")
 
 
 def _api_client(phone):
@@ -169,23 +178,22 @@ class TestUsedVehicleSaleValidation:
         _evidence(a, "vehicle_photo_front")
         _evidence(a, "vehicle_photo_rear")
         _evidence(a, "vehicle_photo_side")
-        _evidence(a, "buyer_id_photo")
-        _evidence(a, "seller_id_photo")
+        _identity_evidence(a, "buyer")
+        _identity_evidence(a, "seller")
         result = validate_agreement(a)
         codes = {e.code for e in result.errors}
         assert "INSUFFICIENT_VEHICLE_PHOTOS" not in codes
 
-    def test_missing_buyer_id_photo(self):
+    def test_missing_buyer_ghana_card_front(self):
         a = self._base()
         for t in ("vehicle_photo_front", "vehicle_photo_rear", "vehicle_photo_side"):
             _evidence(a, t)
-        _evidence(a, "seller_id_photo")
-        # No buyer_id_photo
+        _identity_evidence(a, "seller")
+        _evidence(a, "buyer_ghana_card_back")
         result = validate_agreement(a)
         codes = {e.code for e in result.errors}
-        assert "MISSING_PARTY_ID_PHOTO" in codes
-        # Exactly one missing ID error (seller has one)
-        id_errors = [e for e in result.errors if e.code == "MISSING_PARTY_ID_PHOTO"]
+        assert "MISSING_GHANA_CARD_FRONT" in codes
+        id_errors = [e for e in result.errors if e.code == "MISSING_GHANA_CARD_FRONT"]
         assert len(id_errors) == 1
         assert "buyer" in id_errors[0].message
 
@@ -202,8 +210,8 @@ class TestUsedVehicleSaleValidation:
         a = self._base()
         for t in ("vehicle_photo_front", "vehicle_photo_rear", "vehicle_photo_side"):
             _evidence(a, t)
-        _evidence(a, "buyer_id_photo")
-        _evidence(a, "seller_id_photo")
+        _identity_evidence(a, "buyer")
+        _identity_evidence(a, "seller")
         result = validate_agreement(a)
         assert result.valid is True
 
@@ -232,8 +240,8 @@ class TestRoomRentalValidation:
         a = self._base()
         _evidence(a, "property_photo_front")
         _evidence(a, "property_photo_interior")
-        _evidence(a, "landlord_id_photo")
-        _evidence(a, "tenant_id_photo")
+        _identity_evidence(a, "landlord")
+        _identity_evidence(a, "tenant")
         result = validate_agreement(a)
         codes = {e.code for e in result.errors}
         assert "INSUFFICIENT_PROPERTY_PHOTOS" not in codes
@@ -242,8 +250,8 @@ class TestRoomRentalValidation:
         a = self._base()
         _evidence(a, "property_photo_front")
         _evidence(a, "property_photo_interior")
-        _evidence(a, "landlord_id_photo")
-        _evidence(a, "tenant_id_photo")
+        _identity_evidence(a, "landlord")
+        _identity_evidence(a, "tenant")
         result = validate_agreement(a)
         assert result.valid is True
 
@@ -252,22 +260,23 @@ class TestRoomRentalValidation:
         a = _agreement(acct, scenario="custom_deal")
         _party(a, "buyer")
         _party(a, "seller")
-        _evidence(a, "buyer_id_photo")
-        _evidence(a, "seller_id_photo")
+        _identity_evidence(a, "buyer")
+        _identity_evidence(a, "seller")
         # No scenario-specific checker → vehicle/property checks are skipped
         result = validate_agreement(a)
         codes = {e.code for e in result.errors}
         assert "INSUFFICIENT_VEHICLE_PHOTOS" not in codes
         assert "INSUFFICIENT_PROPERTY_PHOTOS" not in codes
 
-    def test_unknown_scenario_still_requires_party_id_photos(self):
+    def test_unknown_scenario_still_requires_party_ghana_card_uploads(self):
         _, acct = _user_and_account("+233600300002")
         a = _agreement(acct, scenario="custom_deal")
         _party(a, "buyer")
         _party(a, "seller")
-        _evidence(a, "buyer_id_photo")
+        _identity_evidence(a, "buyer")
+        _evidence(a, "seller_ghana_card_front")
         result = validate_agreement(a)
-        id_errors = [e for e in result.errors if e.code == "MISSING_PARTY_ID_PHOTO"]
+        id_errors = [e for e in result.errors if e.code == "MISSING_GHANA_CARD_BACK"]
         assert len(id_errors) == 1
         assert "seller" in id_errors[0].message
 
@@ -302,8 +311,8 @@ class TestValidateApi:
         _party(a, "seller")
         for t in ("vehicle_photo_front", "vehicle_photo_rear", "vehicle_photo_side"):
             _evidence(a, t)
-        _evidence(a, "buyer_id_photo")
-        _evidence(a, "seller_id_photo")
+        _identity_evidence(a, "buyer")
+        _identity_evidence(a, "seller")
         resp = client.post(_VALIDATE_PATH.format(id=a.pk))
         assert resp.status_code == 200
         data = resp.json()["data"]
@@ -319,7 +328,8 @@ class TestValidateApi:
         resp = client.post(_VALIDATE_PATH.format(id=a.pk))
         codes = {e["code"] for e in resp.json()["data"]["errors"]}
         assert "INSUFFICIENT_VEHICLE_PHOTOS" in codes
-        assert "MISSING_PARTY_ID_PHOTO" in codes
+        assert "MISSING_GHANA_CARD_FRONT" in codes
+        assert "MISSING_GHANA_CARD_BACK" in codes
 
     def test_other_users_agreement_returns_404(self):
         client, acct = _api_client("+233600400005")
@@ -348,11 +358,11 @@ class TestIdentityBaselineValidation:
     def test_party_without_id_type_fails(self):
         _, acct = _user_and_account("+233600500001")
         a = _agreement(acct, scenario=SCENARIO_USED_VEHICLE_SALE)
-        _party(a, "buyer", id_type="", id_number="GHA-123")
+        _party(a, "buyer", id_type="", id_number=_pin(111111111))
         _party(a, "seller")
         result = validate_agreement(a)
         codes = {e.code for e in result.errors}
-        assert "MISSING_PARTY_IDENTITY" in codes
+        assert "MISSING_GHANA_CARD_PIN" in codes
 
     def test_party_without_id_number_fails(self):
         _, acct = _user_and_account("+233600500002")
@@ -361,14 +371,14 @@ class TestIdentityBaselineValidation:
         _party(a, "seller")
         result = validate_agreement(a)
         codes = {e.code for e in result.errors}
-        assert "MISSING_PARTY_IDENTITY" in codes
+        assert "MISSING_GHANA_CARD_PIN" in codes
 
     def test_witness_role_skips_identity_check(self):
         _, acct = _user_and_account("+233600500003")
         a = _agreement(acct, scenario="custom_deal")
         _party(a, "buyer")
         _party(a, "seller")
-        # Witness with no identity data — should NOT trigger MISSING_PARTY_IDENTITY
+        # Witness with no identity data — should NOT trigger Ghana Card PIN errors
         Party.objects.create(
             agreement=a,
             role="witness",
@@ -378,30 +388,41 @@ class TestIdentityBaselineValidation:
             id_number="",
         )
         result = validate_agreement(a)
-        id_errors = [e for e in result.errors if e.code == "MISSING_PARTY_IDENTITY"]
+        id_errors = [e for e in result.errors if e.code == "MISSING_GHANA_CARD_PIN"]
         assert len(id_errors) == 0
 
-    def test_all_parties_with_identity_no_error(self):
+    def test_duplicate_ghana_card_pin_fails(self):
         _, acct = _user_and_account("+233600500004")
         a = _agreement(acct, scenario=SCENARIO_USED_VEHICLE_SALE)
-        _party(a, "buyer", id_type="ghana_card", id_number="GHA-BUY-001")
-        _party(a, "seller", id_type="passport", id_number="P123456")
+        duplicate_pin = _pin(444444444)
+        _party(a, "buyer", id_type="ghana_card", id_number=duplicate_pin)
+        _party(a, "seller", id_type="ghana_card", id_number=duplicate_pin)
+        result = validate_agreement(a)
+        codes = {e.code for e in result.errors}
+        assert "DUPLICATE_GHANA_CARD_PIN" in codes
+
+    def test_all_parties_with_valid_ghana_card_identity_no_error(self):
+        _, acct = _user_and_account("+233600500005")
+        a = _agreement(acct, scenario=SCENARIO_USED_VEHICLE_SALE)
+        _party(a, "buyer", id_type="ghana_card", id_number=_pin(555555555))
+        _party(a, "seller", id_type="ghana_card", id_number=_pin(666666666))
         for t in ("vehicle_photo_front", "vehicle_photo_rear", "vehicle_photo_side"):
             _evidence(a, t)
-        _evidence(a, "buyer_id_photo")
-        _evidence(a, "seller_id_photo")
+        _identity_evidence(a, "buyer")
+        _identity_evidence(a, "seller")
         result = validate_agreement(a)
         codes = {e.code for e in result.errors}
-        assert "MISSING_PARTY_IDENTITY" not in codes
+        assert "INVALID_GHANA_CARD_PIN" not in codes
+        assert "MISSING_GHANA_CARD_FRONT" not in codes
+        assert "MISSING_GHANA_CARD_BACK" not in codes
 
-    def test_party_with_national_id_type_no_identity_error(self):
-        _, acct = _user_and_account("+233600500005")
+    def test_party_with_non_ghana_card_type_fails(self):
+        _, acct = _user_and_account("+233600500006")
         a = _agreement(acct, scenario="custom_deal")
-        _party(a, "buyer", id_type="national_id", id_number="NID-BUY-001")
-        _party(a, "seller", id_type="ghana_card", id_number="GHA-SELL-001")
-        _evidence(a, "buyer_id_photo")
-        _evidence(a, "seller_id_photo")
+        _party(a, "buyer", id_type="national_id", id_number=_pin(777777777))
+        _party(a, "seller", id_type="ghana_card", id_number=_pin(888888888))
+        _identity_evidence(a, "buyer")
+        _identity_evidence(a, "seller")
         result = validate_agreement(a)
         codes = {e.code for e in result.errors}
-        assert "MISSING_PARTY_IDENTITY" not in codes
-        assert "MISSING_PARTY_ID_PHOTO" not in codes
+        assert "INVALID_GHANA_CARD_PIN" in codes

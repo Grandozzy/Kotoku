@@ -14,6 +14,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from apps.parties.identity import (
+    build_party_identity_states,
+    is_identity_required,
+    is_valid_ghana_card_pin,
+    normalize_ghana_card_pin,
+)
+
 # ── Data types ────────────────────────────────────────────────────────────── #
 
 
@@ -59,11 +66,11 @@ def _count_confirmed_evidence(agreement, evidence_type_prefix: str) -> int:
     ).count()
 
 
-def _confirmed_evidence_types(agreement) -> set[str]:
-    return set(
-        agreement.evidence_items.filter(upload_status="confirmed").values_list(
-            "evidence_type", flat=True
-        )
+def _party_identity_states(agreement, parties: list):
+    return build_party_identity_states(
+        parties=parties,
+        evidence_items=agreement.evidence_items.all(),
+        include_view_urls=False,
     )
 
 
@@ -153,34 +160,63 @@ def _check_room_rental(agreement, parties: list, result: ValidationResult) -> No
 
 
 def _check_identity_baseline(parties: list, result: ValidationResult) -> None:
-    """Every non-witness party must have id_type and id_number recorded."""
+    """Every non-witness party must have a valid, unique Ghana Card PIN recorded."""
+    seen_pins: dict[str, str] = {}
     for party in parties:
-        if party.role == "witness":
+        if not is_identity_required(party.role):
             continue
         if not party.id_type or not party.id_number:
             result.add(
-                code="MISSING_PARTY_IDENTITY",
+                code="MISSING_GHANA_CARD_PIN",
                 message=(
-                    f"Identity document details are required for the {party.role}. "
-                    "Please provide id_type and id_number."
+                    f"Ghana Card PIN is required for the {party.role}. "
+                    "Please provide the Ghana Card PIN."
                 ),
                 field_name="parties",
             )
+            continue
+        if party.id_type != "ghana_card" or not is_valid_ghana_card_pin(party.id_number):
+            result.add(
+                code="INVALID_GHANA_CARD_PIN",
+                message=(
+                    f"The {party.role} must use a valid Ghana Card PIN in the form "
+                    "GHA-000000000-0."
+                ),
+                field_name="parties",
+            )
+            continue
+        normalized_pin = normalize_ghana_card_pin(party.id_number)
+        if normalized_pin in seen_pins:
+            result.add(
+                code="DUPLICATE_GHANA_CARD_PIN",
+                message=(
+                    f"The {party.role} and {seen_pins[normalized_pin]} cannot share the same Ghana Card PIN."
+                ),
+                field_name="parties",
+            )
+            continue
+        seen_pins[normalized_pin] = party.role
 
 
-def _check_party_id_photos(
+def _check_party_ghana_card_uploads(
     parties: list,
-    confirmed_types: set[str],
+    identity_states: dict,
     result: ValidationResult,
 ) -> None:
-    """Every non-witness party must have a confirmed role-specific ID image."""
     for party in parties:
-        if party.role == "witness":
+        if not is_identity_required(party.role):
             continue
-        if f"{party.role}_id_photo" not in confirmed_types:
+        state = identity_states.get(party.role)
+        if state is None or not state.front_uploaded:
             result.add(
-                code="MISSING_PARTY_ID_PHOTO",
-                message=f"A confirmed ID card scan/photo is required for the {party.role}.",
+                code="MISSING_GHANA_CARD_FRONT",
+                message=f"A confirmed Ghana Card front image is required for the {party.role}.",
+                field_name="evidence",
+            )
+        if state is None or not state.back_uploaded:
+            result.add(
+                code="MISSING_GHANA_CARD_BACK",
+                message=f"A confirmed Ghana Card back image is required for the {party.role}.",
                 field_name="evidence",
             )
 
@@ -204,7 +240,7 @@ def validate_agreement(agreement) -> ValidationResult:
     _check_core_fields(agreement, result)
     parties = _check_parties(agreement, result)
     _check_identity_baseline(parties, result)
-    _check_party_id_photos(parties, _confirmed_evidence_types(agreement), result)
+    _check_party_ghana_card_uploads(parties, _party_identity_states(agreement, parties), result)
 
     scenario = agreement.scenario_template
     checker = _SCENARIO_CHECKERS.get(scenario)

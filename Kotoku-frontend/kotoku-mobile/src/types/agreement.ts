@@ -20,9 +20,13 @@ export interface Party {
   role: "buyer" | "seller" | "landlord" | "tenant" | "witness";
   displayName: string;
   phone: string;
-  idType: "ghana_card" | "passport" | "national_id";
+  idType: "ghana_card";
   idNumber: string;
   phoneVerifiedAt: string | null;
+  ghanaCardFrontUploaded: boolean;
+  ghanaCardBackUploaded: boolean;
+  ghanaCardFrontViewUrl: string | null;
+  ghanaCardBackViewUrl: string | null;
 }
 
 export interface Agreement {

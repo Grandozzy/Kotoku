@@ -28,7 +28,7 @@ class AgreementSelector:
     def list_agreements(*, account_id=None, account_phone=None, status=None):
         qs = (
             Agreement.objects.select_related("created_by")
-            .prefetch_related("parties")
+            .prefetch_related("parties", "evidence_items")
             .order_by("-created_at")
         )
         if account_id is not None and account_phone is not None:

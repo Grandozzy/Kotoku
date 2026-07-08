@@ -29,8 +29,7 @@ export const SCENARIOS: ScenarioDef[] = [
     roles: ["seller", "buyer"],
     evidenceRequirements: [
       "At least 3 vehicle photos",
-      "ID photo for seller",
-      "ID photo for buyer",
+      "Ghana Card uploads are captured in Parties",
     ],
     fields: [
       { key: "vehicle_type", label: "Vehicle type", type: "select", section: "Vehicle", required: true, options: [{ value: "car", label: "Car" }, { value: "motorbike", label: "Motorbike" }, { value: "other", label: "Other" }] },
@@ -62,8 +61,7 @@ export const SCENARIOS: ScenarioDef[] = [
     roles: ["landlord", "tenant"],
     evidenceRequirements: [
       "At least 2 property photos",
-      "ID photo for landlord",
-      "ID photo for tenant",
+      "Ghana Card uploads are captured in Parties",
       "Condition photo (if deposit set)",
     ],
     fields: [
@@ -99,6 +97,4 @@ export const ROLE_LABEL: Record<string, string> = {
 
 export const ID_TYPE_LABEL: Record<string, string> = {
   ghana_card: "Ghana Card",
-  passport: "Passport",
-  national_id: "National ID Card",
 };

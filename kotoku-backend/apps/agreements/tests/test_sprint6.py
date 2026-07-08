@@ -38,6 +38,10 @@ from common.exceptions import DomainError
 _seq = 0
 
 
+def _pin(index: int) -> str:
+    return f"GHA-{index:09d}-{index % 10}"
+
+
 # ── Fixtures ──────────────────────────────────────────────────────────────── #
 
 
@@ -69,14 +73,14 @@ def _sealed_agreement(account: Account, initiator_phone: str, second_phone: str)
                 "full_name": "Kofi Atta",
                 "phone": initiator_phone,
                 "id_type": "ghana_card",
-                "id_number": "GHA-S-001",
+                "id_number": _pin(111111111),
             },
             {
                 "role": "buyer",
                 "full_name": "Ama Owusu",
                 "phone": second_phone,
                 "id_type": "ghana_card",
-                "id_number": "GHA-B-001",
+                "id_number": _pin(222222222),
             },
         ],
     )

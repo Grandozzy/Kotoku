@@ -19,6 +19,10 @@ interface RawAgreement {
     phone: string;
     id_type: string;
     id_number: string;
+    ghana_card_front_uploaded: boolean;
+    ghana_card_back_uploaded: boolean;
+    ghana_card_front_view_url: string | null;
+    ghana_card_back_view_url: string | null;
   }[];
 }
 
@@ -39,6 +43,10 @@ function mapAgreement(raw: RawAgreement): Agreement {
       idType: p.id_type as IdType,
       idNumber: p.id_number,
       phoneVerifiedAt: null,
+      ghanaCardFrontUploaded: p.ghana_card_front_uploaded,
+      ghanaCardBackUploaded: p.ghana_card_back_uploaded,
+      ghanaCardFrontViewUrl: p.ghana_card_front_view_url,
+      ghanaCardBackViewUrl: p.ghana_card_back_view_url,
     })),
   };
 }

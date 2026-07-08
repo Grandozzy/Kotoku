@@ -1,5 +1,5 @@
 export type PartyRole = "buyer" | "seller" | "landlord" | "tenant" | "witness";
-export type IdType = "ghana_card" | "passport" | "national_id";
+export type IdType = "ghana_card";
 
 export interface Party {
   id: number;
@@ -8,6 +8,10 @@ export interface Party {
   phone: string;
   id_type: IdType;
   id_number: string;
+  ghana_card_front_uploaded: boolean;
+  ghana_card_back_uploaded: boolean;
+  ghana_card_front_view_url: string | null;
+  ghana_card_back_view_url: string | null;
   created_at: string;
   updated_at: string;
 }

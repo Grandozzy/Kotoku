@@ -42,8 +42,8 @@ const validationResult: ValidateAgreementResponse = {
   errors: [
     {
       code: "missing_required_evidence",
-      field: "buyer_id_photo",
-      message: "Buyer ID photo is required.",
+      field: "buyer_ghana_card_front",
+      message: "Buyer Ghana Card front is required.",
     },
   ],
 };
@@ -75,7 +75,7 @@ const consentStatusResult: Awaited<ReturnType<typeof consentApi.status>> = {
 };
 
 const uploadUrlPayload: Parameters<typeof evidenceApi.requestUploadUrl>[1] = {
-  evidence_type: "buyer_id_photo",
+  evidence_type: "buyer_ghana_card_front",
   mime_type: "image/jpeg",
   size_bytes: 1234,
   checksum_sha256: "a".repeat(64),
@@ -117,6 +117,10 @@ const party: Party = {
   phone: "+233501234567",
   id_type: "ghana_card",
   id_number: "GHA-123456789-0",
+  ghana_card_front_uploaded: false,
+  ghana_card_back_uploaded: false,
+  ghana_card_front_view_url: null,
+  ghana_card_back_view_url: null,
   created_at: "2026-05-19T12:00:00Z",
   updated_at: "2026-05-19T12:00:00Z",
 };

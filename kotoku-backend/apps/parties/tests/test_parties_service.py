@@ -26,19 +26,23 @@ def _agreement(account, status=AgreementStatus.DRAFT):
     return a
 
 
+def _pin(index: int) -> str:
+    return f"GHA-{index:09d}-{index % 10}"
+
+
 _SELLER = {
     "role": "seller",
     "full_name": "Kofi Mensah",
     "phone": "",
     "id_type": "ghana_card",
-    "id_number": "GHA-111",
+    "id_number": _pin(111111111),
 }
 _BUYER = {
     "role": "buyer",
     "full_name": "Ama Owusu",
     "phone": "+233200000002",
     "id_type": "ghana_card",
-    "id_number": "GHA-222",
+    "id_number": _pin(222222222),
 }
 
 
@@ -74,7 +78,7 @@ class TestSetParties:
         seller = Party.objects.get(agreement=agreement, role="seller")
         assert seller.display_name == "Kofi Mensah"
         assert seller.id_type == "ghana_card"
-        assert seller.id_number == "GHA-111"
+        assert seller.id_number == _pin(111111111)
 
     def test_normalizes_party_phone_and_matches_initiator_by_user_phone(self):
         acct = _account()
@@ -103,29 +107,54 @@ class TestSetParties:
                 ],
             )
 
-    def test_accepts_national_id_type(self):
+    def test_rejects_non_ghana_card_id_type(self):
         acct = _account()
         agreement = _agreement(acct)
         data = _parties(acct.phone)
-        data[1] = {**data[1], "id_type": "national_id", "id_number": "NID-222"}
-        PartyService.set_parties(
-            agreement_id=agreement.pk,
-            initiator_account=acct,
-            parties_data=data,
-        )
-        buyer = Party.objects.get(agreement=agreement, role="buyer")
-        assert buyer.id_type == "national_id"
+        data[1] = {**data[1], "id_type": "national_id", "id_number": _pin(333333333)}
+        with pytest.raises(DomainError, match="Only Ghana Card"):
+            PartyService.set_parties(
+                agreement_id=agreement.pk,
+                initiator_account=acct,
+                parties_data=data,
+            )
 
     def test_raises_when_id_number_blank(self):
         acct = _account()
         agreement = _agreement(acct)
         data = _parties(acct.phone)
         data[1] = {**data[1], "id_number": " "}
-        with pytest.raises(DomainError, match="number is required"):
+        with pytest.raises(DomainError, match="PIN is required|number is required"):
             PartyService.set_parties(
                 agreement_id=agreement.pk,
                 initiator_account=acct,
                 parties_data=data,
+            )
+
+    def test_raises_when_pin_format_invalid(self):
+        acct = _account()
+        agreement = _agreement(acct)
+        data = _parties(acct.phone)
+        data[1] = {**data[1], "id_number": "GHA-123"}
+        with pytest.raises(DomainError, match="format GHA-000000000-0"):
+            PartyService.set_parties(
+                agreement_id=agreement.pk,
+                initiator_account=acct,
+                parties_data=data,
+            )
+
+    def test_raises_when_pins_duplicate(self):
+        acct = _account()
+        agreement = _agreement(acct)
+        duplicate_pin = _pin(555555555)
+        with pytest.raises(DomainError, match="must be unique per agreement"):
+            PartyService.set_parties(
+                agreement_id=agreement.pk,
+                initiator_account=acct,
+                parties_data=[
+                    {**_SELLER, "phone": acct.phone, "id_number": duplicate_pin},
+                    {**_BUYER, "id_number": duplicate_pin},
+                ],
             )
 
     def test_replaces_existing_parties(self):
@@ -255,19 +284,28 @@ class TestPatchParties:
         PartyService.patch_parties(
             agreement_id=agreement.pk,
             initiator_account=acct,
-            parties_data=[{"role": "buyer", "id_number": "GHA-UPDATED"}],
+            parties_data=[{"role": "buyer", "id_number": _pin(444444444)}],
         )
         buyer = Party.objects.get(agreement=agreement, role="buyer")
         assert buyer.display_name == original_name  # untouched
-        assert buyer.id_number == "GHA-UPDATED"
+        assert buyer.id_number == _pin(444444444)
 
     def test_raises_when_patching_blank_id_number(self):
         acct, agreement = self._setup()
-        with pytest.raises(DomainError, match="number is required"):
+        with pytest.raises(DomainError, match="PIN is required|number is required"):
             PartyService.patch_parties(
                 agreement_id=agreement.pk,
                 initiator_account=acct,
                 parties_data=[{"role": "buyer", "id_number": " "}],
+            )
+
+    def test_patch_rejects_duplicate_pin(self):
+        acct, agreement = self._setup()
+        with pytest.raises(DomainError, match="must be unique per agreement"):
+            PartyService.patch_parties(
+                agreement_id=agreement.pk,
+                initiator_account=acct,
+                parties_data=[{"role": "buyer", "id_number": _SELLER["id_number"]}],
             )
 
     def test_raises_for_unknown_role(self):

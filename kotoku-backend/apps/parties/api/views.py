@@ -50,7 +50,8 @@ class PartiesView(APIView):
             initiator_account=request.user.account,
             parties_data=serializer.validated_data["parties"],
         )
-        return ok({"parties": PartyOutputSerializer(parties, many=True).data})
+        serializer_context = PartyOutputSerializer.context_for_parties(parties)
+        return ok({"parties": PartyOutputSerializer(parties, many=True, context=serializer_context).data})
 
     def patch(self, request, agreement_id: int):
         """Partially update existing parties matched by role."""
@@ -62,7 +63,8 @@ class PartiesView(APIView):
             initiator_account=request.user.account,
             parties_data=serializer.validated_data["parties"],
         )
-        return ok({"parties": PartyOutputSerializer(parties, many=True).data})
+        serializer_context = PartyOutputSerializer.context_for_parties(parties)
+        return ok({"parties": PartyOutputSerializer(parties, many=True, context=serializer_context).data})
 
     def get(self, request, agreement_id: int):
         """List all parties for an agreement."""
@@ -72,4 +74,5 @@ class PartiesView(APIView):
             account_phone=request.user.account.phone,
         )
         parties = PartySelector.list_parties(agreement_id=agreement_id)
-        return ok({"parties": PartyOutputSerializer(parties, many=True).data})
+        serializer_context = PartyOutputSerializer.context_for_parties(parties)
+        return ok({"parties": PartyOutputSerializer(parties, many=True, context=serializer_context).data})

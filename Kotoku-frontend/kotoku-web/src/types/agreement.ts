@@ -14,6 +14,10 @@ export interface Party {
   phone: string;
   id_type: string | null;
   id_number: string | null;
+  ghana_card_front_uploaded: boolean;
+  ghana_card_back_uploaded: boolean;
+  ghana_card_front_view_url: string | null;
+  ghana_card_back_view_url: string | null;
 }
 
 export interface EvidenceItem {

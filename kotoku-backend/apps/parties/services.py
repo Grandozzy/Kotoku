@@ -3,6 +3,7 @@ from django.db import transaction
 from apps.agreements.domain.enums import AgreementStatus
 from apps.agreements.models import Agreement
 from apps.audit.services import AuditService
+from apps.parties.identity import ensure_unique_pins, validate_party_identity_input
 from apps.parties.models import Party
 from common.exceptions import DomainError
 from common.phone_numbers import normalize_phone_for_compare, normalize_phone_to_e164
@@ -42,6 +43,21 @@ def _normalized_party_payloads(parties_data: list[dict]) -> list[dict]:
     return normalized
 
 
+def _normalized_identity_payloads(parties_data: list[dict]) -> list[dict]:
+    normalized: list[dict] = []
+    for party_data in parties_data:
+        role = party_data["role"]
+        _require_identity_fields(party_data, role=role)
+        normalized_pin = validate_party_identity_input(
+            role=role,
+            id_type=str(party_data.get("id_type", "")).strip(),
+            id_number=str(party_data.get("id_number", "")),
+        )
+        normalized.append({**party_data, "id_number": normalized_pin})
+    ensure_unique_pins(normalized)
+    return normalized
+
+
 class PartyService:
     @staticmethod
     @transaction.atomic
@@ -76,8 +92,7 @@ class PartyService:
         if not _initiator_phone_keys(initiator_account).intersection(party_phone_keys):
             raise DomainError("At least one party must match your account phone number.")
 
-        for p in parties_data:
-            _require_identity_fields(p, role=p["role"])
+        parties_data = _normalized_identity_payloads(parties_data)
 
         Party.objects.filter(agreement=agreement).delete()
         parties = [
@@ -87,7 +102,7 @@ class PartyService:
                 display_name=p["full_name"],
                 phone=p["phone"],
                 id_type=p["id_type"],
-                id_number=p["id_number"].strip(),
+                id_number=p["id_number"],
             )
             for p in parties_data
         ]
@@ -150,19 +165,32 @@ class PartyService:
                 party.phone = normalized_phone
                 update_fields.append("phone")
             if "id_type" in patch:
-                _require_identity_fields(
-                    {"id_type": patch["id_type"], "id_number": party.id_number},
-                    role=role,
-                )
                 party.id_type = patch["id_type"]
                 update_fields.append("id_type")
             if "id_number" in patch:
-                _require_identity_fields(
-                    {"id_type": party.id_type, "id_number": patch["id_number"]},
-                    role=role,
-                )
-                party.id_number = patch["id_number"].strip()
+                party.id_number = patch["id_number"]
                 update_fields.append("id_number")
+            if "id_type" in patch or "id_number" in patch:
+                party.id_number = validate_party_identity_input(
+                    role=role,
+                    id_type=party.id_type,
+                    id_number=party.id_number,
+                )
+                if "id_number" not in update_fields and role != "witness":
+                    update_fields.append("id_number")
+                if role != "witness":
+                    existing_pins = {
+                        value.strip().upper()
+                        for value in Party.objects.filter(agreement=agreement)
+                        .exclude(pk=party.pk)
+                        .exclude(role="witness")
+                        .values_list("id_number", flat=True)
+                        if value
+                    }
+                    if party.id_number in existing_pins:
+                        raise DomainError(
+                            f"Ghana Card PIN must be unique per agreement. Another party already uses '{party.id_number}'."
+                        )
             if update_fields:
                 update_fields.append("updated_at")
                 party.save(update_fields=update_fields)

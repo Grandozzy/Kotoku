@@ -27,10 +27,6 @@ import {
 const EVIDENCE_TYPES = [
   { value: "vehicle_photo", label: "Vehicle photo" },
   { value: "property_photo", label: "Property photo" },
-  { value: "buyer_id_photo", label: "Buyer ID photo (required for sealing)" },
-  { value: "seller_id_photo", label: "Seller ID photo (required for sealing)" },
-  { value: "landlord_id_photo", label: "Landlord ID photo (required for sealing)" },
-  { value: "tenant_id_photo", label: "Tenant ID photo (required for sealing)" },
   { value: "condition_photo", label: "Condition / defect photo" },
   { value: "signature", label: "Signature" },
   { value: "document", label: "Supporting document" },
@@ -199,13 +195,12 @@ export default function EvidencePage() {
     <div className="flex flex-col gap-6 max-w-2xl">
       <h1 className="text-2xl font-bold tracking-tight">Evidence</h1>
       <p className="text-sm text-neutral-500">
-        Upload photos, ID documents, and any supporting files. Drag and drop
+        Upload photos and any supporting files. Drag and drop
         multiple files at once.
       </p>
       <p className="rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-        Each non-witness party must have a role-specific ID photo before consent
-        and sealing can complete. Use buyer/seller or landlord/tenant ID photo
-        types to match the party roles on this agreement.
+        Ghana Card identity capture now happens in the Parties step. Use this page for
+        asset photos, condition photos, signatures, and supporting documents.
       </p>
 
       {/* Type selector */}

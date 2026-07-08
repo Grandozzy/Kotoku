@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { Check } from "lucide-react";
 import type { Agreement } from "@/types/agreement";
 import { SCENARIO_MAP } from "@/constants/scenarios";
+import { isPartyIdentityComplete, normalizeGhanaCardPin } from "@/lib/partyIdentity";
 
 interface Step {
   href: string;
@@ -22,7 +23,8 @@ function isPartiesComplete(a: Agreement): boolean {
     return (
       p.display_name.trim().length >= 2 &&
       /^(\+\d{10,15}|\d{10,15})$/.test(norm) &&
-      (p.id_number ?? "").trim().length >= 3
+      normalizeGhanaCardPin(p.id_number ?? "").length > 0 &&
+      isPartyIdentityComplete(p)
     );
   });
 }

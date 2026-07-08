@@ -10,6 +10,7 @@ from apps.agreements.models import Agreement
 from apps.audit.services import AuditService
 from apps.evidence.models import EvidenceItem
 from apps.evidence.storage import store_evidence
+from apps.parties.identity import validate_identity_evidence_type
 from apps.parties.models import Party
 from common.exceptions import DomainError, ServiceUnavailableError
 from common.phone_numbers import phone_lookup_values
@@ -178,6 +179,7 @@ class EvidenceService:
             AgreementStatus.ACTIVE,
         ):
             raise DomainError("Cannot add evidence: agreement is not in an editable state.")
+        validate_identity_evidence_type(agreement=agreement, evidence_type=evidence_type)
 
         ext = _MIME_TO_EXT[mime_type]
         file_key = (
@@ -287,6 +289,8 @@ class EvidenceService:
                 "No pending upload found for this file key on this agreement.",
                 code=EvidenceErrorCode.UPLOAD_NOT_PENDING,
             ) from None
+
+        validate_identity_evidence_type(agreement=item.agreement, evidence_type=evidence_type)
 
         if item.file_key != file_key:
             raise DomainError(

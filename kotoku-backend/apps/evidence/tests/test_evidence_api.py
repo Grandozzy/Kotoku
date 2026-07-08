@@ -37,6 +37,10 @@ _FAKE_HEAD = {
 _seq = 0
 
 
+def _pin(index: int) -> str:
+    return f"GHA-{index:09d}-{index % 10}"
+
+
 def _make_client(phone):
     global _seq
     _seq += 1
@@ -64,9 +68,9 @@ def _set_parties(agreement, initiator_phone):
         initiator_account=acct,
         parties_data=[
             {"role": "seller", "full_name": "Kofi", "phone": initiator_phone,
-             "id_type": "ghana_card", "id_number": "GHA-S"},
+             "id_type": "ghana_card", "id_number": _pin(111111111)},
             {"role": "buyer", "full_name": "Ama", "phone": "+233200000070",
-             "id_type": "ghana_card", "id_number": "GHA-B"},
+             "id_type": "ghana_card", "id_number": _pin(222222222)},
         ],
     )
 
@@ -118,17 +122,18 @@ class TestUploadUrlApi:
     def test_file_key_contains_evidence_type(self, mock_presign):
         client, acct = _make_client("+233501400003")
         agreement = _agreement(acct)
+        _set_parties(agreement, "+233501400003")
         resp = client.post(
             _UPLOAD_URL_PATH.format(id=agreement.pk),
             {
-                "evidence_type": "seller_id_photo",
+                "evidence_type": "seller_ghana_card_front",
                 "mime_type": "image/png",
                 "size_bytes": 200,
                 "checksum_sha256": _FAKE_CHECKSUM,
             },
             format="json",
         )
-        assert "seller_id_photo" in resp.json()["data"]["file_key"]
+        assert "seller_ghana_card_front" in resp.json()["data"]["file_key"]
 
     def test_sealed_agreement_returns_400(self, mock_presign):
         client, acct = _make_client("+233501400004")
@@ -218,16 +223,32 @@ class TestUploadUrlApi:
         client.post(
             _UPLOAD_URL_PATH.format(id=agreement.pk),
             {
-                "evidence_type": "seller_id_photo",
+                "evidence_type": "seller_ghana_card_front",
                 "mime_type": "image/jpeg",
                 "size_bytes": 500,
                 "checksum_sha256": _FAKE_CHECKSUM,
             },
             format="json",
         )
-        item = EvidenceItem.objects.get(agreement=agreement, evidence_type="seller_id_photo")
+        item = EvidenceItem.objects.get(agreement=agreement, evidence_type="seller_ghana_card_front")
         assert item.uploaded_by is not None
         assert item.uploaded_by.phone == acct.phone
+
+    def test_reserved_identity_slot_requires_matching_party_role(self, mock_presign):
+        client, acct = _make_client("+233501400013")
+        agreement = _agreement(acct)
+        _set_parties(agreement, acct.phone)
+        resp = client.post(
+            _UPLOAD_URL_PATH.format(id=agreement.pk),
+            {
+                "evidence_type": "tenant_ghana_card_front",
+                "mime_type": "image/jpeg",
+                "size_bytes": 500,
+                "checksum_sha256": _FAKE_CHECKSUM,
+            },
+            format="json",
+        )
+        assert resp.status_code == 400
 
     def test_storage_presign_failure_returns_503(self, mock_presign):
         mock_presign.side_effect = EndpointConnectionError(endpoint_url="http://storage.local")
@@ -333,12 +354,13 @@ class TestConfirmUploadApi:
     def test_wrong_evidence_type_returns_400(self, mock_presign, mock_head, mock_view_url):
         client, acct = _make_client("+233501500004")
         agreement = _agreement(acct)
+        _set_parties(agreement, "+233501500004")
         upload = self._request_url(client, agreement.pk, evidence_type="vehicle_photo_front")
         resp = client.post(
             _EVIDENCE_PATH.format(id=agreement.pk),
             {
                 "file_key": upload["file_key"],
-                "evidence_type": "seller_id_photo",
+                "evidence_type": "seller_ghana_card_front",
                 "mime_type": "image/jpeg",
                 "checksum_sha256": _FAKE_CHECKSUM,
             },
@@ -530,14 +552,14 @@ class TestEvidenceListApi:
                     "full_name": "Owner",
                     "phone": owner_acct.phone,
                     "id_type": "ghana_card",
-                    "id_number": "GHA-O",
+                    "id_number": _pin(100000001),
                 },
                 {
                     "role": "buyer",
                     "full_name": "Participant",
                     "phone": participant_acct.phone,
                     "id_type": "ghana_card",
-                    "id_number": "GHA-P",
+                    "id_number": _pin(200000002),
                 },
             ],
         )
@@ -579,14 +601,14 @@ class TestEvidenceListApi:
                     "full_name": "Owner",
                     "phone": owner_acct.phone,
                     "id_type": "ghana_card",
-                    "id_number": "GHA-O2",
+                    "id_number": _pin(300000003),
                 },
                 {
                     "role": "buyer",
                     "full_name": "Participant",
                     "phone": participant_acct.phone,
                     "id_type": "ghana_card",
-                    "id_number": "GHA-P2",
+                    "id_number": _pin(400000004),
                 },
             ],
         )

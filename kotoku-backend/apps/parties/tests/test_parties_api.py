@@ -31,6 +31,10 @@ def _agreement(account, status=AgreementStatus.DRAFT):
     return a
 
 
+def _pin(index: int) -> str:
+    return f"GHA-{index:09d}-{index % 10}"
+
+
 def _valid_body(initiator_phone):
     return {
         "parties": [
@@ -39,14 +43,14 @@ def _valid_body(initiator_phone):
                 "full_name": "Kofi Mensah",
                 "phone": initiator_phone,
                 "id_type": "ghana_card",
-                "id_number": "GHA-111-000",
+                "id_number": _pin(111111111),
             },
             {
                 "role": "buyer",
                 "full_name": "Ama Owusu",
                 "phone": "+233200000099",
                 "id_type": "ghana_card",
-                "id_number": "GHA-222-000",
+                "id_number": _pin(222222222),
             },
         ]
     }
@@ -80,7 +84,7 @@ class TestPartiesPostApi:
         assert seller["full_name"] == "Kofi Mensah"
         assert seller["phone"] == acct.phone
         assert seller["id_type"] == "ghana_card"
-        assert seller["id_number"] == "GHA-111-000"
+        assert seller["id_number"] == _pin(111111111)
 
     def test_fewer_than_two_parties_returns_400(self):
         client, acct = _make_client("+233501111003")
@@ -102,14 +106,14 @@ class TestPartiesPostApi:
                     "full_name": "A",
                     "phone": acct.phone,
                     "id_type": "ghana_card",
-                    "id_number": "X1",
+                    "id_number": _pin(111111112),
                 },
                 {
                     "role": "seller",
                     "full_name": "B",
                     "phone": "+233200000001",
                     "id_type": "ghana_card",
-                    "id_number": "X2",
+                    "id_number": _pin(111111113),
                 },
             ]
         }
@@ -126,14 +130,14 @@ class TestPartiesPostApi:
                     "full_name": "X",
                     "phone": "+233999000001",
                     "id_type": "ghana_card",
-                    "id_number": "N1",
+                    "id_number": _pin(111111114),
                 },
                 {
                     "role": "buyer",
                     "full_name": "Y",
                     "phone": "+233999000002",
                     "id_type": "ghana_card",
-                    "id_number": "N2",
+                    "id_number": _pin(111111115),
                 },
             ]
         }
@@ -187,22 +191,36 @@ class TestPartiesPostApi:
         resp = client.post(_URL.format(id=agreement.pk), body, format="json")
         assert resp.status_code == 400
 
-    def test_national_id_type_is_accepted(self):
+    def test_non_ghana_card_type_returns_400(self):
         client, acct = _make_client("+233501111013")
         agreement = _agreement(acct)
         body = _valid_body(acct.phone)
         body["parties"][1]["id_type"] = "national_id"
-        body["parties"][1]["id_number"] = "NID-222-000"
+        body["parties"][1]["id_number"] = _pin(111111116)
         resp = client.post(_URL.format(id=agreement.pk), body, format="json")
-        assert resp.status_code == 200
-        buyer = next(p for p in resp.json()["data"]["parties"] if p["role"] == "buyer")
-        assert buyer["id_type"] == "national_id"
+        assert resp.status_code == 400
 
     def test_blank_id_number_returns_400(self):
         client, acct = _make_client("+233501111014")
         agreement = _agreement(acct)
         body = _valid_body(acct.phone)
         body["parties"][1]["id_number"] = ""
+        resp = client.post(_URL.format(id=agreement.pk), body, format="json")
+        assert resp.status_code == 400
+
+    def test_invalid_ghana_card_pin_returns_400(self):
+        client, acct = _make_client("+233501111015")
+        agreement = _agreement(acct)
+        body = _valid_body(acct.phone)
+        body["parties"][1]["id_number"] = "BAD-PIN"
+        resp = client.post(_URL.format(id=agreement.pk), body, format="json")
+        assert resp.status_code == 400
+
+    def test_duplicate_ghana_card_pin_returns_400(self):
+        client, acct = _make_client("+233501111016")
+        agreement = _agreement(acct)
+        body = _valid_body(acct.phone)
+        body["parties"][1]["id_number"] = body["parties"][0]["id_number"]
         resp = client.post(_URL.format(id=agreement.pk), body, format="json")
         assert resp.status_code == 400
 
@@ -233,14 +251,14 @@ class TestPartiesPatchApi:
                     "full_name": "Kofi",
                     "phone": acct.phone,
                     "id_type": "ghana_card",
-                    "id_number": "GHA-S",
+                    "id_number": _pin(111111117),
                 },
                 {
                     "role": "buyer",
                     "full_name": "Ama",
                     "phone": "+233200000050",
-                    "id_type": "passport",
-                    "id_number": "PASS-B",
+                    "id_type": "ghana_card",
+                    "id_number": _pin(111111118),
                 },
             ],
         )
@@ -261,12 +279,12 @@ class TestPartiesPatchApi:
         client, acct, agreement = self._setup("+233501222002")
         resp = client.patch(
             _URL.format(id=agreement.pk),
-            {"parties": [{"role": "buyer", "id_number": "PASS-UPDATED"}]},
+            {"parties": [{"role": "buyer", "id_number": _pin(111111119)}]},
             format="json",
         )
         buyer = next(p for p in resp.json()["data"]["parties"] if p["role"] == "buyer")
         assert buyer["full_name"] == "Ama"  # unchanged
-        assert buyer["id_number"] == "PASS-UPDATED"
+        assert buyer["id_number"] == _pin(111111119)
 
     def test_patch_unknown_role_returns_400(self):
         client, acct, agreement = self._setup("+233501222003")
@@ -312,14 +330,14 @@ class TestPartiesGetApi:
                     "full_name": "Kofi",
                     "phone": acct.phone,
                     "id_type": "ghana_card",
-                    "id_number": "G1",
+                    "id_number": _pin(111111120),
                 },
                 {
                     "role": "buyer",
                     "full_name": "Ama",
                     "phone": "+233200000030",
                     "id_type": "ghana_card",
-                    "id_number": "G2",
+                    "id_number": _pin(111111121),
                 },
             ],
         )
@@ -347,14 +365,14 @@ class TestPartiesGetApi:
                     "full_name": "Owner",
                     "phone": owner_acct.phone,
                     "id_type": "ghana_card",
-                    "id_number": "G1",
+                    "id_number": _pin(111111122),
                 },
                 {
                     "role": "buyer",
                     "full_name": "Participant",
                     "phone": participant_acct.phone,
                     "id_type": "ghana_card",
-                    "id_number": "G2",
+                    "id_number": _pin(111111123),
                 },
             ],
         )
@@ -378,14 +396,14 @@ class TestPartiesGetApi:
                     "full_name": "Owner",
                     "phone": owner_acct.phone,
                     "id_type": "ghana_card",
-                    "id_number": "G1A",
+                    "id_number": _pin(111111124),
                 },
                 {
                     "role": "buyer",
                     "full_name": "Participant",
                     "phone": participant_acct.phone,
                     "id_type": "ghana_card",
-                    "id_number": "G2A",
+                    "id_number": _pin(111111125),
                 },
             ],
         )

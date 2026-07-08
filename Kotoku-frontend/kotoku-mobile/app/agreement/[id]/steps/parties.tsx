@@ -1,17 +1,24 @@
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useQueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Controller, useForm } from "react-hook-form";
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from "react-native";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from "react-native";
 import { z } from "zod";
 
-import { Button, TextInput } from "@/components/ui";
-import {
-  useAgreementStore,
-  type IdType,
-} from "@/features/agreements/agreementStore";
-import { useTemplate } from "@/features/agreements/useAgreementDraft";
 import { setParties } from "@/api/agreements";
+import { PhotoSlot } from "@/components/evidence/PhotoSlot";
+import { Button, ScreenLoader, TextInput } from "@/components/ui";
+import { useAgreementStore } from "@/features/agreements/agreementStore";
+import {
+  GHANA_CARD_PIN_REGEX,
+  formatGhanaCardPin,
+  identityEvidenceType,
+  isPartyIdentityComplete,
+  normalizeGhanaCardPin,
+} from "@/features/agreements/partyIdentity";
+import { useAgreement, useTemplate } from "@/features/agreements/useAgreementDraft";
+import { useEvidenceUpload } from "@/features/evidence/useEvidenceUpload";
 import { getApiErrorMessage } from "@/lib/errorHandler";
 import { normalizePhoneToE164 } from "@/lib/phone";
 import { useSessionStore } from "@/store/sessionStore";
@@ -20,95 +27,159 @@ const partySchema = z.object({
   fullName: z
     .string()
     .refine(
-      (v) => {
-        const parts = v.trim().split(/\s+/).filter(Boolean);
-        return parts.length >= 2 && parts.every((p) => p.length >= 2);
+      (value) => {
+        const parts = value.trim().split(/\s+/).filter(Boolean);
+        return parts.length >= 2 && parts.every((part) => part.length >= 2);
       },
-      "Enter your full name as it appears on your ID (first and last name)",
+      "Enter the full name as it appears on the Ghana Card.",
     ),
   phone: z
     .string()
     .min(10, "Phone number is too short")
     .max(15, "Phone number is too long")
     .refine(
-      (v) => /^(\+\d{10,15}|\d{10,15})$/.test(v.replace(/\s/g, "")),
+      (value) => /^(\+\d{10,15}|\d{10,15})$/.test(value.replace(/\s/g, "")),
       "Enter a valid phone number (e.g. +233501234567 or 0501234567)",
     ),
-  idType: z.enum(["ghana_card", "passport", "national_id"]),
-  idNumber: z.string().min(3, "ID number is required"),
+  idNumber: z
+    .string()
+    .transform((value) => normalizeGhanaCardPin(value))
+    .refine(
+      (value) => GHANA_CARD_PIN_REGEX.test(value),
+      "Use the Ghana Card PIN format GHA-000000000-0",
+    ),
 });
 
-const partiesSchema = z.object({
-  partyA: partySchema,
-  partyB: partySchema,
-});
+const partiesSchema = z
+  .object({
+    partyA: partySchema,
+    partyB: partySchema,
+  })
+  .refine(
+    (value) => value.partyA.idNumber !== value.partyB.idNumber,
+    {
+      message: "Buyer and seller cannot share the same Ghana Card PIN.",
+      path: ["partyB", "idNumber"],
+    },
+  );
 
 type PartiesFormValues = z.infer<typeof partiesSchema>;
 
-const ID_TYPE_OPTIONS: { value: IdType; label: string }[] = [
-  { value: "ghana_card", label: "Ghana Card" },
-  { value: "passport", label: "Passport" },
-  { value: "national_id", label: "National ID Card" },
-];
+function toDraftParty(party?: {
+  displayName: string;
+  phone: string;
+  idNumber: string;
+} | null) {
+  return {
+    fullName: party?.displayName ?? "",
+    phone: party?.phone ?? "",
+    idNumber: party?.idNumber ?? "",
+  };
+}
 
 export default function PartiesStep() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { id, scenarioId: urlScenarioId } = useLocalSearchParams<{ id: string; scenarioId?: string }>();
-  const storeScenarioId = useAgreementStore((s) => s.scenarioId);
-  const scenarioId = storeScenarioId ?? urlScenarioId ?? null;
   const agreementId = Number(id);
-  const { partyA, partyB, setPartyA, setPartyB, goToStep } =
-    useAgreementStore();
-  const creatorPhone = useSessionStore((s) => s.phone);
+  const creatorPhone = useSessionStore((state) => state.phone);
+  const storeScenarioId = useAgreementStore((state) => state.scenarioId);
+  const scenarioId = storeScenarioId ?? urlScenarioId ?? null;
+  const { partyA, partyB, setPartyA, setPartyB, goToStep } = useAgreementStore();
   const template = useTemplate(scenarioId);
+  const { data: agreement, isLoading } = useAgreement(agreementId);
+  const { items, pickImage, retryUpload, error: uploadError } = useEvidenceUpload(agreementId);
 
-  const [roleA, roleB] = template?.partyRoles ?? ["Buyer", "Seller"];
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
-  const roleEnum = (label: string) => label.toLowerCase();
+  const roles = template?.partyRoles ?? ["Seller", "Buyer"];
+  const roleKeys = useMemo(
+    () => roles.map((role) => role.toLowerCase() as "buyer" | "seller" | "landlord" | "tenant"),
+    [roles],
+  );
 
-  const emptyParty = { fullName: "", phone: "", idType: "ghana_card" as IdType, idNumber: "" };
-  const hasPartyDraft = (party: typeof partyA) =>
-    Boolean(party.fullName || party.phone || party.idNumber);
+  const savedParties = useMemo(() => {
+    if (!agreement) return [];
+    return roleKeys
+      .map((role) => agreement.parties.find((party) => party.role === role))
+      .filter((party): party is NonNullable<typeof party> => Boolean(party));
+  }, [agreement, roleKeys]);
 
-  const {
-    control,
-    handleSubmit,
-    formState: { errors, isValid },
-  } = useForm<PartiesFormValues>({
+  const form = useForm<PartiesFormValues>({
     resolver: zodResolver(partiesSchema),
     mode: "onChange",
     defaultValues: {
-      partyA: hasPartyDraft(partyA)
-        ? partyA
-        : { ...emptyParty, phone: creatorPhone ?? "" },
-      partyB: hasPartyDraft(partyB) ? partyB : emptyParty,
+      partyA: {
+        fullName: partyA.fullName,
+        phone: partyA.phone || creatorPhone || "",
+        idNumber: partyA.idNumber,
+      },
+      partyB: {
+        fullName: partyB.fullName,
+        phone: partyB.phone,
+        idNumber: partyB.idNumber,
+      },
     },
   });
 
-  const onSubmit = async (values: PartiesFormValues) => {
+  const { control, handleSubmit, reset, formState } = form;
+
+  useEffect(() => {
+    if (savedParties.length < 2) return;
+    reset({
+      partyA: toDraftParty(savedParties[0]),
+      partyB: toDraftParty(savedParties[1]),
+    });
+    setPartyA({
+      fullName: savedParties[0].displayName,
+      phone: savedParties[0].phone,
+      idType: "ghana_card",
+      idNumber: savedParties[0].idNumber,
+    });
+    setPartyB({
+      fullName: savedParties[1].displayName,
+      phone: savedParties[1].phone,
+      idType: "ghana_card",
+      idNumber: savedParties[1].idNumber,
+    });
+  }, [reset, savedParties, setPartyA, setPartyB]);
+
+  if (!template || isLoading) {
+    return <ScreenLoader />;
+  }
+
+  const identityComplete =
+    savedParties.length === roleKeys.length &&
+    savedParties.every((party) => isPartyIdentityComplete(party));
+
+  const handleSaveParties = async (values: PartiesFormValues) => {
     setSaveError(null);
+    setSaving(true);
     const normalizedPartyA = {
-      ...values.partyA,
+      fullName: values.partyA.fullName.trim(),
       phone: normalizePhoneToE164(values.partyA.phone),
+      idType: "ghana_card" as const,
+      idNumber: normalizeGhanaCardPin(values.partyA.idNumber),
     };
     const normalizedPartyB = {
-      ...values.partyB,
+      fullName: values.partyB.fullName.trim(),
       phone: normalizePhoneToE164(values.partyB.phone),
+      idType: "ghana_card" as const,
+      idNumber: normalizeGhanaCardPin(values.partyB.idNumber),
     };
-    setSaving(true);
+
     try {
       await setParties(agreementId, [
         {
-          role: roleEnum(roleA),
+          role: roleKeys[0],
           full_name: normalizedPartyA.fullName,
           phone: normalizedPartyA.phone,
           id_type: normalizedPartyA.idType,
           id_number: normalizedPartyA.idNumber,
         },
         {
-          role: roleEnum(roleB),
+          role: roleKeys[1],
           full_name: normalizedPartyB.fullName,
           phone: normalizedPartyB.phone,
           id_type: normalizedPartyB.idType,
@@ -117,15 +188,46 @@ export default function PartiesStep() {
       ]);
       setPartyA(normalizedPartyA);
       setPartyB(normalizedPartyB);
+      await queryClient.invalidateQueries({ queryKey: ["agreement", agreementId] });
+      reset(
+        {
+          partyA: {
+            fullName: normalizedPartyA.fullName,
+            phone: normalizedPartyA.phone,
+            idNumber: normalizedPartyA.idNumber,
+          },
+          partyB: {
+            fullName: normalizedPartyB.fullName,
+            phone: normalizedPartyB.phone,
+            idNumber: normalizedPartyB.idNumber,
+          },
+        },
+        { keepDirty: false, keepTouched: false },
+      );
     } catch (error) {
-      setSaveError(getApiErrorMessage(error, "Could not save parties. Check your access and party details."));
+      setSaveError(
+        getApiErrorMessage(
+          error,
+          "Could not save parties. Check the Ghana Card PINs and phone numbers.",
+        ),
+      );
+    } finally {
       setSaving(false);
+    }
+  };
+
+  const handleProceed = handleSubmit(async (values) => {
+    const hasSavedParties = savedParties.length === roleKeys.length;
+    if (!hasSavedParties || formState.isDirty) {
+      await handleSaveParties(values);
       return;
     }
-    setSaving(false);
+    if (!identityComplete) {
+      return;
+    }
     goToStep(1);
     router.push(`/agreement/${id}/steps/details?scenarioId=${scenarioId}`);
-  };
+  });
 
   return (
     <KeyboardAvoidingView
@@ -138,43 +240,127 @@ export default function PartiesStep() {
         contentContainerStyle={{ paddingBottom: 60 }}
         keyboardShouldPersistTaps="handled"
       >
+        <View className="gap-xs">
+          <Text className="text-lg font-semibold text-ink-primary">Parties</Text>
+          <Text className="text-sm text-ink-secondary">
+            Each party must provide a phone number, Ghana Card PIN, and confirmed front and back Ghana Card images before you can continue.
+          </Text>
+        </View>
+
         <PartySection
-          title={roleA}
+          title={roles[0]}
           prefix="partyA"
           control={control}
-          errors={errors.partyA}
+          errors={formState.errors.partyA}
         />
 
         <PartySection
-          title={roleB}
+          title={roles[1]}
           prefix="partyB"
           control={control}
-          errors={errors.partyB}
+          errors={formState.errors.partyB}
         />
 
-        <View className="flex-row gap-sm">
-          <View style={{ flex: 2 }}>
-            <Button
-              title="Proceed"
-              variant="primary"
-              size="lg"
-              disabled={!isValid || saving}
-              loading={saving}
-              onPress={handleSubmit(onSubmit)}
-            />
+        {savedParties.length === roleKeys.length && (
+          <View className="gap-md rounded-xl border border-border-subtle bg-surface-card p-md">
+            <View className="gap-xs">
+              <Text className="text-base font-semibold text-ink-primary">Ghana Card uploads</Text>
+              <Text className="text-sm text-ink-secondary">
+                Upload the front and back of each Ghana Card. This step only completes after the backend confirms the files in storage.
+              </Text>
+            </View>
+
+            {savedParties.map((party) => {
+              const frontEvidenceType = identityEvidenceType(party.role, "front");
+              const backEvidenceType = identityEvidenceType(party.role, "back");
+              const frontItem = items[frontEvidenceType];
+              const backItem = items[backEvidenceType];
+              return (
+                <View key={party.id} className="gap-sm rounded-lg border border-border-subtle bg-surface-subtle p-md">
+                  <View className="gap-xs">
+                    <Text className="text-sm font-semibold text-ink-primary">{party.displayName}</Text>
+                    <Text className="text-xs text-ink-muted">
+                      {party.idNumber}
+                    </Text>
+                  </View>
+                  <View className="flex-row gap-sm">
+                    <View style={{ flex: 1 }}>
+                      <PhotoSlot
+                        label="Ghana Card front"
+                        required
+                        localUri={frontItem?.localUri || party.ghanaCardFrontViewUrl || undefined}
+                        status={frontItem?.uploadStatus || (party.ghanaCardFrontUploaded ? "uploaded" : "pending")}
+                        error={frontItem?.error}
+                        failedActionLabel={frontItem?.retryable === false ? "Replace" : "Retry"}
+                        onPress={() => {
+                          if (frontItem?.uploadStatus === "failed" && frontItem.retryable !== false) {
+                            void retryUpload(frontEvidenceType);
+                            return;
+                          }
+                          void pickImage(frontEvidenceType, frontEvidenceType);
+                        }}
+                      />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <PhotoSlot
+                        label="Ghana Card back"
+                        required
+                        localUri={backItem?.localUri || party.ghanaCardBackViewUrl || undefined}
+                        status={backItem?.uploadStatus || (party.ghanaCardBackUploaded ? "uploaded" : "pending")}
+                        error={backItem?.error}
+                        failedActionLabel={backItem?.retryable === false ? "Replace" : "Retry"}
+                        onPress={() => {
+                          if (backItem?.uploadStatus === "failed" && backItem.retryable !== false) {
+                            void retryUpload(backEvidenceType);
+                            return;
+                          }
+                          void pickImage(backEvidenceType, backEvidenceType);
+                        }}
+                      />
+                    </View>
+                  </View>
+                </View>
+              );
+            })}
           </View>
-        </View>
+        )}
+
         {saveError && (
           <Text className="text-sm text-semantic-error text-center">
             {saveError}
           </Text>
         )}
+
+        {uploadError && (
+          <Text className="text-sm text-semantic-error text-center">
+            {uploadError}
+          </Text>
+        )}
+
+        {!identityComplete && savedParties.length === roleKeys.length && !formState.isDirty && (
+          <Text className="text-xs text-ink-muted text-center">
+            Finish the Ghana Card uploads for both parties to continue.
+          </Text>
+        )}
+
+        <View className="flex-row gap-sm">
+          <View style={{ flex: 2 }}>
+            <Button
+              title={savedParties.length === roleKeys.length && !formState.isDirty ? "Proceed" : "Save parties"}
+              variant="primary"
+              size="lg"
+              disabled={!formState.isValid || saving || (!formState.isDirty && !identityComplete && savedParties.length === roleKeys.length)}
+              loading={saving}
+              onPress={() => {
+                void handleProceed();
+              }}
+            />
+          </View>
+        </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
-
-// ---------- Sub-component ----------
 
 import type { Control, FieldErrors } from "react-hook-form";
 
@@ -192,7 +378,7 @@ function PartySection({
   errors,
 }: PartySectionProps) {
   return (
-    <View className="gap-md">
+    <View className="gap-md rounded-xl border border-border-subtle bg-surface-card p-md">
       <Text className="text-lg font-semibold text-ink-primary">{title}</Text>
 
       <Controller
@@ -201,7 +387,7 @@ function PartySection({
         render={({ field: { onChange, value } }) => (
           <TextInput
             label="Full name"
-            placeholder="As on ID document"
+            placeholder="As shown on Ghana Card"
             required
             error={errors?.fullName?.message}
             value={value}
@@ -226,53 +412,28 @@ function PartySection({
         )}
       />
 
-      <Controller
-        control={control}
-        name={`${prefix}.idType` as const}
-        render={({ field: { onChange, value } }) => (
-          <View className="gap-xs">
-            <Text className="text-sm font-medium text-ink-secondary">
-              ID type <Text className="text-semantic-error">*</Text>
-            </Text>
-            <View className="flex-row gap-sm">
-              {ID_TYPE_OPTIONS.map((opt) => (
-                <Pressable
-                  key={opt.value}
-                  onPress={() => onChange(opt.value)}
-                  className={[
-                    "px-md py-sm rounded-pill border flex-1 items-center",
-                    value === opt.value
-                      ? "bg-brand-primary border-brand-primary"
-                      : "bg-surface-card border-border-subtle",
-                  ].join(" ")}
-                >
-                  <Text
-                    className={
-                      value === opt.value
-                        ? "text-xs font-medium text-white"
-                        : "text-xs text-ink-primary"
-                    }
-                  >
-                    {opt.label}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-          </View>
-        )}
-      />
+      <View className="gap-xs">
+        <Text className="text-sm font-medium text-ink-secondary">
+          ID type <Text className="text-semantic-error">*</Text>
+        </Text>
+        <View className="rounded-xl border border-border-subtle bg-surface-subtle px-md py-md">
+          <Text className="text-sm text-ink-primary">Ghana Card</Text>
+        </View>
+      </View>
 
       <Controller
         control={control}
         name={`${prefix}.idNumber` as const}
         render={({ field: { onChange, value } }) => (
           <TextInput
-            label="ID number"
-            placeholder="Enter ID number"
+            label="Ghana Card PIN"
+            placeholder="GHA-123456789-0"
             required
             error={errors?.idNumber?.message}
             value={value}
-            onChangeText={onChange}
+            onChangeText={(text) => onChange(formatGhanaCardPin(text))}
+            autoCapitalize="characters"
+            keyboardType="numeric"
           />
         )}
       />

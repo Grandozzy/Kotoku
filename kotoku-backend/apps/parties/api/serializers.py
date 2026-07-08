@@ -1,5 +1,6 @@
 from rest_framework import serializers
 
+from apps.parties.identity import build_party_identity_states
 from apps.parties.models import Party
 
 _E164 = r"^\+[1-9]\d{7,14}$"
@@ -38,6 +39,42 @@ class PartiesPatchSerializer(serializers.Serializer):
 
 class PartyOutputSerializer(serializers.ModelSerializer):
     full_name = serializers.CharField(source="display_name")
+    ghana_card_front_uploaded = serializers.SerializerMethodField()
+    ghana_card_back_uploaded = serializers.SerializerMethodField()
+    ghana_card_front_view_url = serializers.SerializerMethodField()
+    ghana_card_back_view_url = serializers.SerializerMethodField()
+
+    def _identity_state(self, obj):
+        states = self.context.get("party_identity_states", {})
+        return states.get(obj.role)
+
+    def get_ghana_card_front_uploaded(self, obj) -> bool:
+        state = self._identity_state(obj)
+        return bool(state and state.front_uploaded)
+
+    def get_ghana_card_back_uploaded(self, obj) -> bool:
+        state = self._identity_state(obj)
+        return bool(state and state.back_uploaded)
+
+    def get_ghana_card_front_view_url(self, obj) -> str | None:
+        state = self._identity_state(obj)
+        return state.front_view_url if state else None
+
+    def get_ghana_card_back_view_url(self, obj) -> str | None:
+        state = self._identity_state(obj)
+        return state.back_view_url if state else None
+
+    @staticmethod
+    def context_for_parties(parties) -> dict:
+        parties = list(parties)
+        agreement = parties[0].agreement if parties else None
+        evidence_items = agreement.evidence_items.all() if agreement else []
+        return {
+            "party_identity_states": build_party_identity_states(
+                parties=parties,
+                evidence_items=evidence_items,
+            )
+        }
 
     class Meta:
         model = Party
@@ -48,6 +85,10 @@ class PartyOutputSerializer(serializers.ModelSerializer):
             "phone",
             "id_type",
             "id_number",
+            "ghana_card_front_uploaded",
+            "ghana_card_back_uploaded",
+            "ghana_card_front_view_url",
+            "ghana_card_back_view_url",
             "created_at",
             "updated_at",
         )

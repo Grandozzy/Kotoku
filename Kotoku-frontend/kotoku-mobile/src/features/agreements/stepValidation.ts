@@ -1,10 +1,11 @@
 import type { PartyDraft } from "./agreementStore";
+import { GHANA_CARD_PIN_REGEX, normalizeGhanaCardPin } from "./partyIdentity";
 
 export function isPartyComplete(party: PartyDraft): boolean {
   return (
     party.fullName.trim().length > 0 &&
     party.phone.trim().length >= 10 &&
-    party.idNumber.trim().length > 0
+    GHANA_CARD_PIN_REGEX.test(normalizeGhanaCardPin(party.idNumber))
   );
 }
 

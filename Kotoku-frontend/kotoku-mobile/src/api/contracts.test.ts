@@ -38,8 +38,8 @@ const validateResult: ValidateAgreementResponse = {
   errors: [
     {
       code: "missing_required_evidence",
-      field: "buyer_id_photo",
-      message: "Buyer ID photo is required.",
+      field: "buyer_ghana_card_front",
+      message: "Buyer Ghana Card front is required.",
     },
   ],
 };
@@ -75,7 +75,7 @@ const uploadUrlResult: UploadUrlResponse = {
 
 const evidenceResult: EvidenceItemResponse = {
   id: 55,
-  evidence_type: "buyer_id_photo",
+  evidence_type: "buyer_ghana_card_front",
   file_type: "photo",
   mime_type: "image/jpeg",
   size_bytes: 1234,
