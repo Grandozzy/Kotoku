@@ -12,4 +12,7 @@ export const paymentsApi = {
       plan_id: planId,
       callback_url: callbackUrl,
     }),
+
+  cancelCheckout: () =>
+    api.post<{ cancelled: boolean }>("/api/payments/checkout/cancel/", {}),
 };

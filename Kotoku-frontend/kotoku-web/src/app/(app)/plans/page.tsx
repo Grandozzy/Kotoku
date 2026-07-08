@@ -229,21 +229,38 @@ export default function PlansPage() {
   const tab = manualTab ?? currentFamily;
   const [actingPlanId, setActingPlanId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [sessionBlocked, setSessionBlocked] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
 
   async function handleAction(planId: string) {
     setActingPlanId(planId);
     setError(null);
+    setSessionBlocked(false);
     try {
       const callbackUrl = `${window.location.origin}/payment/callback`;
       const { authorization_url } = await paymentsApi.initiate(planId, callbackUrl);
       window.location.href = authorization_url;
     } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Could not start payment. Please try again."
-      );
+      const msg = err instanceof Error ? err.message : "Could not start payment. Please try again.";
+      if (msg.toLowerCase().includes("already in progress")) {
+        setSessionBlocked(true);
+      } else {
+        setError(msg);
+      }
       setActingPlanId(null);
+    }
+  }
+
+  async function handleCancelAndRetry(planId: string) {
+    setCancelling(true);
+    try {
+      await paymentsApi.cancelCheckout();
+      setSessionBlocked(false);
+      await handleAction(planId);
+    } catch {
+      setError("Could not cancel the previous session. Please try again.");
+    } finally {
+      setCancelling(false);
     }
   }
 
@@ -299,6 +316,25 @@ export default function PlansPage() {
         <div className="rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 flex items-center gap-3 text-sm text-amber-700">
           <AlertCircle size={15} className="shrink-0" strokeWidth={2} />
           Could not load your current plan. Plans are shown below — your current plan badge may be missing.
+        </div>
+      )}
+      {sessionBlocked && (
+        <div className="rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800 flex items-start gap-3">
+          <AlertCircle size={15} className="shrink-0 mt-0.5 text-amber-600" strokeWidth={2} />
+          <div className="flex-1">
+            <p className="font-medium">A payment session is already open.</p>
+            <p className="text-amber-700 mt-0.5">
+              You may have closed the Paystack window before completing payment. Cancel the previous session to start a new one.
+            </p>
+          </div>
+          <button
+            onClick={() => actingPlanId && handleCancelAndRetry(actingPlanId)}
+            disabled={cancelling || !actingPlanId}
+            className="shrink-0 px-3 py-1.5 rounded-lg bg-amber-800 text-white text-xs font-medium hover:bg-amber-900 disabled:opacity-50 inline-flex items-center gap-1.5"
+          >
+            {cancelling ? <Loader2 size={11} className="animate-spin" /> : null}
+            Cancel &amp; retry
+          </button>
         </div>
       )}
       {error && (

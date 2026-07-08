@@ -10,7 +10,7 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
 from apps.payments.api.serializers import InitiateSerializer
-from apps.payments.models import PaymentEvent
+from apps.payments.models import PaymentEvent, SubscriptionCheckout
 from apps.payments.selectors import get_subscription_status
 from apps.payments.services import PaymentService
 from apps.payments.tasks import process_payment_event
@@ -24,8 +24,8 @@ logger = logging.getLogger("kotoku")
 def _get_account(request):
     try:
         return request.user.account
-    except Exception:
-        raise DomainError("Account not found for this user.")
+    except Exception as exc:
+        raise DomainError("Account not found for this user.") from exc
 
 
 class ConfigView(APIView):
@@ -80,6 +80,27 @@ class SubscriptionView(APIView):
         return ok(get_subscription_status(account))
 
 
+class CancelCheckoutView(APIView):
+    """
+    POST /api/payments/checkout/cancel/
+    Cancels any open (pending/charged) checkout for the account.
+    Safe to call after abandoning the Paystack popup — if the user actually
+    paid, Paystack's webhook will have already moved the checkout to a
+    terminal status before this call arrives.
+    """
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        account = _get_account(request)
+        updated = SubscriptionCheckout.objects.filter(
+            account=account,
+            status__in=SubscriptionCheckout.OPEN_STATUSES,
+        ).update(status=SubscriptionCheckout.STATUS_CANCELLED)
+        logger.info("checkout/cancel account=%s cancelled=%d", account.id, updated)
+        return ok({"cancelled": updated > 0})
+
+
 class CancelView(APIView):
     """
     POST /api/payments/cancel/
@@ -92,7 +113,8 @@ class CancelView(APIView):
     def post(self, request):
         account = _get_account(request)
         PaymentService.cancel_subscription(account=account)
-        return ok({"detail": "Subscription will be cancelled at the end of the current billing period."})
+        msg = "Subscription will be cancelled at the end of the current billing period."
+        return ok({"detail": msg})
 
 
 @method_decorator(csrf_exempt, name="dispatch")
@@ -154,7 +176,9 @@ class WebhookView(APIView):
                     event_id,
                 )
                 return HttpResponse(status=503)
-            logger.info("Webhook event_id=%s already recorded but unprocessed — re-dispatched", event_id)
+            logger.info(
+                "Webhook event_id=%s already recorded but unprocessed — re-dispatched", event_id
+            )
             return HttpResponse(status=200)
 
         # Step 5: persist the event row.
