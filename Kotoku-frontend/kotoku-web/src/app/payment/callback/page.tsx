@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ExternalLink, RefreshCw, ShieldCheck } from "lucide-react";
@@ -9,6 +9,14 @@ import { useInvalidatePlan } from "@/hooks/usePlan";
 const MOBILE_CALLBACK_SCHEME = "kotoku://payment/callback";
 
 export default function PaymentCallbackPage() {
+  return (
+    <Suspense fallback={<PaymentCallbackFallback />}>
+      <PaymentCallbackContent />
+    </Suspense>
+  );
+}
+
+function PaymentCallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const invalidatePlan = useInvalidatePlan();
@@ -122,6 +130,33 @@ export default function PaymentCallbackPage() {
           >
             Go to plans now
           </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PaymentCallbackFallback() {
+  return (
+    <div className="min-h-screen bg-neutral-50 px-5 py-8 flex items-center justify-center">
+      <div className="w-full max-w-sm rounded-3xl border border-neutral-200 bg-white p-6 shadow-sm text-center">
+        <div className="w-16 h-16 rounded-full bg-blue-50 flex items-center justify-center mx-auto mb-5">
+          <ShieldCheck size={28} className="text-blue-600" strokeWidth={1.8} />
+        </div>
+
+        <h1 className="text-xl font-bold text-neutral-900">Loading payment status</h1>
+        <p className="text-sm text-neutral-500 mt-3 leading-relaxed">
+          Preparing your return flow.
+        </p>
+
+        <div className="flex justify-center gap-1.5 mt-6">
+          {[0, 1, 2].map((i) => (
+            <span
+              key={i}
+              className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-bounce"
+              style={{ animationDelay: `${i * 0.15}s` }}
+            />
+          ))}
         </div>
       </div>
     </div>
