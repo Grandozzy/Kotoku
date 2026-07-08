@@ -62,7 +62,10 @@ SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 USE_X_FORWARDED_HOST = True
 CSRF_TRUSTED_ORIGINS = [
     origin.strip()
-    for origin in os.getenv("CSRF_TRUSTED_ORIGINS", "https://api.kotoku-app.com").split(",")
+    for origin in os.getenv(
+        "CSRF_TRUSTED_ORIGINS",
+        "https://api.kotoku-app.com,https://kotoku-app.com,https://www.kotoku-app.com",
+    ).split(",")
     if origin.strip()
 ]
 SECURE_SSL_REDIRECT = os.getenv("DJANGO_SECURE_SSL_REDIRECT", "true").lower() == "true"

@@ -35,11 +35,12 @@ export async function getPaymentConfig(): Promise<PaymentConfig> {
 }
 
 export async function initiatePayment(
-  planId: string
+  planId: string,
+  callbackUrl?: string,
 ): Promise<InitiatePaymentResponse> {
   const res = await apiClient.post<ApiResponse<InitiatePaymentResponse>>(
     "/payments/initiate/",
-    { plan_id: planId }
+    callbackUrl ? { plan_id: planId, callback_url: callbackUrl } : { plan_id: planId }
   );
   return res.data.data;
 }

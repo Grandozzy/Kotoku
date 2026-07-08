@@ -214,7 +214,7 @@ PAYSTACK_SECRET_KEY = os.getenv("PAYSTACK_SECRET_KEY", "")
 PAYSTACK_PUBLIC_KEY = os.getenv("PAYSTACK_PUBLIC_KEY", "")
 PAYSTACK_WEBHOOK_SECRET = os.getenv("PAYSTACK_WEBHOOK_SECRET", "")
 
-KOTOKU_WEB_URL = os.getenv("KOTOKU_WEB_URL", "http://localhost:3000").rstrip("/")
+KOTOKU_WEB_URL = os.getenv("KOTOKU_WEB_URL", "https://www.kotoku-app.com").rstrip("/")
 CONSENT_LINK_MAX_AGE_SECONDS = int(os.getenv("CONSENT_LINK_MAX_AGE_SECONDS", "604800"))
 SEALED_RECEIPT_LINK_MAX_AGE_SECONDS = int(
     os.getenv("SEALED_RECEIPT_LINK_MAX_AGE_SECONDS", "2592000")
@@ -256,7 +256,7 @@ CORS_ALLOWED_ORIGINS = [
     origin.strip()
     for origin in os.getenv(
         "CORS_ALLOWED_ORIGINS",
-        "http://localhost:3000,https://kotoku-app.com,https://www.kotoku-app.com",
+        "http://localhost:3000,https://kotoku-app.com,https://www.kotoku-app.com,https://api.kotoku-app.com",
     ).split(",")
     if origin.strip()
 ]
@@ -272,11 +272,13 @@ AUTH_REFRESH_COOKIE_SECURE = os.getenv(
 ).lower() == "true"
 AUTH_WEB_REFRESH_COOKIE_MAX_AGE = int(os.getenv("AUTH_WEB_REFRESH_COOKIE_MAX_AGE", "28800"))
 EVIDENCE_VIEW_URL_TTL_SECONDS = int(os.getenv("EVIDENCE_VIEW_URL_TTL_SECONDS", "900"))
-EMAIL_BACKEND = os.getenv(
-    "EMAIL_BACKEND",
-    "django.core.mail.backends.console.EmailBackend" if DEBUG else "anymail.backends.resend.EmailBackend",
+_default_email_backend = (
+    "django.core.mail.backends.console.EmailBackend"
+    if DEBUG
+    else "anymail.backends.resend.EmailBackend"
 )
-DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "noreply@kotoku.app")
+EMAIL_BACKEND = os.getenv("EMAIL_BACKEND", _default_email_backend)
+DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "noreply@kotoku-app.com")
 SERVER_EMAIL = os.getenv("SERVER_EMAIL", DEFAULT_FROM_EMAIL)
 ANYMAIL = {
     "RESEND_API_KEY": os.getenv("RESEND_API_KEY", ""),

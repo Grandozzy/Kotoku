@@ -143,7 +143,7 @@ def test_initialize_transaction_sends_correct_body(mock_urlopen):
         amount_kobo=2500,
         plan_code="PLN_abc",
         reference="kotoku_ref001",
-        callback_url="kotoku://payment/callback",
+        callback_url="https://kotoku.app/payment/callback?source=mobile",
         metadata={"account_id": 42, "plan_id": "personal_plus"},
     )
 
@@ -153,7 +153,7 @@ def test_initialize_transaction_sends_correct_body(mock_urlopen):
     assert body["email"] == "user@example.com"
     assert body["amount"] == 2500
     assert body["plan"] == "PLN_abc"
-    assert body["callback_url"] == "kotoku://payment/callback"
+    assert body["callback_url"] == "https://kotoku.app/payment/callback?source=mobile"
     assert body["metadata"]["account_id"] == 42
 
 

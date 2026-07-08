@@ -77,7 +77,7 @@ def _request(method: str, path: str, secret_key: str, body: dict | None = None) 
             "Authorization": f"Bearer {secret_key}",
             "Content-Type": "application/json",
             "Accept": "application/json",
-            "User-Agent": "KotokuApp/1.0 (+https://kotoku.app)",
+            "User-Agent": "KotokuApp/1.0 (+https://www.kotoku-app.com)",
         },
         method=method,
     )
@@ -166,7 +166,8 @@ class PaystackClient:
         Returns the full transaction data dict from Paystack.
         Raises PaystackError if the reference is unknown or the call fails.
         """
-        return _request("GET", f"/transaction/verify/{urllib.parse.quote(reference, safe='')}", self._key)
+        encoded = urllib.parse.quote(reference, safe="")
+        return _request("GET", f"/transaction/verify/{encoded}", self._key)
 
     # ── Subscriptions ─────────────────────────────────────────────────────────
 

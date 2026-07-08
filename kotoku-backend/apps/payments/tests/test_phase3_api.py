@@ -94,7 +94,7 @@ def test_config_requires_auth():
 
 
 @pytest.mark.django_db
-@override_settings(PAYSTACK_PLAN_CODES=_PLAN_CODES, PAYSTACK_CALLBACK_URL="kotoku://cb")
+@override_settings(PAYSTACK_PLAN_CODES=_PLAN_CODES, PAYSTACK_CALLBACK_URL="https://kotoku.app/payment/callback")
 @patch("apps.payments.services.get_paystack_client")
 def test_initiate_happy_path(mock_factory):
     mock_factory.return_value = _mock_client(reference="kotoku_xyz")

@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 
 import { cancelSubscription, initiatePayment } from "@/api/payments";
+import { WEB_BASE_URL } from "@/constants/config";
 import { getApiErrorMessage } from "@/lib/errorHandler";
 
 /**
@@ -14,7 +15,11 @@ export function useInitiatePayment() {
   const router = useRouter();
 
   return useMutation({
-    mutationFn: (planId: string) => initiatePayment(planId),
+    mutationFn: (planId: string) =>
+      initiatePayment(
+        planId,
+        `${WEB_BASE_URL}/payment/callback?source=mobile&plan_id=${encodeURIComponent(planId)}`,
+      ),
     onSuccess: (data, planId) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       router.push({

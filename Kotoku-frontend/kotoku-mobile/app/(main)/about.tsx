@@ -62,17 +62,17 @@ export default function AboutScreen() {
       {/* Links */}
       <View className="gap-sm">
         <Pressable
-          onPress={() => Linking.openURL("https://kotoku.app/legal")}
+          onPress={() => Linking.openURL("https://www.kotoku-app.com/legal")}
           className="bg-surface-card rounded-xl border border-border-subtle px-lg py-md flex-row justify-between items-center active:opacity-70"
         >
           <Text className="text-md text-ink-primary">Terms & Privacy Policy</Text>
           <Text className="text-ink-muted">›</Text>
         </Pressable>
         <Pressable
-          onPress={() => Linking.openURL("https://kotoku.app")}
+          onPress={() => Linking.openURL("https://www.kotoku-app.com")}
           className="bg-surface-card rounded-xl border border-border-subtle px-lg py-md flex-row justify-between items-center active:opacity-70"
         >
-          <Text className="text-md text-ink-primary">kotoku.app</Text>
+          <Text className="text-md text-ink-primary">www.kotoku-app.com</Text>
           <Text className="text-ink-muted">›</Text>
         </Pressable>
       </View>
