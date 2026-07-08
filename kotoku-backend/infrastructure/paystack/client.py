@@ -77,6 +77,7 @@ def _request(method: str, path: str, secret_key: str, body: dict | None = None) 
             "Authorization": f"Bearer {secret_key}",
             "Content-Type": "application/json",
             "Accept": "application/json",
+            "User-Agent": "KotokuApp/1.0 (+https://kotoku.app)",
         },
         method=method,
     )
