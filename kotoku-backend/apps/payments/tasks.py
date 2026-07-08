@@ -11,6 +11,7 @@ expire_lapsed_subscriptions — daily beat task (registered in settings).
 """
 
 import logging
+from calendar import monthrange
 from datetime import date, datetime
 from datetime import timezone as dt_timezone
 
@@ -146,6 +147,100 @@ def _notify_email(account, *, subject: str, body: str) -> None:
         logger.exception("Failed to send payment email notification to account=%s", account.pk)
 
 
+def _add_one_month(value: date) -> date:
+    month = value.month + 1
+    year = value.year
+    if month > 12:
+        month = 1
+        year += 1
+    day = min(value.day, monthrange(year, month)[1])
+    return date(year, month, day)
+
+
+def _reactivate_recovery_checkout(data: dict, checkout: SubscriptionCheckout) -> bool:
+    if checkout.checkout_kind != SubscriptionCheckout.KIND_RECOVERY:
+        return False
+
+    customer = data.get("customer") or {}
+    customer_code = customer.get("customer_code", "")
+    customer_email = customer.get("email", "")
+    reference = data.get("reference", "")
+    amount = data.get("amount", 0)
+    currency = data.get("currency", "GHS")
+
+    with transaction.atomic():
+        locked_checkout = SubscriptionCheckout.objects.select_for_update().get(pk=checkout.pk)
+        sub = locked_checkout.recovery_subscription
+        if not sub:
+            logger.error("recovery charge.success missing recovery_subscription for checkout=%s", checkout.pk)
+            return True
+        sub = Subscription.objects.select_for_update().get(pk=sub.pk)
+        account = sub.account
+
+        base_period_end = sub.current_period_end or date.today()
+        next_period_end = _add_one_month(base_period_end)
+        sub.current_period_start = base_period_end
+        sub.current_period_end = next_period_end
+        sub.status = Subscription.STATUS_ACTIVE
+        sub.cancel_at_period_end = False
+        if customer_code:
+            sub.paystack_customer_code = customer_code
+        if customer_email:
+            sub.paystack_email = customer_email
+        sub.save(update_fields=[
+            "current_period_start",
+            "current_period_end",
+            "status",
+            "cancel_at_period_end",
+            "paystack_customer_code",
+            "paystack_email",
+            "updated_at",
+        ])
+
+        locked_checkout.status = SubscriptionCheckout.STATUS_PROVIDER_CREATED
+        locked_checkout.activated_subscription = sub
+        locked_checkout.save(update_fields=["status", "activated_subscription", "updated_at"])
+
+        if account.plan != sub.plan_id:
+            account.plan = sub.plan_id
+            account.save(update_fields=["plan", "updated_at"])
+
+    Invoice.objects.update_or_create(
+        paystack_ref=reference or f"paystack_recovery_{checkout.pk}",
+        defaults={
+            "account": account,
+            "subscription": sub,
+            "amount_kobo": amount,
+            "currency": currency,
+            "status": Invoice.STATUS_PAID,
+            "period_start": sub.current_period_start,
+            "period_end": sub.current_period_end,
+            "paid_at": datetime.now(dt_timezone.utc),
+        },
+    )
+
+    AuditService.record_event(
+        event_type="payment.recovery_paid",
+        entity_type="subscription",
+        entity_id=str(sub.pk),
+        actor=f"paystack:{customer_code or sub.paystack_customer_code}",
+        metadata={"reference": reference, "plan_id": sub.plan_id},
+    )
+    plan_name = sub.plan_id.replace("_", " ").title()
+    _notify(account, f"Your Kotoku {plan_name} subscription is active again.")
+    _notify_email(
+        account,
+        subject=f"Your Kotoku {plan_name} subscription is active again",
+        body=(
+            f"Hi {account.full_name or 'there'},\n\n"
+            f"Your recovery payment for Kotoku {plan_name} was successful.\n\n"
+            "Your subscription is active again.\n\n"
+            "The Kotoku team"
+        ),
+    )
+    return True
+
+
 # ── Event handlers ────────────────────────────────────────────────────────────
 
 
@@ -155,16 +250,18 @@ def _handle_charge_success(data: dict) -> None:
     If it is a subscription charge (data.plan present), activate the account's plan.
     We match the account via metadata.account_id which we set on initiate.
     """
-    plan_info = data.get("plan") or {}
-    if not plan_info:
-        logger.info("charge.success has no plan — one-time charge, skipping")
-        return
-
     reference = data.get("reference", "")
     metadata = data.get("metadata") or {}
     account_id = metadata.get("account_id")
     plan_id = metadata.get("plan_id")
     checkout = _find_checkout_by_reference(reference) if reference else None
+    plan_info = data.get("plan") or {}
+
+    if not plan_info:
+        if checkout and _reactivate_recovery_checkout(data, checkout):
+            return
+        logger.info("charge.success has no plan and no recovery checkout — skipping")
+        return
 
     if checkout:
         account_id = checkout.account_id

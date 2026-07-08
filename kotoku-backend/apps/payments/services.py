@@ -16,6 +16,30 @@ logger = logging.getLogger("kotoku")
 class PaymentService:
 
     @staticmethod
+    def _create_checkout(
+        *,
+        account,
+        plan_id: str,
+        authorization_url: str,
+        access_code: str,
+        reference: str,
+        checkout_kind: str,
+        replaces_subscription=None,
+        recovery_subscription=None,
+    ) -> None:
+        SubscriptionCheckout.objects.create(
+            account=account,
+            reference=reference,
+            target_plan_id=plan_id,
+            checkout_kind=checkout_kind,
+            status=SubscriptionCheckout.STATUS_PENDING,
+            replaces_subscription=replaces_subscription,
+            recovery_subscription=recovery_subscription,
+            authorization_url=authorization_url,
+            access_code=access_code,
+        )
+
+    @staticmethod
     def initiate_subscription(
         account,
         plan_id: str,
@@ -97,14 +121,93 @@ class PaymentService:
                     "A payment session is already in progress for this account. "
                     "Please complete it or wait a moment before starting another."
                 )
-            SubscriptionCheckout.objects.create(
+            PaymentService._create_checkout(
                 account=account,
-                reference=result.reference,
-                target_plan_id=plan_id,
-                status=SubscriptionCheckout.STATUS_PENDING,
-                replaces_subscription=current,
+                plan_id=plan_id,
                 authorization_url=result.authorization_url,
                 access_code=result.access_code,
+                reference=result.reference,
+                checkout_kind=SubscriptionCheckout.KIND_SUBSCRIPTION,
+                replaces_subscription=current,
+            )
+
+        return result
+
+    @staticmethod
+    def initiate_recovery_payment(
+        account,
+        plan_id: str,
+        *,
+        callback_url: str | None = None,
+        channels: list[str] | None = None,
+    ) -> InitializeResult:
+        plan = PLAN_MAP.get(plan_id)
+        if not plan:
+            raise DomainError(f"Invalid plan: {plan_id!r}.")
+
+        open_checkout = get_open_checkout_for_account(account)
+        if open_checkout:
+            raise DomainError(
+                "A payment session is already in progress for this account. "
+                "Please complete it or wait a moment before starting another."
+            )
+
+        existing = get_subscription_for_account(account)
+        if not existing or existing.status != Subscription.STATUS_PAST_DUE:
+            raise DomainError("Recovery payment is only available for past-due subscriptions.")
+        if existing.plan_id != plan_id:
+            raise DomainError("Recovery payment must match your current past-due plan.")
+
+        reference = f"kotoku_{uuid.uuid4().hex}"
+        selected_channels = channels or ["card", "mobile_money"]
+
+        try:
+            client = get_paystack_client()
+            result = client.initialize_transaction(
+                email=account.email,
+                amount_kobo=plan.price_ghs * 100,
+                reference=reference,
+                callback_url=callback_url or getattr(settings, "PAYSTACK_CALLBACK_URL", ""),
+                metadata={
+                    "account_id": account.id,
+                    "plan_id": plan_id,
+                    "payment_mode": SubscriptionCheckout.KIND_RECOVERY,
+                    "subscription_id": existing.id,
+                    "kotoku_ref": reference,
+                },
+                channels=selected_channels,
+            )
+        except PaystackError as exc:
+            logger.error(
+                "Paystack recovery initiate failed for account=%s plan=%s: %s",
+                account.id, plan_id, exc,
+            )
+            raise DomainError(
+                "Payment gateway error. Please try again or contact support."
+            ) from exc
+
+        with transaction.atomic():
+            sub = Subscription.objects.select_for_update().get(pk=existing.pk)
+            if sub.status != Subscription.STATUS_PAST_DUE:
+                raise DomainError("Recovery payment is only available for past-due subscriptions.")
+            existing_checkout = (
+                SubscriptionCheckout.objects.select_for_update()
+                .filter(account=account, status__in=SubscriptionCheckout.OPEN_STATUSES)
+                .first()
+            )
+            if existing_checkout:
+                raise DomainError(
+                    "A payment session is already in progress for this account. "
+                    "Please complete it or wait a moment before starting another."
+                )
+            PaymentService._create_checkout(
+                account=account,
+                plan_id=plan_id,
+                authorization_url=result.authorization_url,
+                access_code=result.access_code,
+                reference=result.reference,
+                checkout_kind=SubscriptionCheckout.KIND_RECOVERY,
+                recovery_subscription=sub,
             )
 
         return result

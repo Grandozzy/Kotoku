@@ -55,11 +55,20 @@ class InitiateView(APIView):
         serializer.is_valid(raise_exception=True)
 
         account = _get_account(request)
-        result = PaymentService.initiate_subscription(
-            account=account,
-            plan_id=serializer.validated_data["plan_id"],
-            callback_url=serializer.validated_data.get("callback_url") or None,
-        )
+        mode = serializer.validated_data.get("mode", InitiateSerializer.MODE_SUBSCRIPTION)
+        if mode == InitiateSerializer.MODE_RECOVERY:
+            result = PaymentService.initiate_recovery_payment(
+                account=account,
+                plan_id=serializer.validated_data["plan_id"],
+                callback_url=serializer.validated_data.get("callback_url") or None,
+                channels=serializer.validated_data.get("channels"),
+            )
+        else:
+            result = PaymentService.initiate_subscription(
+                account=account,
+                plan_id=serializer.validated_data["plan_id"],
+                callback_url=serializer.validated_data.get("callback_url") or None,
+            )
         return ok({
             "authorization_url": result.authorization_url,
             "access_code": result.access_code,

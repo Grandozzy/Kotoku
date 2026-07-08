@@ -94,7 +94,7 @@ def test_config_requires_auth():
 
 
 @pytest.mark.django_db
-@override_settings(PAYSTACK_PLAN_CODES=_PLAN_CODES, PAYSTACK_CALLBACK_URL="https://kotoku.app/payment/callback")
+@override_settings(PAYSTACK_PLAN_CODES=_PLAN_CODES, PAYSTACK_CALLBACK_URL="https://www.kotoku-app.com/payment/callback")
 @patch("apps.payments.services.get_paystack_client")
 def test_initiate_happy_path(mock_factory):
     mock_factory.return_value = _mock_client(reference="kotoku_xyz")
@@ -111,6 +111,7 @@ def test_initiate_happy_path(mock_factory):
     checkout = SubscriptionCheckout.objects.get(account=account, reference="kotoku_xyz")
     assert checkout.status == SubscriptionCheckout.STATUS_PENDING
     assert checkout.target_plan_id == "personal_plus"
+    assert checkout.checkout_kind == SubscriptionCheckout.KIND_SUBSCRIPTION
     assert checkout.authorization_url == "https://checkout.paystack.com/abc"
     assert checkout.access_code == "acc_test"
     assert not Subscription.objects.filter(account=account).exists()
@@ -193,6 +194,68 @@ def test_initiate_allows_upgrade_from_active_different_plan(mock_factory):
     checkout = SubscriptionCheckout.objects.get(reference="kotoku_upgrade")
     assert checkout.replaces_subscription == active_sub
     assert checkout.target_plan_id == "personal_plus"
+
+
+@pytest.mark.django_db
+@override_settings(PAYSTACK_PLAN_CODES=_PLAN_CODES)
+@patch("apps.payments.services.get_paystack_client")
+def test_initiate_recovery_happy_path(mock_factory):
+    mock = _mock_client(reference="kotoku_recovery")
+    mock_factory.return_value = mock
+    account, client = _make_account_client(plan="personal_plus")
+    past_due = Subscription.objects.create(
+        account=account,
+        plan_id="personal_plus",
+        paystack_plan_code="PLN_plus",
+        paystack_sub_id="SUB_due_001",
+        paystack_email=account.email,
+        status=Subscription.STATUS_PAST_DUE,
+    )
+
+    resp = client.post(
+        _INITIATE_URL,
+        {
+            "plan_id": "personal_plus",
+            "mode": "recovery",
+            "channels": ["mobile_money"],
+        },
+        format="json",
+    )
+
+    assert resp.status_code == 201
+    checkout = SubscriptionCheckout.objects.get(reference="kotoku_recovery")
+    assert checkout.checkout_kind == SubscriptionCheckout.KIND_RECOVERY
+    assert checkout.recovery_subscription == past_due
+
+    call_kwargs = mock.initialize_transaction.call_args.kwargs
+    assert call_kwargs.get("plan_code", "") == ""
+    assert call_kwargs["channels"] == ["mobile_money"]
+    assert call_kwargs["metadata"]["payment_mode"] == SubscriptionCheckout.KIND_RECOVERY
+
+
+@pytest.mark.django_db
+@override_settings(PAYSTACK_PLAN_CODES=_PLAN_CODES)
+@patch("apps.payments.services.get_paystack_client")
+def test_initiate_recovery_rejects_non_past_due_subscription(mock_factory):
+    mock_factory.return_value = _mock_client()
+    account, client = _make_account_client(plan="personal_plus")
+    Subscription.objects.create(
+        account=account,
+        plan_id="personal_plus",
+        paystack_plan_code="PLN_plus",
+        paystack_sub_id="SUB_active_001",
+        paystack_email=account.email,
+        status=Subscription.STATUS_ACTIVE,
+    )
+
+    resp = client.post(
+        _INITIATE_URL,
+        {"plan_id": "personal_plus", "mode": "recovery"},
+        format="json",
+    )
+
+    assert resp.status_code == 400
+    assert "past-due" in resp.json()["message"]
 
 
 @pytest.mark.django_db

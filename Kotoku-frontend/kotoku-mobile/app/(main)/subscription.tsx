@@ -13,7 +13,7 @@ import { Alert, Pressable, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Card, ErrorState, ScreenLoader } from "@/components/ui";
-import { useCancelSubscription } from "@/features/billing/usePayment";
+import { useCancelSubscription, useRecoverPayment } from "@/features/billing/usePayment";
 import { useSubscription } from "@/features/billing/useSubscription";
 import { getApiErrorMessage } from "@/lib/errorHandler";
 import { colors } from "@/theme/tokens";
@@ -48,6 +48,7 @@ export default function SubscriptionScreen() {
   const insets = useSafeAreaInsets();
   const { data: sub, isError, isLoading, refetch } = useSubscription();
   const { mutate: cancel, isPending: cancelling, error: cancelError } = useCancelSubscription();
+  const { mutate: recover, isPending: recovering, error: recoveryError } = useRecoverPayment();
 
   if (isLoading) return <ScreenLoader />;
 
@@ -114,10 +115,17 @@ export default function SubscriptionScreen() {
     );
   }
 
-  const planName = PLAN_NAMES[sub.plan_id ?? ""] ?? sub.plan_id ?? "Unknown plan";
-  const statusMeta = STATUS_LABELS[sub.status ?? ""] ?? STATUS_LABELS.expired;
-  const periodEnd = sub.current_period_end ? formatDate(sub.current_period_end) : null;
-  const isCancelling = sub.cancel_at_period_end;
+  const currentSub = sub!;
+  const planName = PLAN_NAMES[currentSub.plan_id ?? ""] ?? currentSub.plan_id ?? "Unknown plan";
+  const statusMeta = STATUS_LABELS[currentSub.status ?? ""] ?? STATUS_LABELS.expired;
+  const periodEnd = currentSub.current_period_end ? formatDate(currentSub.current_period_end) : null;
+  const isCancelling = currentSub.cancel_at_period_end;
+  const isPastDue = currentSub.status === "past_due";
+
+  function handleRecovery(channel: "card" | "mobile_money") {
+    if (!currentSub.plan_id || recovering) return;
+    recover({ planId: currentSub.plan_id, channel });
+  }
 
   return (
     <ScrollView
@@ -144,6 +152,15 @@ export default function SubscriptionScreen() {
             Your subscription is set to cancel on{" "}
             <Text className="font-semibold">{periodEnd}</Text>. You'll keep
             full access until then.
+          </Text>
+        </View>
+      )}
+
+      {isPastDue && (
+        <View className="bg-red-50 border border-red-200 rounded-xl px-lg py-md flex-row items-start gap-sm">
+          <AlertCircle size={16} color="#dc2626" strokeWidth={2} style={{ marginTop: 2 }} />
+          <Text className="text-sm text-red-800 flex-1 leading-relaxed">
+            Your last renewal payment failed. Pay now with card or Mobile Money to reactivate this subscription.
           </Text>
         </View>
       )}
@@ -182,7 +199,7 @@ export default function SubscriptionScreen() {
         )}
 
         {/* Active indicator */}
-        {sub.status === "active" && !isCancelling && (
+        {currentSub.status === "active" && !isCancelling && (
           <View className="px-lg py-md flex-row items-center gap-sm">
             <Zap size={16} color="#16a34a" strokeWidth={2} />
             <Text className="text-sm text-green-700">
@@ -199,8 +216,44 @@ export default function SubscriptionScreen() {
         </View>
       )}
 
+      {!!recoveryError && (
+        <View className="bg-red-50 border border-red-200 rounded-xl px-lg py-md">
+          <Text className="text-sm text-red-700">{getApiErrorMessage(recoveryError)}</Text>
+        </View>
+      )}
+
       {/* Actions */}
       <View className="gap-sm">
+        {isPastDue && (
+          <>
+            <Pressable
+              className={`bg-brand-primary rounded-xl py-md items-center justify-center flex-row gap-sm active:opacity-70 ${
+                recovering ? "opacity-40" : ""
+              }`}
+              onPress={() => handleRecovery("mobile_money")}
+              disabled={recovering}
+            >
+              <Zap size={16} color="#fff" strokeWidth={2} />
+              <Text className="text-white font-semibold text-md">
+                {recovering ? "Opening checkout…" : "Pay with Mobile Money"}
+              </Text>
+            </Pressable>
+
+            <Pressable
+              className={`rounded-xl py-md items-center border border-border-subtle active:opacity-70 ${
+                recovering ? "opacity-40" : ""
+              }`}
+              onPress={() => handleRecovery("card")}
+              disabled={recovering}
+            >
+              <View className="flex-row items-center justify-center gap-sm">
+                <CreditCard size={16} color={colors.brandPrimary} strokeWidth={1.8} />
+                <Text className="text-brand-primary text-md font-medium">Pay with card</Text>
+              </View>
+            </Pressable>
+          </>
+        )}
+
         <Pressable
           className="bg-brand-primary rounded-xl py-md items-center justify-center flex-row gap-sm active:opacity-70"
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -211,7 +264,7 @@ export default function SubscriptionScreen() {
         </Pressable>
 
         {/* Cancel button — hidden if already cancelling or subscription not active */}
-        {sub.status === "active" && !isCancelling && (
+        {currentSub.status === "active" && !isCancelling && (
           <Pressable
             className={`rounded-xl py-md items-center border border-border-subtle active:opacity-70 ${
               cancelling ? "opacity-40" : ""

@@ -197,10 +197,32 @@ def test_charge_success_activates_plan(mock_notify):
 
 
 @pytest.mark.django_db
-def test_charge_success_without_plan_is_skipped():
-    """One-time charges (no plan field) should be skipped silently."""
+@patch("apps.payments.tasks._notify")
+@patch("apps.payments.tasks._notify_email")
+def test_charge_success_without_plan_reactivates_recovery_checkout(mock_email, mock_notify):
+    account = _make_account(plan="personal_plus")
+    sub = Subscription.objects.create(
+        account=account,
+        plan_id="personal_plus",
+        paystack_sub_id="SUB_recovery_001",
+        paystack_email=account.email,
+        status=Subscription.STATUS_PAST_DUE,
+        current_period_start=date(2026, 5, 1),
+        current_period_end=date(2026, 6, 1),
+    )
+    checkout = SubscriptionCheckout.objects.create(
+        account=account,
+        reference="kotoku_onetime",
+        target_plan_id="personal_plus",
+        checkout_kind=SubscriptionCheckout.KIND_RECOVERY,
+        recovery_subscription=sub,
+        status=SubscriptionCheckout.STATUS_PENDING,
+    )
+
     payload = _make_event("charge.success", {
         "reference": "kotoku_onetime",
+        "amount": 7900,
+        "currency": "GHS",
         "customer": {"customer_code": "CUS_x", "email": "x@test.com"},
         "metadata": {},
     }, "evt_onetime_001")
@@ -209,8 +231,20 @@ def test_charge_success_without_plan_is_skipped():
         payload=payload, processed=False,
     )
     process_payment_event("evt_onetime_001")
+
+    account.refresh_from_db()
+    sub.refresh_from_db()
+    checkout.refresh_from_db()
     event = PaymentEvent.objects.get(event_id="evt_onetime_001")
+
     assert event.processed is True
+    assert account.plan == "personal_plus"
+    assert sub.status == Subscription.STATUS_ACTIVE
+    assert sub.current_period_start == date(2026, 6, 1)
+    assert sub.current_period_end == date(2026, 7, 1)
+    assert checkout.status == SubscriptionCheckout.STATUS_PROVIDER_CREATED
+    assert Invoice.objects.filter(paystack_ref="kotoku_onetime", status=Invoice.STATUS_PAID).exists()
+    mock_notify.assert_called_once()
 
 
 # ── process_payment_event — subscription.create ───────────────────────────────

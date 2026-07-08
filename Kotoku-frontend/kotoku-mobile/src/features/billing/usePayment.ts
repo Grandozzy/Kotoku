@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Linking } from "react-native";
 
-import { cancelCheckout, cancelSubscription, initiatePayment } from "@/api/payments";
+import { cancelCheckout, cancelSubscription, initiatePayment, type PaymentChannel } from "@/api/payments";
 import { WEB_BASE_URL } from "@/constants/config";
 import { getApiErrorMessage } from "@/lib/errorHandler";
 
@@ -28,6 +28,39 @@ export function useInitiatePayment() {
     onError: (error) => {
       // Caller is responsible for surfacing this via getApiErrorMessage(error)
       console.warn("[useInitiatePayment] error:", getApiErrorMessage(error));
+    },
+  });
+}
+
+export function useRecoverPayment() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      planId,
+      channel,
+    }: {
+      planId: string;
+      channel: PaymentChannel;
+    }) =>
+      initiatePayment(
+        planId,
+        `${WEB_BASE_URL}/payment/callback?source=mobile&plan_id=${encodeURIComponent(planId)}`,
+        {
+          mode: "recovery",
+          channels: [channel],
+        },
+      ),
+    onSuccess: async (data) => {
+      queryClient.invalidateQueries({ queryKey: ["billing", "subscription"] });
+      const supported = await Linking.canOpenURL(data.authorization_url);
+      if (!supported) {
+        throw new Error("Could not open secure checkout. Please try again.");
+      }
+      await Linking.openURL(data.authorization_url);
+    },
+    onError: (error) => {
+      console.warn("[useRecoverPayment] error:", getApiErrorMessage(error));
     },
   });
 }

@@ -132,10 +132,11 @@ class PaystackClient:
         *,
         email: str,
         amount_kobo: int,
-        plan_code: str,
+        plan_code: str = "",
         reference: str,
         callback_url: str = "",
         metadata: dict | None = None,
+        channels: list[str] | None = None,
     ) -> InitializeResult:
         """
         POST /transaction/initialize
@@ -145,13 +146,16 @@ class PaystackClient:
         body: dict = {
             "email": email,
             "amount": amount_kobo,
-            "plan": plan_code,
             "reference": reference,
         }
+        if plan_code:
+            body["plan"] = plan_code
         if callback_url:
             body["callback_url"] = callback_url
         if metadata:
             body["metadata"] = metadata
+        if channels:
+            body["channels"] = channels
 
         data = _request("POST", "/transaction/initialize", self._key, body)
         return InitializeResult(

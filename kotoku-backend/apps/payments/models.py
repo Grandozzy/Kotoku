@@ -107,6 +107,14 @@ class SubscriptionCheckout(models.Model):
 
     OPEN_STATUSES = [STATUS_PENDING, STATUS_CHARGED]
 
+    KIND_SUBSCRIPTION = "subscription"
+    KIND_RECOVERY = "recovery"
+
+    KIND_CHOICES = [
+        (KIND_SUBSCRIPTION, "Subscription"),
+        (KIND_RECOVERY, "Recovery"),
+    ]
+
     account = models.ForeignKey(
         "accounts.Account",
         on_delete=models.CASCADE,
@@ -114,6 +122,12 @@ class SubscriptionCheckout(models.Model):
     )
     reference = models.CharField(max_length=255, unique=True)
     target_plan_id = models.CharField(max_length=32)
+    checkout_kind = models.CharField(
+        max_length=20,
+        choices=KIND_CHOICES,
+        default=KIND_SUBSCRIPTION,
+        db_index=True,
+    )
     status = models.CharField(max_length=32, choices=STATUS_CHOICES, default=STATUS_PENDING, db_index=True)
     replaces_subscription = models.ForeignKey(
         Subscription,
@@ -129,6 +143,13 @@ class SubscriptionCheckout(models.Model):
         blank=True,
         related_name="activation_checkouts",
     )
+    recovery_subscription = models.ForeignKey(
+        Subscription,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="recovery_checkouts",
+    )
     authorization_url = models.TextField(blank=True)
     access_code = models.CharField(max_length=255, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -142,7 +163,10 @@ class SubscriptionCheckout(models.Model):
         ]
 
     def __str__(self) -> str:
-        return f"SubscriptionCheckout({self.account_id} / {self.target_plan_id} / {self.status})"
+        return (
+            f"SubscriptionCheckout({self.account_id} / {self.target_plan_id} / "
+            f"{self.checkout_kind} / {self.status})"
+        )
 
 
 class PaymentEvent(models.Model):
