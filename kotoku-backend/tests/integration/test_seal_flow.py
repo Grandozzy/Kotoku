@@ -91,9 +91,9 @@ class TestFullSealFlow:
             initiator_account=acct,
             parties_data=[
                 {"role": "seller", "full_name": "Kofi Atta", "phone": seller_phone,
-                 "id_type": "ghana_card", "id_number": "GHA-S-SEAL"},
+                 "id_type": "ghana_card", "id_number": "GHA-110000001-1"},
                 {"role": "buyer", "full_name": "Ama Owusu", "phone": buyer_phone,
-                 "id_type": "ghana_card", "id_number": "GHA-B-SEAL"},
+                 "id_type": "ghana_card", "id_number": "GHA-220000002-2"},
             ],
         )
 
@@ -192,9 +192,9 @@ class TestFullSealFlow:
             initiator_account=acct,
             parties_data=[
                 {"role": "seller", "full_name": "S", "phone": acct.phone,
-                 "id_type": "ghana_card", "id_number": "GHA-VAS"},
+                 "id_type": "ghana_card", "id_number": "GHA-330000003-3"},
                 {"role": "buyer", "full_name": "B", "phone": "+233800020002",
-                 "id_type": "ghana_card", "id_number": "GHA-VAB"},
+                 "id_type": "ghana_card", "id_number": "GHA-440000004-4"},
             ],
         )
         EvidenceItem.objects.create(
@@ -231,9 +231,9 @@ class TestFullSealFlow:
             initiator_account=acct,
             parties_data=[
                 {"role": "seller", "full_name": "S", "phone": acct.phone,
-                 "id_type": "ghana_card", "id_number": "GHA-CS"},
+                 "id_type": "ghana_card", "id_number": "GHA-550000005-5"},
                 {"role": "buyer", "full_name": "B", "phone": "+233800030002",
-                 "id_type": "ghana_card", "id_number": "GHA-CB"},
+                 "id_type": "ghana_card", "id_number": "GHA-660000006-6"},
             ],
         )
         EvidenceItem.objects.create(

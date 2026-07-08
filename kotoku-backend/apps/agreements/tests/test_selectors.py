@@ -78,7 +78,7 @@ class TestListAgreements:
         _agreement("T")
         with CaptureQueriesContext(connection) as ctx:
             list(AgreementSelector.list_agreements())
-        assert len(ctx.captured_queries) == 2  # main query + parties prefetch
+        assert len(ctx.captured_queries) == 3  # main query + parties prefetch + evidence prefetch
 
     def test_participant_only_sees_non_draft_agreements(self, db):
         owner = _account()

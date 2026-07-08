@@ -137,7 +137,7 @@ class Command(BaseCommand):
                 "display_name": "Alice Mensah",
                 "phone": alice_phone,
                 "id_type": Party.IdType.GHANA_CARD,
-                "id_number": "GHA-000000001",
+                "id_number": "GHA-000000001-0",
             },
         )
         Party.objects.get_or_create(
@@ -148,7 +148,7 @@ class Command(BaseCommand):
                 "display_name": "Bob Osei",
                 "phone": bob_phone,
                 "id_type": Party.IdType.GHANA_CARD,
-                "id_number": "GHA-000000002",
+                "id_number": "GHA-000000002-0",
             },
         )
         agreements.append(("Toyota Corolla Sale", agreement_1))
@@ -186,7 +186,7 @@ class Command(BaseCommand):
                 "display_name": "Carlos Boateng",
                 "phone": carlos_phone,
                 "id_type": Party.IdType.GHANA_CARD,
-                "id_number": "GHA-000000003",
+                "id_number": "GHA-000000003-0",
             },
         )
         Party.objects.get_or_create(
@@ -197,7 +197,7 @@ class Command(BaseCommand):
                 "display_name": "Alice Mensah",
                 "phone": alice_phone,
                 "id_type": Party.IdType.GHANA_CARD,
-                "id_number": "GHA-000000001",
+                "id_number": "GHA-000000001-0",
             },
         )
         agreements.append(("East Legon Rental", agreement_2))
@@ -238,7 +238,7 @@ class Command(BaseCommand):
                 "display_name": "Diana Asante",
                 "phone": diana_phone,
                 "id_type": Party.IdType.GHANA_CARD,
-                "id_number": "GHA-000000004",
+                "id_number": "GHA-000000004-0",
             },
         )
         Party.objects.get_or_create(
@@ -249,7 +249,7 @@ class Command(BaseCommand):
                 "display_name": "Bob Osei",
                 "phone": bob_phone,
                 "id_type": Party.IdType.GHANA_CARD,
-                "id_number": "GHA-000000002",
+                "id_number": "GHA-000000002-0",
             },
         )
         agreements.append(("Honda Civic Sale", agreement_3))
@@ -290,7 +290,7 @@ class Command(BaseCommand):
                 "display_name": "Carlos Boateng",
                 "phone": carlos_phone,
                 "id_type": Party.IdType.GHANA_CARD,
-                "id_number": "GHA-000000003",
+                "id_number": "GHA-000000003-0",
             },
         )
         Party.objects.get_or_create(
@@ -301,7 +301,7 @@ class Command(BaseCommand):
                 "display_name": "Diana Asante",
                 "phone": diana_phone,
                 "id_type": Party.IdType.GHANA_CARD,
-                "id_number": "GHA-000000004",
+                "id_number": "GHA-000000004-0",
             },
         )
         agreements.append(("Nissan Patrol Sale", agreement_4))

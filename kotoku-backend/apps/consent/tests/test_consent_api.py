@@ -59,14 +59,14 @@ def _set_two_parties(agreement, initiator_phone, second_phone):
                 "full_name": "Kofi",
                 "phone": initiator_phone,
                 "id_type": "ghana_card",
-                "id_number": "GHA-S",
+                "id_number": "GHA-100000001-0",
             },
             {
                 "role": "buyer",
                 "full_name": "Ama",
                 "phone": second_phone,
                 "id_type": "ghana_card",
-                "id_number": "GHA-B",
+                "id_number": "GHA-200000002-0",
             },
         ],
     )
@@ -143,7 +143,7 @@ class TestRequestOtpApi:
             display_name="Kofi",
             phone=creator_party_phone,
             id_type=Party.IdType.GHANA_CARD,
-            id_number="GHA-S",
+            id_number="GHA-100000001-0",
         )
         Party.objects.create(
             agreement=agreement,
@@ -151,7 +151,7 @@ class TestRequestOtpApi:
             display_name="Ama",
             phone=second_phone,
             id_type=Party.IdType.GHANA_CARD,
-            id_number="GHA-B",
+            id_number="GHA-200000002-0",
         )
 
         resp = client.post(_REQUEST_OTP_PATH.format(id=agreement.pk))
@@ -175,7 +175,7 @@ class TestRequestOtpApi:
             display_name="Kofi",
             phone=party_a_phone,
             id_type=Party.IdType.GHANA_CARD,
-            id_number="GHA-S",
+            id_number="GHA-100000001-0",
         )
         Party.objects.create(
             agreement=agreement,
@@ -183,7 +183,7 @@ class TestRequestOtpApi:
             display_name="Ama",
             phone=party_b_phone,
             id_type=Party.IdType.GHANA_CARD,
-            id_number="GHA-B",
+            id_number="GHA-200000002-0",
         )
 
         resp = client.post(_REQUEST_OTP_PATH.format(id=agreement.pk))

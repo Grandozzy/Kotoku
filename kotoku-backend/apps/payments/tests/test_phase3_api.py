@@ -129,7 +129,7 @@ def test_initiate_passes_correct_args_to_paystack(mock_factory):
     mock.initialize_transaction.assert_called_once()
     call_kwargs = mock.initialize_transaction.call_args.kwargs
     assert call_kwargs["email"] == account.email
-    assert call_kwargs["amount_kobo"] == 2500  # GHS 25 × 100
+    assert call_kwargs["amount_kobo"] == 7900  # GHS 79 × 100
     assert call_kwargs["plan_code"] == "PLN_plus"
     assert call_kwargs["metadata"]["plan_id"] == "personal_plus"
     assert call_kwargs["metadata"]["account_id"] == account.id

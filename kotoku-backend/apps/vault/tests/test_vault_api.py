@@ -55,9 +55,9 @@ def _sealed_agreement_with_vault(account, initiator_phone, second_phone):
         initiator_account=account,
         parties_data=[
             {"role": "seller", "full_name": "Kofi", "phone": initiator_phone,
-             "id_type": "ghana_card", "id_number": "GHA-S"},
+             "id_type": "ghana_card", "id_number": "GHA-100000001-0"},
             {"role": "buyer", "full_name": "Ama", "phone": second_phone,
-             "id_type": "ghana_card", "id_number": "GHA-B"},
+             "id_type": "ghana_card", "id_number": "GHA-200000002-0"},
         ],
     )
     EvidenceItem.objects.create(

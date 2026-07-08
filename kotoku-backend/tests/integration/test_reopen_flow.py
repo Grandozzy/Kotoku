@@ -52,9 +52,9 @@ def _sealed_agreement(account, seller_phone, buyer_phone):
         initiator_account=account,
         parties_data=[
             {"role": "seller", "full_name": "Kofi", "phone": seller_phone,
-             "id_type": "ghana_card", "id_number": "GHA-RS"},
+             "id_type": "ghana_card", "id_number": "GHA-300000003-0"},
             {"role": "buyer", "full_name": "Ama", "phone": buyer_phone,
-             "id_type": "ghana_card", "id_number": "GHA-RB"},
+             "id_type": "ghana_card", "id_number": "GHA-400000004-0"},
         ],
     )
     EvidenceItem.objects.create(
