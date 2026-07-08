@@ -32,7 +32,7 @@ function DisputeRow({ dispute }: { dispute: Dispute }) {
     <div className="rounded-xl border border-neutral-100 overflow-hidden">
       <button
         onClick={() => setExpanded((p) => !p)}
-        className="w-full flex items-center justify-between px-4 py-3 hover:bg-neutral-50 text-left"
+        className="flex w-full flex-col gap-3 px-4 py-3 text-left hover:bg-neutral-50 sm:flex-row sm:items-center sm:justify-between"
       >
         <div className="min-w-0">
           <p className="text-sm font-medium text-neutral-800 truncate">
@@ -47,7 +47,7 @@ function DisputeRow({ dispute }: { dispute: Dispute }) {
             })}
           </p>
         </div>
-        <div className="flex items-center gap-2 ml-3 shrink-0">
+        <div className="ml-0 flex items-center gap-2 shrink-0 sm:ml-3">
           <span
             className={`text-xs font-medium px-2.5 py-1 rounded-full ${STATUS_STYLES[dispute.status]}`}
           >
@@ -107,7 +107,7 @@ export default function DisputesPage() {
       )}
 
       {isError && (
-        <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 flex items-center justify-between gap-4 text-sm text-red-700">
+        <div className="flex flex-col gap-2 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
           <span>Could not load disputes.</span>
           <button onClick={() => refetch()} className="font-medium hover:underline shrink-0">
             Try again

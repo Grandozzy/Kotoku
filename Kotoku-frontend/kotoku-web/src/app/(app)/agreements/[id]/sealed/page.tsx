@@ -134,7 +134,7 @@ export default function SealedPage() {
 
       {/* Vault link */}
       {vaultEntry ? (
-        <div className="rounded-2xl border border-neutral-100 p-5 flex items-center justify-between">
+        <div className="flex flex-col gap-3 rounded-2xl border border-neutral-100 p-5 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-sm font-semibold">PDF Export</p>
             <p className="text-xs text-neutral-500 mt-0.5">
@@ -192,7 +192,7 @@ export default function SealedPage() {
                     This will send reopen OTPs to all parties. Each party must
                     confirm with the phone/account that received their OTP.
                   </p>
-                  <div className="flex gap-3">
+                  <div className="flex flex-col gap-3 sm:flex-row">
                     <button
                       onClick={() => requestReopenMutation.mutate()}
                       disabled={requestReopenMutation.isPending}
@@ -214,7 +214,7 @@ export default function SealedPage() {
                     Enter your phone and the OTP you received to confirm your
                     consent to reopen. Do not enter the counterparty&apos;s phone or code.
                   </p>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <input
                       type="tel"
                       placeholder="+233XXXXXXXXX"

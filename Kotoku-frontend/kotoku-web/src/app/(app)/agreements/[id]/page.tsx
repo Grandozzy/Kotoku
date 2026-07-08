@@ -129,7 +129,7 @@ export default function AgreementDetailPage() {
   return (
     <div className="flex flex-col gap-6">
       {/* Header */}
-      <div className="flex items-start justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-xl font-bold tracking-tight">{agreement.title}</h1>
           {agreement.description && (
@@ -168,9 +168,9 @@ export default function AgreementDetailPage() {
               </div>
               <div className="divide-y divide-neutral-50">
                 {fields.map((f) => (
-                  <div key={f.key} className="flex justify-between items-start px-4 py-3 gap-4">
-                    <span className="text-sm text-neutral-500 shrink-0 w-48">{f.label}</span>
-                    <span className="text-sm font-medium text-right">
+                  <div key={f.key} className="flex flex-col gap-1 px-4 py-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+                    <span className="w-full shrink-0 text-sm text-neutral-500 sm:w-48">{f.label}</span>
+                    <span className="text-left text-sm font-medium sm:text-right">
                       {renderFieldValue(f, fieldData[f.key])}
                     </span>
                   </div>
@@ -199,8 +199,8 @@ export default function AgreementDetailPage() {
               </div>
               <div className="divide-y divide-neutral-50">
                 {fields.map((f) => (
-                  <div key={f.key} className="flex items-center gap-4 px-4 py-3">
-                    <label className="text-sm text-neutral-600 w-48 shrink-0">
+                  <div key={f.key} className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:gap-4">
+                    <label className="w-full shrink-0 text-sm text-neutral-600 sm:w-48">
                       {f.label}
                       {f.required && <span className="text-red-400 ml-0.5">*</span>}
                     </label>
@@ -211,7 +211,7 @@ export default function AgreementDetailPage() {
             </div>
           ))}
 
-          <div className="flex gap-3">
+          <div className="flex flex-col gap-3 sm:flex-row">
             <button
               type="submit"
               disabled={updateMutation.isPending}
@@ -245,7 +245,7 @@ export default function AgreementDetailPage() {
                 </p>
               )}
               {detailsComplete ? (
-                <div className="rounded-xl bg-emerald-50 px-4 py-3 flex items-center justify-between gap-4">
+                <div className="flex flex-col gap-3 rounded-xl bg-emerald-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex items-center gap-1.5 text-sm text-emerald-700">
                     <Check size={14} className="shrink-0" strokeWidth={2.5} />
                     Details complete

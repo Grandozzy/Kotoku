@@ -66,17 +66,33 @@ export default function WelcomeScreen() {
           Capture photos, agree on terms, and seal the deal with bilateral SMS
           confirmation and a tamper-proof vault. In under five minutes.
         </Text>
+        <View className="flex-row flex-wrap justify-center gap-sm pt-xs">
+          <View className="rounded-full bg-brand-primary/10 px-md py-xs">
+            <Text className="text-xs font-semibold text-brand-primary">SMS consent</Text>
+          </View>
+          <View className="rounded-full bg-emerald-50 px-md py-xs">
+            <Text className="text-xs font-semibold text-emerald-700">Tamper-proof vault</Text>
+          </View>
+          <View className="rounded-full bg-amber-50 px-md py-xs">
+            <Text className="text-xs font-semibold text-amber-700">Court-ready record</Text>
+          </View>
+        </View>
       </View>
 
       {/* How it works */}
       <View className="gap-sm mb-xl">
-        {STEPS.map(({ Icon, title, body }) => (
+        {STEPS.map(({ Icon, title, body }, index) => (
           <View
             key={title}
             className="bg-surface-card rounded-2xl p-lg flex-row gap-md items-start border border-border-subtle"
           >
-            <View className="w-10 h-10 rounded-xl bg-brand-primary/10 items-center justify-center">
-              <Icon size={20} color={colors.brandPrimary} strokeWidth={1.8} />
+            <View className="items-center gap-xs">
+              <View className="w-10 h-10 rounded-xl bg-brand-primary/10 items-center justify-center">
+                <Icon size={20} color={colors.brandPrimary} strokeWidth={1.8} />
+              </View>
+              <Text className="text-[10px] font-semibold tracking-widest text-brand-primary/70">
+                0{index + 1}
+              </Text>
             </View>
             <View className="flex-1 gap-xs">
               <Text className="text-md font-semibold text-ink-primary">{title}</Text>
@@ -100,7 +116,7 @@ export default function WelcomeScreen() {
       </View>
 
       {/* Legal trust bar */}
-      <View className="bg-ink-primary rounded-2xl px-lg py-lg gap-sm mb-xl flex-row items-start">
+      <View className="bg-ink-primary rounded-3xl px-lg py-lg gap-sm mb-xl flex-row items-start">
         <View className="w-9 h-9 rounded-lg bg-white/10 items-center justify-center mt-xs">
           <ShieldCheck size={18} color="#ffffff" strokeWidth={1.8} />
         </View>

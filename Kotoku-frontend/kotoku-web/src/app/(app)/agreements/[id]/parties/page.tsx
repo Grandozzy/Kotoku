@@ -137,7 +137,7 @@ function PartyForm({
 
   return (
     <div className="flex flex-col gap-4 rounded-2xl border border-neutral-200 p-5">
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div>
           <label className="text-xs font-medium text-neutral-600">Role</label>
           <select
@@ -203,7 +203,7 @@ function PartyForm({
           {showError("id_number") && <p className="mt-1 text-xs text-red-500">{showError("id_number")}</p>}
         </div>
       </div>
-      <div className="flex gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row">
         <button
           onClick={handleSave}
           disabled={attempted && !valid}
@@ -370,7 +370,7 @@ export default function PartiesPage() {
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-xl font-bold tracking-tight">Parties</h1>
         {scenario && (
           <p className="text-xs text-neutral-400">
@@ -415,7 +415,7 @@ export default function PartiesPage() {
               {isEditable && editingIndex === null && (
                 <button
                   onClick={() => removeParty(index)}
-                  className="absolute right-12 top-3 text-xs text-neutral-300 opacity-0 transition-opacity hover:text-red-500 group-hover:opacity-100"
+                  className="absolute right-12 top-3 text-xs text-neutral-300 opacity-100 transition-opacity hover:text-red-500 sm:opacity-0 sm:group-hover:opacity-100"
                 >
                   Remove
                 </button>
@@ -496,7 +496,7 @@ export default function PartiesPage() {
       )}
 
       {parties.length >= 2 && allPartiesComplete && !addingNew && editingIndex === null && (
-        <div className="flex items-center justify-between gap-4 rounded-xl bg-emerald-50 px-4 py-3">
+        <div className="flex flex-col gap-3 rounded-xl bg-emerald-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-1.5 text-sm text-emerald-700">
             <Check size={14} className="shrink-0" strokeWidth={2.5} />
             {isDirty

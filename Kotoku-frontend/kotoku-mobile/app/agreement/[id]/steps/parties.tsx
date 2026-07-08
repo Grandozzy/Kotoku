@@ -5,10 +5,11 @@ import { Controller, useForm } from "react-hook-form";
 import { useEffect, useMemo, useState } from "react";
 import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from "react-native";
 import { z } from "zod";
+import { ShieldCheck, Users2 } from "lucide-react-native";
 
 import { setParties } from "@/api/agreements";
 import { PhotoSlot } from "@/components/evidence/PhotoSlot";
-import { Button, ScreenLoader, TextInput } from "@/components/ui";
+import { Button, NoticeCard, ScreenLoader, TextInput } from "@/components/ui";
 import { useAgreementStore } from "@/features/agreements/agreementStore";
 import {
   GHANA_CARD_PIN_REGEX,
@@ -240,11 +241,21 @@ export default function PartiesStep() {
         contentContainerStyle={{ paddingBottom: 60 }}
         keyboardShouldPersistTaps="handled"
       >
-        <View className="gap-xs">
-          <Text className="text-lg font-semibold text-ink-primary">Parties</Text>
-          <Text className="text-sm text-ink-secondary">
-            Each party must provide a phone number, Ghana Card PIN, and confirmed front and back Ghana Card images before you can continue.
-          </Text>
+        <View className="gap-md rounded-3xl bg-ink-primary p-lg">
+          <View className="flex-row items-start gap-md">
+            <View className="h-11 w-11 items-center justify-center rounded-2xl bg-white/10">
+              <Users2 size={22} color="#fff" strokeWidth={1.8} />
+            </View>
+            <View className="flex-1 gap-xs">
+              <Text className="text-[11px] font-semibold uppercase tracking-[2px] text-white/60">
+                Step 1
+              </Text>
+              <Text className="text-xl font-semibold text-white">Set up both parties</Text>
+              <Text className="text-sm leading-relaxed text-white/75">
+                Each party needs a phone number, Ghana Card PIN, and confirmed Ghana Card images before you can continue.
+              </Text>
+            </View>
+          </View>
         </View>
 
         <PartySection
@@ -262,12 +273,17 @@ export default function PartiesStep() {
         />
 
         {savedParties.length === roleKeys.length && (
-          <View className="gap-md rounded-xl border border-border-subtle bg-surface-card p-md">
-            <View className="gap-xs">
-              <Text className="text-base font-semibold text-ink-primary">Ghana Card uploads</Text>
-              <Text className="text-sm text-ink-secondary">
-                Upload the front and back of each Ghana Card. This step only completes after the backend confirms the files in storage.
-              </Text>
+          <View className="gap-md rounded-2xl border border-border-subtle bg-surface-card p-lg">
+            <View className="flex-row items-start gap-md">
+              <View className="h-10 w-10 items-center justify-center rounded-2xl bg-brand-primary/10">
+                <ShieldCheck size={20} color="#2563EB" strokeWidth={1.8} />
+              </View>
+              <View className="flex-1 gap-xs">
+                <Text className="text-base font-semibold text-ink-primary">Ghana Card uploads</Text>
+                <Text className="text-sm text-ink-secondary leading-relaxed">
+                  Upload the front and back of each Ghana Card. This step only completes after the backend confirms the files in storage.
+                </Text>
+              </View>
             </View>
 
             {savedParties.map((party) => {
@@ -276,7 +292,7 @@ export default function PartiesStep() {
               const frontItem = items[frontEvidenceType];
               const backItem = items[backEvidenceType];
               return (
-                <View key={party.id} className="gap-sm rounded-lg border border-border-subtle bg-surface-subtle p-md">
+                <View key={party.id} className="gap-sm rounded-2xl border border-border-subtle bg-surface-subtle p-md">
                   <View className="gap-xs">
                     <Text className="text-sm font-semibold text-ink-primary">{party.displayName}</Text>
                     <Text className="text-xs text-ink-muted">
@@ -325,17 +341,9 @@ export default function PartiesStep() {
           </View>
         )}
 
-        {saveError && (
-          <Text className="text-sm text-semantic-error text-center">
-            {saveError}
-          </Text>
-        )}
+        {saveError && <NoticeCard variant="error" title="Could not save parties" body={saveError} compact />}
 
-        {uploadError && (
-          <Text className="text-sm text-semantic-error text-center">
-            {uploadError}
-          </Text>
-        )}
+        {uploadError && <NoticeCard variant="error" title="Upload needs attention" body={uploadError} compact />}
 
         {!identityComplete && savedParties.length === roleKeys.length && !formState.isDirty && (
           <Text className="text-xs text-ink-muted text-center">
@@ -378,8 +386,13 @@ function PartySection({
   errors,
 }: PartySectionProps) {
   return (
-    <View className="gap-md rounded-xl border border-border-subtle bg-surface-card p-md">
-      <Text className="text-lg font-semibold text-ink-primary">{title}</Text>
+    <View className="gap-md rounded-2xl border border-border-subtle bg-surface-card p-lg">
+      <View className="gap-xs">
+        <Text className="text-[11px] font-semibold uppercase tracking-[2px] text-ink-muted">
+          Party
+        </Text>
+        <Text className="text-lg font-semibold text-ink-primary">{title}</Text>
+      </View>
 
       <Controller
         control={control}

@@ -118,7 +118,7 @@ export default function VaultEntryPage() {
 
 function DetailRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-center justify-between gap-4">
+    <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
       <p className="text-sm text-neutral-500">{label}</p>
       <p className="text-sm font-medium text-neutral-800 text-right capitalize">{value}</p>
     </div>

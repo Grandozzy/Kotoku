@@ -64,17 +64,17 @@ export default function LandingPage() {
         <PublicNav />
 
       {/* Hero */}
-      <section className="flex-1 flex flex-col items-center justify-center text-center px-6 py-24">
+      <section className="flex flex-1 flex-col items-center justify-center px-4 py-16 text-center sm:px-6 sm:py-24">
         <div className="inline-flex items-center gap-2 bg-blue-50 text-blue-600 text-xs font-semibold px-4 py-2 rounded-full mb-6 tracking-wide uppercase">
           <ShieldCheck size={12} strokeWidth={2.5} />
           Agreement Evidence Platform
         </div>
-        <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight leading-tight max-w-3xl">
+        <h1 className="max-w-3xl text-4xl font-extrabold leading-tight tracking-tight sm:text-5xl md:text-6xl">
           <span className="text-slate-400">Don&apos;t take their word for it.</span>
           <br />
           <span className="text-blue-600">Take evidence for it.</span>
         </h1>
-        <p className="mt-6 text-lg text-neutral-500 max-w-xl leading-relaxed">
+        <p className="mt-6 max-w-xl text-base leading-relaxed text-neutral-500 sm:text-lg">
           Capture photos, agree on terms, and seal the deal with bilateral SMS
           confirmation and a tamper-proof vault. In under five minutes, on any device.
         </p>
@@ -100,9 +100,9 @@ export default function LandingPage() {
       </section>
 
       {/* How it works */}
-      <section className="bg-neutral-50 px-6 py-20">
+      <section className="bg-neutral-50 px-4 py-16 sm:px-6 sm:py-20">
         <div className="max-w-4xl mx-auto">
-          <h2 className="text-center text-3xl font-bold tracking-tight mb-12">
+          <h2 className="mb-10 text-center text-2xl font-bold tracking-tight sm:mb-12 sm:text-3xl">
             The handshake, with receipts.
           </h2>
           <div className="grid md:grid-cols-3 gap-6">
@@ -121,9 +121,9 @@ export default function LandingPage() {
       </section>
 
       {/* Use cases */}
-      <section className="px-6 py-20">
+      <section className="px-4 py-16 sm:px-6 sm:py-20">
         <div className="max-w-4xl mx-auto">
-          <h2 className="text-center text-3xl font-bold tracking-tight mb-12">
+          <h2 className="mb-10 text-center text-2xl font-bold tracking-tight sm:mb-12 sm:text-3xl">
             Good agreements make good friends.
           </h2>
           <div className="grid md:grid-cols-2 gap-6">
@@ -146,13 +146,13 @@ export default function LandingPage() {
       </section>
 
       {/* Legal trust bar */}
-      <section className="bg-neutral-900 text-white px-6 py-14">
+      <section className="bg-neutral-900 px-4 py-14 text-white sm:px-6">
         <div className="max-w-2xl mx-auto text-center">
           <div className="inline-flex items-center gap-2 bg-white/10 text-white/60 text-xs font-semibold px-4 py-2 rounded-full mb-4 tracking-widest uppercase">
             <ShieldCheck size={12} strokeWidth={2.5} />
             Legal standing
           </div>
-          <h2 className="text-2xl font-bold leading-snug">
+          <h2 className="text-xl font-bold leading-snug sm:text-2xl">
             Your sealed record is admissible evidence and not just a screenshot.
           </h2>
           <p className="mt-4 text-neutral-400 text-sm leading-relaxed">
@@ -171,9 +171,9 @@ export default function LandingPage() {
       </section>
 
       {/* Closing CTA */}
-      <section className="px-6 py-20 text-center bg-white">
+      <section className="bg-white px-4 py-16 text-center sm:px-6 sm:py-20">
         <div className="max-w-xl mx-auto">
-          <h2 className="text-3xl font-bold text-slate-900 tracking-tight leading-snug">
+          <h2 className="text-2xl font-bold leading-snug tracking-tight text-slate-900 sm:text-3xl">
             Ready to protect your first agreement?
           </h2>
           <p className="mt-4 text-base text-slate-700 leading-relaxed">
@@ -192,7 +192,7 @@ export default function LandingPage() {
       </section>
 
       {/* Footer */}
-        <footer className="px-6 py-8 border-t border-neutral-100 flex flex-col sm:flex-row justify-between items-center gap-4 text-sm text-neutral-400">
+        <footer className="flex flex-col items-center justify-between gap-4 border-t border-neutral-100 px-4 py-8 text-center text-sm text-neutral-400 sm:flex-row sm:px-6 sm:text-left">
           <div className="flex items-center gap-2">
             <KotokuLogo variant="icon" size={20} />
             <span>© {new Date().getFullYear()} Kotoku. All rights reserved.</span>

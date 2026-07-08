@@ -1,5 +1,6 @@
 import { useRouter } from "expo-router";
 import {
+  AlertCircle,
   ChevronRight,
   FileText,
   Handshake,
@@ -7,13 +8,14 @@ import {
   TrendingUp,
 } from "lucide-react-native";
 import { useState } from "react";
-import { Alert, Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
+import { Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { Badge, Button, CardSkeleton, EmptyState, ErrorState } from "@/components/ui";
+import { Badge, BottomSheet, Button, CardSkeleton, EmptyState, ErrorState, NoticeCard } from "@/components/ui";
 import { deleteDraft, getAgreement } from "@/api/agreements";
 import { usePendingActions } from "@/features/agreements/usePendingActions";
 import { useAgreementStore } from "@/features/agreements/agreementStore";
+import { formatCapResetDate, getCapReachedMessage } from "@/features/billing/capReached";
 import { usePlan } from "@/features/billing/usePlan";
 import type { ScenarioId } from "@/constants/scenarios";
 import { SCENARIOS } from "@/constants/scenarios";
@@ -53,6 +55,7 @@ export default function HomeScreen() {
   const nearCap = usage?.is_near_cap ?? false;
   const showUpgradeBanner =
     !!plan && flags?.show_upgrade_recommendation && plan.recommended_upgrades.length > 0;
+  const capResetDate = formatCapResetDate(usage?.period.end);
 
   return (
     <ScrollView
@@ -103,28 +106,32 @@ export default function HomeScreen() {
       {/* Upgrade banner — shown when cap reached or business misuse suspected */}
       {showUpgradeBanner && (
         <Pressable
-          className="bg-amber-50 border border-amber-200 rounded-xl px-lg py-md flex-row items-start gap-sm active:opacity-70"
+          className="active:opacity-70"
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           onPress={() => router.push("/(main)/plans" as any)}
         >
-          <TrendingUp size={16} color="#d97706" strokeWidth={2} style={{ marginTop: 2 }} />
-          <View className="flex-1">
-            <Text className="text-sm font-semibold text-amber-800">
-              {capReached
+          <NoticeCard
+            variant="warning"
+            icon={TrendingUp}
+            title={
+              capReached
                 ? `You've reached your ${plan!.plan.max_agreements_per_month} agreement limit for ${plan!.plan.name}`
-                : "You're using Kotoku like a business"}
-            </Text>
-            <Text className="text-xs text-amber-700 mt-xs">
-              {capReached
-                ? "Upgrade to seal more agreements this month, or wait until next month."
-                : "Switch to an Enterprise plan for higher volume, team access, and longer retention."}
-            </Text>
-            {plan!.recommended_upgrades[0] && (
-              <Text className="text-xs font-semibold text-amber-800 mt-sm">
-                Next: {plan!.recommended_upgrades[0].name} — {plan!.recommended_upgrades[0].price_amount_monthly} GHS/mo
-              </Text>
-            )}
-          </View>
+                : "You're using Kotoku like a business"
+            }
+            body={
+              capReached
+                ? getCapReachedMessage(plan!, plan!.recommended_upgrades[0])
+                : "Switch to an Enterprise plan for higher volume, team access, and longer retention."
+            }
+            footer={
+              plan!.recommended_upgrades[0] ? (
+                <Text className="text-xs font-semibold text-amber-900">
+                  Next: {plan!.recommended_upgrades[0].name} — {plan!.recommended_upgrades[0].price_amount_monthly} GHS/mo
+                  {capReached && capResetDate ? ` · Resets ${capResetDate}` : ""}
+                </Text>
+              ) : null
+            }
+          />
         </Pressable>
       )}
 
@@ -186,6 +193,8 @@ function ActionCard({ item, onDeleted }: { item: HomeAgreementItem; onDeleted: (
   const initForConsent = useAgreementStore((s) => s.initForConsent);
   const sessionPhone = useSessionStore((s) => s.phone);
   const [loading, setLoading] = useState(false);
+  const [deleteSheetVisible, setDeleteSheetVisible] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const handlePress = async () => {
     if (item.status === "pending_consent") {
@@ -214,28 +223,8 @@ function ActionCard({ item, onDeleted }: { item: HomeAgreementItem; onDeleted: (
 
   const handleDelete = () => {
     if (item.status !== "pending_consent") return;
-    Alert.alert(
-      "Delete uncompleted agreement",
-      `Delete "${item.title}"? This removes the pending agreement and cannot be undone.`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await deleteDraft(item.id);
-              onDeleted();
-            } catch {
-              Alert.alert(
-                "Could not delete agreement",
-                "Only the creator can delete an uncompleted agreement. If you are the creator, try again.",
-              );
-            }
-          },
-        },
-      ],
-    );
+    setDeleteError(null);
+    setDeleteSheetVisible(true);
   };
 
   const label =
@@ -284,6 +273,50 @@ function ActionCard({ item, onDeleted }: { item: HomeAgreementItem; onDeleted: (
           </Pressable>
         )}
       </View>
+      <BottomSheet
+        visible={deleteSheetVisible}
+        onClose={() => setDeleteSheetVisible(false)}
+        title="Delete uncompleted agreement?"
+        body={`Delete "${item.title}"? This removes the pending agreement and cannot be undone.`}
+        icon={AlertCircle}
+        tone="danger"
+        footer={
+          <>
+            {deleteError ? (
+              <NoticeCard
+                variant="error"
+                title="Could not delete agreement"
+                body={deleteError}
+                compact
+              />
+            ) : null}
+            <Button
+              title="Keep agreement"
+              variant="secondary"
+              size="lg"
+              fullWidth
+              onPress={() => setDeleteSheetVisible(false)}
+            />
+            <Button
+              title="Delete agreement"
+              variant="primary"
+              size="lg"
+              fullWidth
+              onPress={async () => {
+                try {
+                  await deleteDraft(item.id);
+                  setDeleteSheetVisible(false);
+                  onDeleted();
+                } catch {
+                  setDeleteError(
+                    "Only the creator can delete an uncompleted agreement. If you are the creator, try again.",
+                  );
+                }
+              }}
+            />
+          </>
+        }
+      />
     </Pressable>
   );
 }
@@ -292,9 +325,13 @@ function DraftCard({ item, onDeleted }: { item: HomeAgreementItem; onDeleted: ()
   const router = useRouter();
   const hydrateDraft = useAgreementStore((s) => s.hydrateDraft);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState(false);
+  const [deleteSheetVisible, setDeleteSheetVisible] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const handlePress = async () => {
     setLoading(true);
+    setLoadError(false);
     try {
       const agreement = await getAgreement(item.id);
       const partyA = agreement.parties[0];
@@ -344,32 +381,15 @@ function DraftCard({ item, onDeleted }: { item: HomeAgreementItem; onDeleted: ()
         `/agreement/${agreement.id}/steps/${targetStep}?scenarioId=${agreement.scenarioId}`,
       );
     } catch {
-      Alert.alert("Error", "Could not load this draft. Please try again.");
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
   };
 
   const handleDelete = () => {
-    Alert.alert(
-      "Delete draft",
-      `Delete "${item.title}"? This cannot be undone.`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await deleteDraft(item.id);
-              onDeleted();
-            } catch {
-              Alert.alert("Error", "Could not delete draft. Please try again.");
-            }
-          },
-        },
-      ],
-    );
+    setDeleteError(null);
+    setDeleteSheetVisible(true);
   };
 
   const relativeTime = item.updated_at ? getRelativeTime(item.updated_at) : "Recently updated";
@@ -417,6 +437,58 @@ function DraftCard({ item, onDeleted }: { item: HomeAgreementItem; onDeleted: ()
           </View>
         </View>
       </View>
+      {loadError ? (
+        <View className="mt-md">
+          <NoticeCard
+            variant="error"
+            title="Could not load this draft"
+            body="Please try again."
+            compact
+          />
+        </View>
+      ) : null}
+      <BottomSheet
+        visible={deleteSheetVisible}
+        onClose={() => setDeleteSheetVisible(false)}
+        title="Delete draft?"
+        body={`Delete "${item.title}"? This cannot be undone.`}
+        icon={AlertCircle}
+        tone="danger"
+        footer={
+          <>
+            {deleteError ? (
+              <NoticeCard
+                variant="error"
+                title="Could not delete draft"
+                body={deleteError}
+                compact
+              />
+            ) : null}
+            <Button
+              title="Keep draft"
+              variant="secondary"
+              size="lg"
+              fullWidth
+              onPress={() => setDeleteSheetVisible(false)}
+            />
+            <Button
+              title="Delete draft"
+              variant="primary"
+              size="lg"
+              fullWidth
+              onPress={async () => {
+                try {
+                  await deleteDraft(item.id);
+                  setDeleteSheetVisible(false);
+                  onDeleted();
+                } catch {
+                  setDeleteError("Please try again.");
+                }
+              }}
+            />
+          </>
+        }
+      />
     </Pressable>
   );
 }

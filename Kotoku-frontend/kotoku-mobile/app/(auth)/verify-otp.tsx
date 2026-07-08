@@ -1,9 +1,10 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { CheckCircle2 } from "lucide-react-native";
 import { useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Pressable, ScrollView, Text, View } from "react-native";
 
-import { Button, OTPInput } from "@/components/ui";
+import { Button, NoticeCard, OTPInput } from "@/components/ui";
+import { KotokuLogo } from "@/components/brand/KotokuLogo";
 import { OTP_EXPIRY_SECONDS } from "@/constants/config";
 import {
   getApiErrorMessage,
@@ -39,24 +40,33 @@ export default function VerifyOtpScreen() {
   const isDisabled = isLoading || resendMutation.isPending;
 
   return (
-    <View className="flex-1 bg-surface-canvas px-lg justify-center gap-xl">
-      <View className="gap-sm">
-        <Text className="text-2xl font-semibold text-ink-primary">
-          Enter your code
-        </Text>
-        <Text className="text-md text-ink-secondary">
-          We sent an 8-digit code to{" "}
-          <Text className="font-semibold text-ink-primary">{phone}</Text>.
-          {"\n"}It expires in {OTP_EXPIRY_SECONDS / 60} minutes.
-        </Text>
+    <ScrollView
+      className="flex-1 bg-surface-canvas"
+      contentContainerClassName="flex-grow px-lg py-2xl justify-center gap-xl"
+      keyboardShouldPersistTaps="handled"
+    >
+      <View className="items-center gap-md">
+        <KotokuLogo variant="stacked" size={68} color="navy" />
+        <View className="items-center gap-xs">
+          <Text className="text-xs font-semibold uppercase tracking-widest text-brand-primary">
+            Verify phone
+          </Text>
+          <Text className="text-3xl font-bold text-ink-primary text-center">
+            Enter your code
+          </Text>
+          <Text className="text-md text-ink-secondary text-center leading-relaxed px-sm">
+            We sent an 8-digit code to{" "}
+            <Text className="font-semibold text-ink-primary">{phone}</Text>.
+            {" "}It expires in {OTP_EXPIRY_SECONDS / 60} minutes.
+          </Text>
+        </View>
       </View>
 
-      <View className="gap-lg">
+      <View className="rounded-3xl border border-border-subtle bg-surface-card p-xl gap-lg shadow-sm">
         <OTPInput
           value={code}
           onChange={(val) => {
             setCode(val);
-            // Clear error as user re-enters
             if (verifyMutation.isError) verifyMutation.reset();
           }}
           error={apiError ?? undefined}
@@ -73,9 +83,8 @@ export default function VerifyOtpScreen() {
           onPress={handleVerify}
         />
 
-        {/* Resend */}
         <View className="items-center gap-xs">
-          <Text className="text-sm text-ink-muted">Didn't receive a code?</Text>
+          <Text className="text-sm text-ink-muted">Didn&apos;t receive a code?</Text>
           <Pressable
             onPress={handleResend}
             disabled={isDisabled || resendMutation.isPending}
@@ -100,12 +109,19 @@ export default function VerifyOtpScreen() {
         </View>
       </View>
 
-      {/* Back */}
-      <Pressable onPress={() => router.back()} disabled={isDisabled}>
-        <Text className="text-sm text-brand-primary text-center">
-          Wrong number? Go back
-        </Text>
-      </Pressable>
-    </View>
+      <NoticeCard
+        variant="info"
+        title="Wrong number?"
+        body="Go back and request a fresh code for the correct phone number."
+        footer={
+          <Pressable onPress={() => router.back()} disabled={isDisabled}>
+            <Text className="text-sm font-medium text-brand-primary text-center">
+              Go back
+            </Text>
+          </Pressable>
+        }
+        compact
+      />
+    </ScrollView>
   );
 }

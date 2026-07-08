@@ -50,7 +50,7 @@ export default function LoginPage() {
       </Link>
 
       {/* Card */}
-      <div className="w-full max-w-sm bg-white rounded-2xl shadow-sm border border-neutral-100 p-8">
+      <div className="w-full max-w-sm rounded-2xl border border-neutral-100 bg-white p-6 shadow-sm sm:p-8">
         <h1 className="text-2xl font-bold tracking-tight">Sign in</h1>
         <p className="mt-1 text-sm text-neutral-500">
           Enter your phone number. We&apos;ll send you a one-time code.

@@ -42,38 +42,42 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <nav className="flex items-center justify-between px-6 py-3 border-b border-neutral-100 bg-white/80 backdrop-blur-sm sticky top-0 z-10">
-        <Link href="/dashboard" className="flex items-center">
-          <KotokuLogo variant="horizontal" color="navy" size={24} />
-        </Link>
-
-        <div className="flex items-center gap-1">
-          {NAV.map(({ href, label, Icon }) => {
-            const active = pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
-            return (
-              <Link
-                key={href}
-                href={href}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                  active
-                    ? "bg-neutral-100 text-neutral-900"
-                    : "text-neutral-500 hover:text-neutral-900"
-                }`}
-              >
-                <Icon size={14} strokeWidth={active ? 2.2 : 1.8} />
-                {label}
-              </Link>
-            );
-          })}
-          <Link
-            href="/agreements/new"
-            className="ml-2 px-4 py-1.5 rounded-full bg-neutral-900 text-white text-sm font-medium hover:bg-neutral-700 transition-colors"
-          >
-            + New
+      <nav className="sticky top-0 z-10 border-b border-neutral-100 bg-white/80 px-4 py-3 backdrop-blur-sm sm:px-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <Link href="/dashboard" className="flex items-center">
+            <KotokuLogo variant="horizontal" color="navy" size={24} />
           </Link>
+
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+            <div className="-mx-1 flex items-center gap-1 overflow-x-auto px-1 pb-1 sm:mx-0 sm:px-0 sm:pb-0">
+              {NAV.map(({ href, label, Icon }) => {
+                const active = pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
+                return (
+                  <Link
+                    key={href}
+                    href={href}
+                    className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
+                      active
+                        ? "bg-neutral-100 text-neutral-900"
+                        : "text-neutral-500 hover:text-neutral-900"
+                    }`}
+                  >
+                    <Icon size={14} strokeWidth={active ? 2.2 : 1.8} />
+                    {label}
+                  </Link>
+                );
+              })}
+            </div>
+            <Link
+              href="/agreements/new"
+              className="inline-flex items-center justify-center rounded-full bg-neutral-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-neutral-700 sm:ml-2"
+            >
+              + New
+            </Link>
+          </div>
         </div>
       </nav>
-      <main className="flex-1 max-w-5xl mx-auto w-full px-6 py-8">{children}</main>
+      <main className="mx-auto flex-1 w-full max-w-5xl px-4 py-6 sm:px-6 sm:py-8">{children}</main>
     </div>
   );
 }

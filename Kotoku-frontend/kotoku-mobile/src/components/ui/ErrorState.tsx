@@ -21,7 +21,7 @@ export function ErrorState({
 }: ErrorStateProps) {
   return (
     <View className="flex-1 items-center justify-center px-2xl py-3xl gap-lg">
-      <View className="w-16 h-16 rounded-2xl bg-rose-50 border border-rose-100 items-center justify-center">
+      <View className="w-18 h-18 rounded-3xl bg-rose-50 border border-rose-100 items-center justify-center shadow-sm">
         <Icon size={28} color={colors.error} strokeWidth={1.7} />
       </View>
       <View className="items-center gap-sm">

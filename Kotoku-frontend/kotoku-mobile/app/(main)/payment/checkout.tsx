@@ -1,12 +1,12 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { CreditCard, LockKeyhole, X } from "lucide-react-native";
+import { AlertCircle, CreditCard, LockKeyhole, X } from "lucide-react-native";
 import { useRef, useState } from "react";
-import { ActivityIndicator, Alert, Pressable, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import WebView, { type WebViewNavigation } from "react-native-webview";
 import type { ShouldStartLoadRequest } from "react-native-webview/lib/WebViewTypes";
 
-import { ErrorState } from "@/components/ui";
+import { BottomSheet, Button, ErrorState } from "@/components/ui";
 import { colors } from "@/theme/tokens";
 
 const CALLBACK_SCHEME = "kotoku://payment/callback";
@@ -22,21 +22,11 @@ export default function CheckoutScreen() {
 
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
+  const [cancelSheetVisible, setCancelSheetVisible] = useState(false);
   const handledRef = useRef(false);
 
   function handleCancel() {
-    Alert.alert(
-      "Cancel payment?",
-      "Your plan won't change if you leave now.",
-      [
-        { text: "Stay", style: "cancel" },
-        {
-          text: "Leave",
-          style: "destructive",
-          onPress: () => router.back(),
-        },
-      ]
-    );
+    setCancelSheetVisible(true);
   }
 
   // onShouldStartLoadWithRequest fires BEFORE the WebView attempts the load
@@ -148,6 +138,35 @@ export default function CheckoutScreen() {
         startInLoadingState={false}
         javaScriptEnabled
         domStorageEnabled
+      />
+      <BottomSheet
+        visible={cancelSheetVisible}
+        onClose={() => setCancelSheetVisible(false)}
+        title="Cancel payment?"
+        body="Your plan won't change if you leave now. You can return to plans and restart checkout any time."
+        icon={AlertCircle}
+        tone="warning"
+        footer={
+          <>
+            <Button
+              title="Stay in checkout"
+              variant="secondary"
+              size="lg"
+              fullWidth
+              onPress={() => setCancelSheetVisible(false)}
+            />
+            <Button
+              title="Leave checkout"
+              variant="primary"
+              size="lg"
+              fullWidth
+              onPress={() => {
+                setCancelSheetVisible(false);
+                router.back();
+              }}
+            />
+          </>
+        }
       />
     </View>
   );

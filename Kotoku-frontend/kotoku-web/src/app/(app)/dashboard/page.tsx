@@ -43,12 +43,12 @@ function AgreementRow({ agreement }: { agreement: Agreement }) {
 
   if (agreement.status === "draft") {
     return (
-      <div className="flex items-center justify-between px-4 py-3 rounded-xl border border-neutral-100 hover:border-neutral-200 transition-colors group">
+      <div className="group flex flex-col gap-3 rounded-xl border border-neutral-100 px-4 py-3 transition-colors hover:border-neutral-200 sm:flex-row sm:items-center sm:justify-between">
         <Link href={`/agreements/${agreement.id}`} className="flex-1 min-w-0">
           <p className="font-medium text-sm">{agreement.title}</p>
           {meta}
         </Link>
-        <div className="flex items-center gap-2 shrink-0 ml-3">
+        <div className="ml-0 flex flex-wrap items-center gap-2 shrink-0 sm:ml-3">
           <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${STATUS_STYLES.draft}`}>
             draft
           </span>
@@ -85,7 +85,7 @@ function AgreementRow({ agreement }: { agreement: Agreement }) {
   return (
     <Link
       href={`/agreements/${agreement.id}`}
-      className="flex items-center justify-between px-4 py-3 rounded-xl border border-neutral-100 hover:border-neutral-200 hover:bg-neutral-50 transition-colors"
+      className="flex flex-col gap-3 rounded-xl border border-neutral-100 px-4 py-3 transition-colors hover:border-neutral-200 hover:bg-neutral-50 sm:flex-row sm:items-center sm:justify-between"
     >
       <div>
         <p className="font-medium text-sm">{agreement.title}</p>
@@ -141,14 +141,14 @@ export default function DashboardPage() {
     <div className="flex flex-col gap-8">
       <PlanBanner />
 
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <h1 className="text-2xl font-bold tracking-tight">Home</h1>
           <UsagePill />
         </div>
         <Link
           href="/agreements/new"
-          className="px-4 py-2 rounded-full bg-neutral-900 text-white text-sm font-medium hover:bg-neutral-700 transition-colors shrink-0"
+          className="inline-flex shrink-0 items-center justify-center rounded-full bg-neutral-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-neutral-700"
         >
           + New agreement
         </Link>

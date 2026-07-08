@@ -30,6 +30,22 @@ export interface SubscriptionStatusResponse {
   cancel_at_period_end: boolean;
 }
 
+export type CheckoutStatus =
+  | "pending"
+  | "processing"
+  | "succeeded"
+  | "failed"
+  | "cancelled";
+
+export interface CheckoutStatusResponse {
+  reference: string;
+  checkout_status: CheckoutStatus;
+  target_plan_id: string;
+  current_plan_id: string | null;
+  subscription_status: SubscriptionStatus | null;
+  detail: string;
+}
+
 export async function getPaymentConfig(): Promise<PaymentConfig> {
   const res = await apiClient.get<ApiResponse<PaymentConfig>>(
     "/payments/config/"
@@ -82,6 +98,13 @@ export async function cancelSubscription(): Promise<void> {
 export async function cancelCheckout(): Promise<{ cancelled: boolean }> {
   const res = await apiClient.post<ApiResponse<{ cancelled: boolean }>>(
     "/payments/checkout/cancel/",
+  );
+  return res.data.data;
+}
+
+export async function getCheckoutStatus(reference: string): Promise<CheckoutStatusResponse> {
+  const res = await apiClient.get<ApiResponse<CheckoutStatusResponse>>(
+    `/payments/checkout-status/?reference=${encodeURIComponent(reference)}`,
   );
   return res.data.data;
 }

@@ -58,7 +58,7 @@ function VerifyForm() {
       </Link>
 
       {/* Card */}
-      <div className="w-full max-w-sm bg-white rounded-2xl shadow-sm border border-neutral-100 p-8">
+      <div className="w-full max-w-sm rounded-2xl border border-neutral-100 bg-white p-6 shadow-sm sm:p-8">
         <h1 className="text-2xl font-bold tracking-tight">Enter your code</h1>
         <p className="mt-1 text-sm text-neutral-500">
           We sent an 8-digit code to{" "}
@@ -75,7 +75,7 @@ function VerifyForm() {
             value={code}
             onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
             required
-            className="w-full rounded-lg border border-neutral-200 px-4 py-3 text-center text-2xl tracking-[0.4em] font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full rounded-lg border border-neutral-200 px-3 py-3 text-center font-mono text-xl tracking-[0.25em] focus:outline-none focus:ring-2 focus:ring-blue-500 sm:px-4 sm:text-2xl sm:tracking-[0.4em]"
           />
           {error && <p className="text-sm text-red-600">{error}</p>}
           <button

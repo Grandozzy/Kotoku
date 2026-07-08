@@ -29,7 +29,7 @@ export function PlanBanner() {
 
   return (
     <div
-      className={`flex items-start gap-3 px-4 py-3 rounded-xl border ${bgClass} text-sm mb-6`}
+      className={`mb-6 flex flex-col gap-3 rounded-xl border px-4 py-3 text-sm sm:flex-row sm:items-start ${bgClass}`}
     >
       <Icon size={16} className={`mt-0.5 shrink-0 ${subClass}`} strokeWidth={2} />
       <div className="flex-1 min-w-0">
@@ -51,7 +51,7 @@ export function PlanBanner() {
       {plan.recommended_upgrades[0] && (
         <Link
           href="/plans"
-          className={`inline-flex items-center gap-1 shrink-0 text-xs font-semibold px-3 py-1.5 rounded-full border ${
+          className={`inline-flex items-center justify-center gap-1 shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold ${
             isError
               ? "border-red-300 text-red-700 hover:bg-red-100"
               : "border-amber-300 text-amber-700 hover:bg-amber-100"

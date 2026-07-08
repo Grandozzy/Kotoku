@@ -223,15 +223,15 @@ export default function PricingPage() {
 
       <main className="flex-1">
         {/* Header */}
-        <section className="text-center px-6 pt-20 pb-12">
+        <section className="px-4 pb-12 pt-16 text-center sm:px-6 sm:pt-20">
           <div className="inline-flex items-center gap-2 bg-blue-50 text-blue-600 text-xs font-semibold px-4 py-2 rounded-full mb-6 tracking-wide uppercase">
             <Zap size={12} strokeWidth={2.5} />
             Simple plans for safer agreements
           </div>
-          <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-neutral-900 max-w-2xl mx-auto leading-tight">
+          <h1 className="mx-auto max-w-2xl text-3xl font-bold leading-tight tracking-tight text-neutral-900 sm:text-4xl md:text-5xl">
             Protect your deals with clear, affordable plans
           </h1>
-          <p className="mt-4 text-lg text-neutral-500 max-w-xl mx-auto leading-relaxed">
+          <p className="mx-auto mt-4 max-w-xl text-base leading-relaxed text-neutral-500 sm:text-lg">
             Whether you&apos;re buying a single car, renting out one room, or managing many deals every month, Kotoku has a plan that protects your agreements without stressing your pocket.
           </p>
 
@@ -251,11 +251,11 @@ export default function PricingPage() {
         </section>
 
         {/* Tab toggle */}
-        <div className="flex justify-center mb-10 px-6">
-          <div className="inline-flex bg-neutral-100 rounded-full p-1 gap-1">
+        <div className="mb-10 flex justify-center px-4 sm:px-6">
+          <div className="inline-flex w-full max-w-md gap-1 rounded-2xl bg-neutral-100 p-1 sm:w-auto sm:max-w-none sm:rounded-full">
             <button
               onClick={() => setTab("personal")}
-              className={`px-6 py-2 rounded-full text-sm font-medium transition-all ${
+              className={`flex-1 rounded-xl px-4 py-2 text-sm font-medium transition-all sm:flex-none sm:rounded-full sm:px-6 ${
                 tab === "personal"
                   ? "bg-white text-neutral-900 shadow-sm"
                   : "text-neutral-500 hover:text-neutral-700"
@@ -265,7 +265,7 @@ export default function PricingPage() {
             </button>
             <button
               onClick={() => setTab("enterprise")}
-              className={`px-6 py-2 rounded-full text-sm font-medium transition-all ${
+              className={`flex-1 rounded-xl px-4 py-2 text-sm font-medium transition-all sm:flex-none sm:rounded-full sm:px-6 ${
                 tab === "enterprise"
                   ? "bg-white text-neutral-900 shadow-sm"
                   : "text-neutral-500 hover:text-neutral-700"
@@ -280,7 +280,7 @@ export default function PricingPage() {
         </div>
 
         {/* Plan cards */}
-        <section className="max-w-6xl mx-auto px-6 pb-20">
+        <section className="mx-auto max-w-6xl px-4 pb-16 sm:px-6 sm:pb-20">
           {tab === "personal" ? (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {PERSONAL_PLANS.map((p) => (
@@ -297,7 +297,7 @@ export default function PricingPage() {
         </section>
 
         {/* Add-ons */}
-        <section className="bg-neutral-50 py-20 px-6">
+        <section className="bg-neutral-50 px-4 py-16 sm:px-6 sm:py-20">
           <div className="max-w-3xl mx-auto">
             <h2 className="text-2xl font-bold text-neutral-900 mb-2 text-center">
               Add just what you need
@@ -320,7 +320,7 @@ export default function PricingPage() {
         </section>
 
         {/* Fair use */}
-        <section className="max-w-2xl mx-auto px-6 py-16 text-center">
+        <section className="mx-auto max-w-2xl px-4 py-16 text-center sm:px-6">
           <p className="text-xs text-neutral-400 leading-relaxed">
             <strong className="text-neutral-500">Fair use and business usage</strong>{" "}
             — Personal plans are for individual use only. If you regularly seal more agreements than your Personal plan allows, or run your day-to-day business on Kotoku, we may ask you to switch to an Enterprise plan so we can keep SMS, storage, and support sustainable for everyone.
@@ -328,9 +328,9 @@ export default function PricingPage() {
         </section>
 
         {/* Closing CTA */}
-        <section className="px-6 py-20 text-center">
+        <section className="px-4 py-16 text-center sm:px-6 sm:py-20">
           <div className="max-w-xl mx-auto">
-            <h2 className="text-3xl font-bold text-slate-900 tracking-tight leading-snug">
+            <h2 className="text-2xl font-bold leading-snug tracking-tight text-slate-900 sm:text-3xl">
               Ready to protect your first agreement?
             </h2>
             <p className="mt-4 text-base text-slate-700 leading-relaxed">
@@ -350,7 +350,7 @@ export default function PricingPage() {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-neutral-100 py-8 px-6 text-center">
+      <footer className="border-t border-neutral-100 px-4 py-8 text-center sm:px-6">
         <div className="flex items-center justify-center gap-2 mb-3">
           <div className="w-6 h-6 rounded-md bg-blue-600 flex items-center justify-center">
             <ShieldCheck size={12} className="text-white" strokeWidth={2} />

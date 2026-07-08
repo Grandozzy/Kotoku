@@ -26,6 +26,7 @@ from infrastructure.paystack.client import InitializeResult, PaystackError
 _CONFIG_URL = "/api/payments/config/"
 _INITIATE_URL = "/api/payments/initiate/"
 _SUBSCRIPTION_URL = "/api/payments/subscription/"
+_CHECKOUT_STATUS_URL = "/api/payments/checkout-status/"
 _CANCEL_URL = "/api/payments/cancel/"
 
 _PLAN_CODES = {
@@ -68,6 +69,7 @@ def _mock_client(
         reference=reference,
     )
     mock.fetch_subscription.return_value = {"email_token": "tok_email_xyz"}
+    mock.verify_transaction.return_value = {"status": "pending"}
     mock.cancel_subscription.return_value = True
     return mock
 
@@ -296,6 +298,113 @@ def test_initiate_paystack_error_returns_400(mock_factory):
 def test_initiate_requires_auth():
     resp = APIClient().post(_INITIATE_URL, {"plan_id": "personal_plus"}, format="json")
     assert resp.status_code == 401
+
+
+@pytest.mark.django_db
+@override_settings(PAYSTACK_PLAN_CODES=_PLAN_CODES)
+@patch("apps.payments.services.get_paystack_client")
+def test_checkout_status_rejects_unknown_reference(mock_factory):
+    mock_factory.return_value = _mock_client()
+    _, client = _make_account_client()
+
+    resp = client.get(f"{_CHECKOUT_STATUS_URL}?reference=missing_ref")
+
+    assert resp.status_code == 400
+    assert "not found" in resp.json()["message"].lower()
+
+
+@pytest.mark.django_db
+@override_settings(PAYSTACK_PLAN_CODES=_PLAN_CODES)
+@patch("apps.payments.services.get_paystack_client")
+def test_checkout_status_returns_succeeded_after_local_webhook_activation(mock_factory):
+    mock = _mock_client()
+    mock.verify_transaction.return_value = {"status": "success"}
+    mock_factory.return_value = mock
+    account, client = _make_account_client(plan="personal_basic")
+    sub = Subscription.objects.create(
+        account=account,
+        plan_id="personal_plus",
+        paystack_plan_code="PLN_plus",
+        paystack_email=account.email,
+        status=Subscription.STATUS_ACTIVE,
+    )
+    SubscriptionCheckout.objects.create(
+        account=account,
+        reference="kotoku_status_001",
+        target_plan_id="personal_plus",
+        status=SubscriptionCheckout.STATUS_PROVIDER_CREATED,
+        activated_subscription=sub,
+    )
+    account.plan = "personal_plus"
+    account.save(update_fields=["plan", "updated_at"])
+
+    resp = client.get(f"{_CHECKOUT_STATUS_URL}?reference=kotoku_status_001")
+
+    assert resp.status_code == 200
+    data = resp.json()["data"]
+    assert data["checkout_status"] == "succeeded"
+    assert data["current_plan_id"] == "personal_plus"
+    assert data["subscription_status"] == "active"
+
+
+@pytest.mark.django_db
+@override_settings(PAYSTACK_PLAN_CODES=_PLAN_CODES)
+@patch("apps.payments.services.get_paystack_client")
+def test_checkout_status_reconciles_successful_charge_when_webhook_delayed(mock_factory):
+    mock = _mock_client()
+    mock.verify_transaction.return_value = {
+        "reference": "kotoku_status_002",
+        "status": "success",
+        "plan": {"plan_code": "PLN_plus"},
+        "customer": {"customer_code": "CUS_status", "email": "pay@test.com"},
+        "metadata": {},
+        "amount": 7900,
+        "currency": "GHS",
+    }
+    mock_factory.return_value = mock
+    account, client = _make_account_client(plan="personal_basic")
+    account.email = "pay@test.com"
+    account.save(update_fields=["email", "updated_at"])
+    checkout = SubscriptionCheckout.objects.create(
+        account=account,
+        reference="kotoku_status_002",
+        target_plan_id="personal_plus",
+        status=SubscriptionCheckout.STATUS_PENDING,
+    )
+
+    resp = client.get(f"{_CHECKOUT_STATUS_URL}?reference=kotoku_status_002")
+
+    assert resp.status_code == 200
+    data = resp.json()["data"]
+    checkout.refresh_from_db()
+    account.refresh_from_db()
+    assert data["checkout_status"] == "succeeded"
+    assert account.plan == "personal_plus"
+    assert checkout.status == SubscriptionCheckout.STATUS_CHARGED
+
+
+@pytest.mark.django_db
+@override_settings(PAYSTACK_PLAN_CODES=_PLAN_CODES)
+@patch("apps.payments.services.get_paystack_client")
+def test_checkout_status_marks_abandoned_checkout_cancelled(mock_factory):
+    mock = _mock_client()
+    mock.verify_transaction.return_value = {"status": "abandoned"}
+    mock_factory.return_value = mock
+    account, client = _make_account_client()
+    checkout = SubscriptionCheckout.objects.create(
+        account=account,
+        reference="kotoku_status_003",
+        target_plan_id="personal_plus",
+        status=SubscriptionCheckout.STATUS_PENDING,
+    )
+
+    resp = client.get(f"{_CHECKOUT_STATUS_URL}?reference=kotoku_status_003")
+
+    assert resp.status_code == 200
+    data = resp.json()["data"]
+    checkout.refresh_from_db()
+    assert data["checkout_status"] == "cancelled"
+    assert checkout.status == SubscriptionCheckout.STATUS_CANCELLED
 
 
 # ── GET /api/payments/subscription/ ──────────────────────────────────────────

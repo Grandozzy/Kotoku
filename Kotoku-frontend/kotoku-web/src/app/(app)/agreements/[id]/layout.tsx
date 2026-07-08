@@ -71,9 +71,9 @@ export default function AgreementLayout({
   }
 
   return (
-    <div className="flex gap-8 max-w-5xl mx-auto">
+    <div className="mx-auto flex max-w-5xl flex-col gap-6 lg:flex-row lg:gap-8">
       {/* Sidebar */}
-      <aside className="w-48 shrink-0 pt-1">
+      <aside className="w-full shrink-0 pt-1 lg:w-48">
         <div className="mb-4">
           <p className="text-xs text-neutral-400 uppercase tracking-widest mb-1">Agreement</p>
           <p className="font-semibold text-sm leading-snug line-clamp-2">{agreement.title}</p>
@@ -82,7 +82,7 @@ export default function AgreementLayout({
           </div>
         </div>
         <StepNav agreement={agreement} />
-        <div className="mt-6 pt-4 border-t border-neutral-100 flex flex-col gap-3">
+        <div className="mt-4 flex flex-col gap-3 border-t border-neutral-100 pt-4 lg:mt-6">
           <Link
             href="/dashboard"
             className="inline-flex items-center gap-1 text-xs text-neutral-400 hover:text-neutral-600"

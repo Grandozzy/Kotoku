@@ -1,11 +1,11 @@
 import { useState } from "react";
-import { Alert, Modal, TextInput } from "react-native";
+import { Modal, TextInput } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { ChevronLeft, Clock, Loader2, Pencil } from "lucide-react-native";
+import { AlertCircle, CheckCircle2, ChevronLeft, Clock, Loader2, Pencil } from "lucide-react-native";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { Badge, ScreenLoader } from "@/components/ui";
+import { Badge, BottomSheet, Button, NoticeCard, ScreenLoader } from "@/components/ui";
 import { AnnotationSection } from "@/components/annotations/AnnotationSection";
 import { AddNoteSheet } from "@/components/annotations/AddNoteSheet";
 import { useAuth } from "@/features/auth/useAuth";
@@ -48,6 +48,8 @@ export default function VaultDetailScreen() {
   const [disputeModalVisible, setDisputeModalVisible] = useState(false);
   const [disputeReason, setDisputeReason] = useState("");
   const [disputeSubmitting, setDisputeSubmitting] = useState(false);
+  const [disputeError, setDisputeError] = useState<string | null>(null);
+  const [disputeSuccessVisible, setDisputeSuccessVisible] = useState(false);
 
   const handleEdit = async () => {
     setEditLoading(true);
@@ -78,21 +80,18 @@ export default function VaultDetailScreen() {
     if (!userParty) return;
     const trimmed = disputeReason.trim();
     if (trimmed.length < 10) {
-      Alert.alert("Error", "Please provide at least 10 characters");
+      setDisputeError("Please provide at least 10 characters.");
       return;
     }
+    setDisputeError(null);
     setDisputeSubmitting(true);
     try {
       await createDispute(id, { reason: trimmed });
       setDisputeModalVisible(false);
       setDisputeReason("");
-      Alert.alert("Dispute raised", "Your dispute has been submitted.", [
-        { text: "View disputes", onPress: () => router.push("/disputes") },
-        { text: "Stay here" },
-      ]);
+      setDisputeSuccessVisible(true);
     } catch (error) {
-      Alert.alert(
-        "Could not raise dispute",
+      setDisputeError(
         getApiErrorMessage(
           error,
           "Sign in with a phone number listed on this agreement and try again.",
@@ -208,7 +207,12 @@ export default function VaultDetailScreen() {
               </Text>
             </Pressable>
             {editError && (
-              <Text className="text-xs text-semantic-error text-center">{editError}</Text>
+              <NoticeCard
+                variant="error"
+                title="Could not prepare this agreement for editing"
+                body={editError}
+                compact
+              />
             )}
           </View>
         )}
@@ -231,16 +235,22 @@ export default function VaultDetailScreen() {
             isRetrying={retryMutation.isPending}
           />
           {exportMutation.isError && (
-            <Text className="text-xs text-semantic-error text-center">
-              Export request failed. Please try again.
-            </Text>
+            <NoticeCard
+              variant="error"
+              title="Export request failed"
+              body="Please try again."
+              compact
+            />
           )}
         </View>
 
         {/* Raise Dispute */}
         {canRaiseDispute && userParty && (
           <Pressable
-            onPress={() => setDisputeModalVisible(true)}
+            onPress={() => {
+              setDisputeError(null);
+              setDisputeModalVisible(true);
+            }}
             className="flex-row items-center justify-center gap-sm bg-semantic-warning/10 border border-semantic-warning/30 rounded-lg py-md active:opacity-80"
           >
             <Text className="text-md font-semibold text-semantic-warning">
@@ -272,9 +282,21 @@ export default function VaultDetailScreen() {
                 textAlignVertical="top"
                 autoFocus
               />
+              {disputeError ? (
+                <NoticeCard
+                  variant="error"
+                  title="Could not raise dispute"
+                  body={disputeError}
+                  compact
+                />
+              ) : null}
               <View className="flex-row gap-md">
                 <Pressable
-                  onPress={() => { setDisputeModalVisible(false); setDisputeReason(""); }}
+                  onPress={() => {
+                    setDisputeModalVisible(false);
+                    setDisputeReason("");
+                    setDisputeError(null);
+                  }}
                   className="flex-1 items-center justify-center py-md rounded-lg border border-border-subtle active:opacity-70"
                 >
                   <Text className="text-base font-medium text-ink-secondary">Cancel</Text>
@@ -337,6 +359,35 @@ export default function VaultDetailScreen() {
         )}
       </View>
     </ScrollView>
+    <BottomSheet
+      visible={disputeSuccessVisible}
+      onClose={() => setDisputeSuccessVisible(false)}
+      title="Dispute submitted"
+      body="Your dispute has been added to this agreement's record."
+      icon={CheckCircle2}
+      tone="success"
+      footer={
+        <>
+          <Button
+            title="Stay here"
+            variant="secondary"
+            size="lg"
+            fullWidth
+            onPress={() => setDisputeSuccessVisible(false)}
+          />
+          <Button
+            title="View disputes"
+            variant="primary"
+            size="lg"
+            fullWidth
+            onPress={() => {
+              setDisputeSuccessVisible(false);
+              router.push("/disputes");
+            }}
+          />
+        </>
+      }
+    />
     {canAddNote && userParty && (
       <Pressable
         onPress={() => setNoteSheetVisible(true)}

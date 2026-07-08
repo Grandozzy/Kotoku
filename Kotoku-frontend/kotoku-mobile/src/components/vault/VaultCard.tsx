@@ -83,14 +83,14 @@ export function VaultCard({
       accessibilityRole="button"
       accessibilityLabel={`Open vaulted agreement ${title}`}
       className={[
-        "bg-surface-card rounded-lg border border-border-subtle p-md flex-row items-center gap-md active:opacity-70",
+        "flex-row items-center gap-md rounded-2xl border border-border-subtle bg-surface-card p-lg active:opacity-70",
         borderClass,
       ].join(" ")}
     >
       {/* Icon */}
       <View
         className={[
-          "w-11 h-11 rounded-lg items-center justify-center",
+          "h-12 w-12 items-center justify-center rounded-2xl",
           expired ? "bg-surface-subtle" : "bg-brand-primarySoft",
         ].join(" ")}
       >
@@ -103,6 +103,10 @@ export function VaultCard({
 
       {/* Content */}
       <View className="flex-1 gap-xs">
+        <View className="flex-row items-center gap-sm">
+          <Badge label={badgeLabel} variant={badgeVariant} />
+          <Badge label={pdf.label} variant={pdf.variant} />
+        </View>
         <Text
           className="text-md font-semibold text-ink-primary"
           numberOfLines={1}
@@ -120,10 +124,8 @@ export function VaultCard({
         <Text className="text-xs text-ink-muted">
           Sealed {sealedDateLabel(record.sealedAt)} · Retention {retentionLabel(record.retentionExpiresAt)}
         </Text>
-        <View className="flex-row items-center gap-sm mt-xs flex-wrap">
-          <Badge label={badgeLabel} variant={badgeVariant} />
-          <Badge label={pdf.label} variant={pdf.variant} />
-          <View className="flex-row items-center gap-xs ml-auto">
+        <View className="mt-xs flex-row items-center gap-xs">
+          <View className="ml-auto flex-row items-center gap-xs rounded-full bg-surface-subtle px-sm py-xs">
             <FileText size={12} color={colors.inkMuted} />
             <Text className="text-xs text-ink-muted">Open</Text>
           </View>

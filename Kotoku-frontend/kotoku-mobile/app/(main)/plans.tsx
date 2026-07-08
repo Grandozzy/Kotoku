@@ -19,7 +19,7 @@ import {
 import { ScrollView, Text, View, Pressable, ActivityIndicator, RefreshControl } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { ErrorState } from "@/components/ui";
+import { ErrorState, NoticeCard } from "@/components/ui";
 import { usePlan } from "@/features/billing/usePlan";
 import { useSubscription } from "@/features/billing/useSubscription";
 import { useCancelCheckout, useInitiatePayment } from "@/features/billing/usePayment";
@@ -38,6 +38,7 @@ interface PlanDefinition {
   icon: typeof ShieldCheck;
   price: number;
   sealsPerMonth: number | null; // null = unlimited
+  tagline: string;
   features: string[];
 }
 
@@ -49,6 +50,7 @@ const PLANS: PlanDefinition[] = [
     icon: UserRound,
     price: 49,
     sealsPerMonth: 1,
+    tagline: "Protect one serious agreement each month.",
     features: ["1 sealed agreement / month", "Tamper-proof vault", "SMS consent delivery"],
   },
   {
@@ -58,6 +60,7 @@ const PLANS: PlanDefinition[] = [
     icon: Zap,
     price: 79,
     sealsPerMonth: 3,
+    tagline: "Ideal for active individuals and side hustles.",
     features: ["3 sealed agreements / month", "Tamper-proof vault", "SMS consent delivery", "Priority support"],
   },
   {
@@ -67,6 +70,7 @@ const PLANS: PlanDefinition[] = [
     icon: ShieldCheck,
     price: 99,
     sealsPerMonth: 7,
+    tagline: "For serious dealmakers who need deeper protection.",
     features: ["7 sealed agreements / month", "Tamper-proof vault", "SMS consent delivery", "Priority support", "Extended 36-month retention"],
   },
   {
@@ -76,6 +80,7 @@ const PLANS: PlanDefinition[] = [
     icon: UsersRound,
     price: 400,
     sealsPerMonth: 20,
+    tagline: "Built for teams running agreements every week.",
     features: ["20 sealed agreements / month", "Team seats", "Bulk creation", "Reporting dashboard", "5-year retention"],
   },
   {
@@ -85,6 +90,7 @@ const PLANS: PlanDefinition[] = [
     icon: Crown,
     price: 1200,
     sealsPerMonth: 80,
+    tagline: "For high-volume operators who need control and reach.",
     features: ["80 sealed agreements / month", "Team seats", "Bulk creation", "Reporting dashboard", "Archive search", "10-year retention", "Dedicated support"],
   },
 ];
@@ -170,39 +176,44 @@ export default function PlansScreen() {
         </View>
       </View>
 
+      <NoticeCard
+        variant="info"
+        title="Pick the plan that matches your monthly volume"
+        body="Kotoku upgrades immediately after confirmed payment, so choose based on how often you seal agreements and how long you need records retained."
+        compact
+      />
+
       {/* Stuck-session banner — recoverable via cancel & retry */}
       {sessionBlocked && (
-        <View className="bg-amber-50 border border-amber-200 rounded-xl px-lg py-md gap-sm">
-          <View className="flex-row items-start gap-sm">
-            <AlertCircle size={16} color="#d97706" strokeWidth={2} />
-            <View className="flex-1">
-              <Text className="text-sm font-semibold text-amber-800">
-                A payment session is already open
-              </Text>
-              <Text className="text-xs text-amber-700 mt-xs">
-                You may have closed Paystack before finishing. Cancel the previous session to start again.
-              </Text>
-            </View>
-          </View>
-          <Pressable
-            onPress={handleCancelAndRetry}
-            disabled={cancelling}
-            className="bg-amber-800 rounded-xl py-sm items-center justify-center active:opacity-70 disabled:opacity-50"
-          >
-            {cancelling ? (
-              <ActivityIndicator color="#fff" size="small" />
-            ) : (
-              <Text className="text-white text-sm font-semibold">Cancel & retry</Text>
-            )}
-          </Pressable>
-        </View>
+        <NoticeCard
+          variant="warning"
+          icon={AlertCircle}
+          title="A payment session is already open"
+          body="You may have closed Paystack before finishing. Cancel the previous session to start again."
+          footer={
+            <Pressable
+              onPress={handleCancelAndRetry}
+              disabled={cancelling}
+              className="bg-amber-800 rounded-xl py-sm items-center justify-center active:opacity-70 disabled:opacity-50"
+            >
+              {cancelling ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <Text className="text-white text-sm font-semibold">Cancel & retry</Text>
+              )}
+            </Pressable>
+          }
+        />
       )}
 
       {/* Generic error banner */}
       {!!error && !sessionBlocked && (
-        <View className="bg-red-50 border border-red-200 rounded-xl px-lg py-md">
-          <Text className="text-sm text-red-700">{errorMsg}</Text>
-        </View>
+        <NoticeCard
+          variant="error"
+          title="Could not start checkout"
+          body={errorMsg ?? "Please try again."}
+          compact
+        />
       )}
 
       {hasLoadError && (
@@ -329,9 +340,16 @@ function PlanCard({
           </View>
         </View>
 
+        <Text className="text-sm leading-relaxed text-ink-secondary">
+          {plan.tagline}
+        </Text>
+
         {/* Seal count callout */}
-        <View className="bg-surface-canvas rounded-xl px-md py-sm">
-          <Text className="text-sm font-semibold text-ink-primary">
+        <View className="bg-surface-canvas rounded-2xl px-md py-sm">
+          <Text className="text-[11px] font-semibold uppercase tracking-widest text-ink-muted">
+            Monthly capacity
+          </Text>
+          <Text className="mt-xs text-sm font-semibold text-ink-primary">
             {plan.sealsPerMonth === null
               ? "Unlimited sealed agreements"
               : `${plan.sealsPerMonth} sealed agreement${plan.sealsPerMonth === 1 ? "" : "s"} / month`}

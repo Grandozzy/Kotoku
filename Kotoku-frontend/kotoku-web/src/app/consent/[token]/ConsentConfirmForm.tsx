@@ -60,7 +60,7 @@ export function ConsentConfirmForm({
         autoComplete="one-time-code"
         value={otpCode}
         onChange={(event) => setOtpCode(event.target.value.replace(/\D/g, "").slice(0, 8))}
-        className="mt-3 w-full rounded-xl border border-neutral-300 px-4 py-3 text-center text-2xl tracking-[0.35em] outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+        className="mt-3 w-full rounded-xl border border-neutral-300 px-3 py-3 text-center text-xl tracking-[0.22em] outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 sm:px-4 sm:text-2xl sm:tracking-[0.35em]"
         placeholder="••••••••"
       />
       {error && <p className="mt-3 text-sm text-red-600">{error}</p>}

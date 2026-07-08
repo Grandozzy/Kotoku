@@ -7,15 +7,15 @@ export default function LegalPage() {
     <div className="min-h-screen flex flex-col">
       <PublicNav />
 
-      <main className="max-w-3xl mx-auto px-6 py-16 flex flex-col gap-12">
+      <main className="mx-auto flex max-w-3xl flex-col gap-12 px-4 py-12 sm:px-6 sm:py-16">
         <div>
           <p className="text-sm font-medium text-emerald-600 uppercase tracking-wide mb-3">
             Legal reference
           </p>
-          <h1 className="text-4xl font-bold tracking-tight">
+          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
             Ghana Digital Evidence Law
           </h1>
-          <p className="mt-4 text-neutral-500 text-lg leading-relaxed">
+          <p className="mt-4 text-base leading-relaxed text-neutral-500 sm:text-lg">
             How Kotoku&apos;s sealed records relate to Ghanaian law — and what gives them
             standing as evidence.
           </p>
@@ -108,7 +108,7 @@ export default function LegalPage() {
             evidential weight factors in Act 772 Section 12.
           </p>
           <div className="rounded-2xl border border-neutral-100 overflow-hidden">
-            <div className="grid grid-cols-2 bg-neutral-50 px-4 py-2 border-b border-neutral-100">
+            <div className="hidden grid-cols-2 border-b border-neutral-100 bg-neutral-50 px-4 py-2 sm:grid">
               <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
                 Act 772 requirement
               </p>
@@ -144,9 +144,9 @@ export default function LegalPage() {
             ].map(([req, impl]) => (
               <div
                 key={req}
-                className="grid grid-cols-2 px-4 py-3 border-b border-neutral-50 last:border-0"
+                className="grid grid-cols-1 gap-1 border-b border-neutral-50 px-4 py-3 last:border-0 sm:grid-cols-2 sm:gap-4"
               >
-                <p className="text-sm text-neutral-600">{req}</p>
+                <p className="text-sm font-medium text-neutral-600 sm:font-normal">{req}</p>
                 <p className="text-sm text-neutral-500">{impl}</p>
               </div>
             ))}

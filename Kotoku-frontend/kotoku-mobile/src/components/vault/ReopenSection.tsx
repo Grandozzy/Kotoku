@@ -3,7 +3,7 @@ import { CheckCircle, Clock, RefreshCw } from "lucide-react-native";
 import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 
-import { Button, OTPInput } from "@/components/ui";
+import { Button, NoticeCard, OTPInput } from "@/components/ui";
 import { getAgreement } from "@/api/agreements";
 import { getApiErrorMessage } from "@/lib/errorHandler";
 import { isSamePhone } from "@/lib/phone";
@@ -67,17 +67,11 @@ export function ReopenSection({
 
   if (reopened) {
     return (
-      <View className="bg-surface-card rounded-lg border border-border-subtle p-lg gap-sm">
-        <View className="flex-row items-center gap-sm">
-          <CheckCircle size={18} color={colors.success} />
-          <Text className="text-sm font-medium text-emerald-700">
-            Agreement reopened!
-          </Text>
-        </View>
-        <Text className="text-sm text-ink-muted">
-          Both parties confirmed. The agreement is now editable.
-        </Text>
-      </View>
+      <NoticeCard
+        variant="success"
+        title="Agreement reopened"
+        body="Both parties confirmed the request. The agreement is now editable again."
+      />
     );
   }
 
@@ -99,15 +93,11 @@ export function ReopenSection({
           Request to reopen this agreement. Both parties must confirm with a
           one-time code before it becomes editable again.
         </Text>
-        <View className="bg-amber-50 border border-amber-100 rounded-xl p-md gap-xs">
-          <Text className="text-xs font-semibold text-amber-900">
-            Confirm reopen from the matching phone account.
-          </Text>
-          <Text className="text-xs text-amber-800 leading-relaxed">
-            The counterparty must sign in on their own device or invite link and
-            enter only the OTP sent to their phone.
-          </Text>
-        </View>
+        <NoticeCard
+          variant="warning"
+          title="Use the matching phone account"
+          body="The counterparty must sign in on their own device or invite link and confirm only the OTP sent to their phone."
+        />
         <Button
           title="Request Reopen"
           variant="secondary"
@@ -116,9 +106,7 @@ export function ReopenSection({
           loading={requestReopen.isPending}
           onPress={() => requestReopen.mutate()}
         />
-        {error && (
-          <Text className="text-xs text-semantic-error text-center">{error}</Text>
-        )}
+        {error && <NoticeCard variant="error" title="Reopen request failed" body={error} />}
       </View>
     );
   }
@@ -137,12 +125,11 @@ export function ReopenSection({
         </Text>
 
         {!currentParty && (
-          <View className="bg-amber-50 border border-amber-100 rounded-xl p-md">
-            <Text className="text-xs text-amber-800 leading-relaxed">
-              This signed-in phone is not one of the parties waiting to reopen.
-              Sign in with the phone that received the reopen OTP.
-            </Text>
-          </View>
+          <NoticeCard
+            variant="warning"
+            title="Wrong phone account"
+            body="This signed-in phone is not one of the parties waiting to reopen. Sign in with the phone that received the reopen OTP."
+          />
         )}
 
         {partyA && currentParty === "A" && (
@@ -202,12 +189,11 @@ export function ReopenSection({
         )}
 
         {currentParty && !allConfirmed && (
-          <View className="bg-blue-50 border border-blue-100 rounded-xl p-md">
-            <Text className="text-xs text-blue-800 leading-relaxed">
-              Only your reopen OTP can be confirmed from this account. The other
-              party must sign in with their own phone and confirm separately.
-            </Text>
-          </View>
+          <NoticeCard
+            variant="info"
+            title="Each party confirms separately"
+            body="Only your reopen OTP can be confirmed from this account. The other party must sign in with their own phone and complete their step separately."
+          />
         )}
 
         {!allConfirmed && (

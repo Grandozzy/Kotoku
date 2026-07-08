@@ -11,11 +11,11 @@ import {
   X,
 } from "lucide-react-native";
 import { useState } from "react";
-import { Alert, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { Card, ScreenLoader } from "@/components/ui";
+import { BottomSheet, Button, Card, NoticeCard, ScreenLoader } from "@/components/ui";
 import { useAuth } from "@/features/auth/useAuth";
 import { useMe, useUpdateProfile } from "@/features/auth/otpFlow";
 import { usePlan } from "@/features/billing/usePlan";
@@ -104,6 +104,7 @@ export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const updateMutation = useUpdateProfile();
+  const [logoutSheetVisible, setLogoutSheetVisible] = useState(false);
 
   const fullName: string = me?.full_name ?? "";
   const email: string = me?.email?.endsWith("@kotoku.app") ? "" : (me?.email ?? "");
@@ -127,17 +128,7 @@ export default function ProfileScreen() {
   };
 
   const handleLogout = () => {
-    Alert.alert("Log out", "Are you sure you want to log out?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Log out",
-        style: "destructive",
-        onPress: async () => {
-          await clearStoredSession();
-          clearSession();
-        },
-      },
-    ]);
+    setLogoutSheetVisible(true);
   };
 
   if (profileLoading) return <ScreenLoader rows={3} />;
@@ -201,9 +192,12 @@ export default function ProfileScreen() {
         </View>
 
         {updateMutation.isError && (
-          <Text className="text-xs text-semantic-error mt-md text-center">
-            Could not save changes. Please try again.
-          </Text>
+          <NoticeCard
+            variant="error"
+            title="Could not save changes"
+            body="Please try again."
+            compact
+          />
         )}
       </Card>
 
@@ -313,6 +307,36 @@ export default function ProfileScreen() {
         </View>
         <Text className="text-md font-medium text-semantic-error">Log out</Text>
       </Pressable>
+      <BottomSheet
+        visible={logoutSheetVisible}
+        onClose={() => setLogoutSheetVisible(false)}
+        title="Log out?"
+        body="You will need your phone and PIN again to get back into Kotoku."
+        icon={LogOut}
+        tone="danger"
+        footer={
+          <>
+            <Button
+              title="Stay signed in"
+              variant="secondary"
+              size="lg"
+              fullWidth
+              onPress={() => setLogoutSheetVisible(false)}
+            />
+            <Button
+              title="Log out"
+              variant="primary"
+              size="lg"
+              fullWidth
+              onPress={async () => {
+                setLogoutSheetVisible(false);
+                await clearStoredSession();
+                clearSession();
+              }}
+            />
+          </>
+        }
+      />
     </ScrollView>
     </KeyboardAvoidingView>
   );

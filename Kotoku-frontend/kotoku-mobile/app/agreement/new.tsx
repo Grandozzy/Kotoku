@@ -4,6 +4,7 @@ import { Pressable, ScrollView, Text, View } from "react-native";
 
 import { SCENARIOS } from "@/constants/scenarios";
 import { useCreateDraft } from "@/features/agreements/useAgreementDraft";
+import { formatCapResetDate, getCapReachedMessage } from "@/features/billing/capReached";
 import { usePlan } from "@/features/billing/usePlan";
 import { getApiErrorMessage } from "@/lib/errorHandler";
 import { colors } from "@/theme/tokens";
@@ -16,9 +17,8 @@ export default function NewAgreementScreen() {
   const capReached = plan?.flags.is_personal && plan?.usage.is_cap_reached;
 
   if (capReached) {
-    const planName = plan!.plan.name;
-    const cap = plan!.plan.max_agreements_per_month;
     const upgrade = plan!.recommended_upgrades[0];
+    const resetDate = formatCapResetDate(plan!.usage.period.end);
 
     return (
       <View className="flex-1 bg-surface-canvas px-lg py-xl gap-xl justify-center">
@@ -32,10 +32,8 @@ export default function NewAgreementScreen() {
               Monthly limit reached
             </Text>
             <Text className="text-sm text-amber-700 leading-relaxed">
-              You&apos;ve used all {cap} seal{cap === 1 ? "" : "s"} for this month on{" "}
-              <Text className="font-semibold">{planName}</Text>.
-              {"\n\n"}Unused seals don&apos;t roll over. Upgrade to unlock more seals now,
-              or come back next month.
+              {getCapReachedMessage(plan!, upgrade)}
+              {resetDate ? `\n\nYour limit resets on ${resetDate}.` : ""}
             </Text>
           </View>
 
@@ -48,10 +46,7 @@ export default function NewAgreementScreen() {
                 {upgrade.name}
               </Text>
               <Text className="text-sm text-ink-secondary">
-                Up to {upgrade.max_agreements_per_month} seals / month
-              </Text>
-              <Text className="text-md font-bold text-brand-primary">
-                {upgrade.price_amount_monthly} GHS / month
+                Up to {upgrade.max_agreements_per_month} seals / month from {upgrade.price_amount_monthly} GHS / month
               </Text>
             </View>
           )}

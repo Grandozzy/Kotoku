@@ -1,4 +1,5 @@
 import { Controller, Control } from "react-hook-form";
+import { CalendarDays, CheckCircle2, Coins, Hash, ListFilter } from "lucide-react-native";
 import { Pressable, Switch, Text, View } from "react-native";
 
 import { TextInput } from "@/components/ui";
@@ -33,9 +34,16 @@ export function FieldRenderer({
       control={control}
       name={name}
       render={({ field: { value, onChange, onBlur } }) => {
+        const wrapField = (content: React.ReactNode, helper?: React.ReactNode) => (
+          <View className="gap-sm rounded-2xl border border-border-subtle bg-surface-subtle p-md">
+            {content}
+            {helper}
+          </View>
+        );
+
         switch (field.type) {
           case "text":
-            return (
+            return wrapField(
               <TextInput
                 label={field.label}
                 placeholder={field.placeholder}
@@ -45,11 +53,11 @@ export function FieldRenderer({
                 onBlur={onBlur}
                 error={error}
                 required={field.required}
-              />
+              />,
             );
 
           case "textarea":
-            return (
+            return wrapField(
               <TextInput
                 label={field.label}
                 placeholder={field.placeholder}
@@ -62,11 +70,11 @@ export function FieldRenderer({
                 multiline
                 numberOfLines={3}
                 style={{ minHeight: 80, textAlignVertical: "top" }}
-              />
+              />,
             );
 
           case "number":
-            return (
+            return wrapField(
               <TextInput
                 label={field.label}
                 placeholder={field.placeholder}
@@ -77,11 +85,11 @@ export function FieldRenderer({
                 onBlur={onBlur}
                 error={error}
                 required={field.required}
-              />
+              />,
             );
 
           case "currency":
-            return (
+            return wrapField(
               <View>
                 {field.label && (
                   <View className="flex-row mb-xs">
@@ -93,8 +101,9 @@ export function FieldRenderer({
                     )}
                   </View>
                 )}
-                <View className="flex-row items-center border border-border-subtle rounded-md bg-surface-card overflow-hidden">
-                  <View className="px-md py-sm bg-surface-subtle border-r border-border-subtle">
+                <View className="flex-row items-center overflow-hidden rounded-xl border border-border-subtle bg-surface-card">
+                  <View className="flex-row items-center gap-xs border-r border-border-subtle bg-surface-subtle px-md py-sm">
+                    <Coins size={14} color={colors.inkMuted} strokeWidth={1.8} />
                     <Text className="text-md text-ink-secondary font-medium">GHS</Text>
                   </View>
                   <TextInput
@@ -110,11 +119,11 @@ export function FieldRenderer({
                     className="flex-1 border-0"
                   />
                 </View>
-              </View>
+              </View>,
             );
 
           case "date":
-            return (
+            return wrapField(
               <TextInput
                 label={field.label}
                 placeholder={field.placeholder ?? "YYYY-MM-DD"}
@@ -126,11 +135,17 @@ export function FieldRenderer({
                 error={error}
                 required={field.required}
                 maxLength={10}
-              />
+              />,
+              <View className="flex-row items-center gap-xs">
+                <CalendarDays size={13} color={colors.inkMuted} strokeWidth={1.8} />
+                <Text className="text-[11px] text-ink-muted">
+                  Use the agreed date exactly as it should appear in the final record.
+                </Text>
+              </View>,
             );
 
           case "select":
-            return (
+            return wrapField(
               <View>
                 {field.label && (
                   <View className="flex-row mb-sm">
@@ -150,12 +165,17 @@ export function FieldRenderer({
                         key={opt.value}
                         onPress={() => onChange(opt.value)}
                         className={[
-                          "px-md py-sm rounded-pill border",
+                          "flex-row items-center gap-xs rounded-pill border px-md py-sm",
                           selected
                             ? "bg-brand-primary border-brand-primary"
                             : "bg-surface-card border-border-subtle",
                         ].join(" ")}
                       >
+                        {selected ? (
+                          <CheckCircle2 size={13} color="#fff" strokeWidth={2} />
+                        ) : (
+                          <ListFilter size={13} color={colors.inkMuted} strokeWidth={1.8} />
+                        )}
                         <Text
                           className={
                             selected
@@ -172,12 +192,12 @@ export function FieldRenderer({
                 {error && (
                   <Text className="mt-xs text-xs text-semantic-error">{error}</Text>
                 )}
-              </View>
+              </View>,
             );
 
           case "boolean":
-            return (
-              <View className="flex-row items-center justify-between py-sm">
+            return wrapField(
+              <View className="flex-row items-center justify-between">
                 <Text
                   className="text-md text-ink-primary flex-1 pr-lg"
                   numberOfLines={2}
@@ -193,7 +213,7 @@ export function FieldRenderer({
                   }}
                   thumbColor={colors.bgCard}
                 />
-              </View>
+              </View>,
             );
 
           default:

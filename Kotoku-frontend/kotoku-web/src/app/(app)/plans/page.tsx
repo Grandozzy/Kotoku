@@ -269,7 +269,7 @@ export default function PlansPage() {
   return (
     <div className="flex flex-col gap-6 max-w-3xl">
       {/* Header */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-start gap-3 sm:items-center">
         <Link
           href="/profile"
           className="w-8 h-8 rounded-full border border-neutral-200 flex items-center justify-center hover:bg-neutral-50 transition-colors shrink-0"
@@ -287,10 +287,10 @@ export default function PlansPage() {
       </div>
 
       {/* Tab toggle */}
-      <div className="inline-flex bg-neutral-100 rounded-full p-1 gap-1 self-start">
+      <div className="inline-flex w-full self-start gap-1 rounded-2xl bg-neutral-100 p-1 sm:w-auto sm:rounded-full">
         <button
           onClick={() => setManualTab("personal")}
-          className={`px-5 py-1.5 rounded-full text-sm font-medium transition-all ${
+          className={`flex-1 rounded-xl px-4 py-2 text-sm font-medium transition-all sm:flex-none sm:rounded-full sm:px-5 sm:py-1.5 ${
             tab === "personal"
               ? "bg-white text-neutral-900 shadow-sm"
               : "text-neutral-500 hover:text-neutral-700"
@@ -300,7 +300,7 @@ export default function PlansPage() {
         </button>
         <button
           onClick={() => setManualTab("enterprise")}
-          className={`px-5 py-1.5 rounded-full text-sm font-medium transition-all inline-flex items-center gap-1.5 ${
+          className={`inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl px-4 py-2 text-sm font-medium transition-all sm:flex-none sm:rounded-full sm:px-5 sm:py-1.5 ${
             tab === "enterprise"
               ? "bg-white text-neutral-900 shadow-sm"
               : "text-neutral-500 hover:text-neutral-700"
@@ -319,7 +319,7 @@ export default function PlansPage() {
         </div>
       )}
       {sessionBlocked && (
-        <div className="rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800 flex items-start gap-3">
+        <div className="flex flex-col gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 sm:flex-row sm:items-start">
           <AlertCircle size={15} className="shrink-0 mt-0.5 text-amber-600" strokeWidth={2} />
           <div className="flex-1">
             <p className="font-medium">A payment session is already open.</p>
@@ -330,7 +330,7 @@ export default function PlansPage() {
           <button
             onClick={() => actingPlanId && handleCancelAndRetry(actingPlanId)}
             disabled={cancelling || !actingPlanId}
-            className="shrink-0 px-3 py-1.5 rounded-lg bg-amber-800 text-white text-xs font-medium hover:bg-amber-900 disabled:opacity-50 inline-flex items-center gap-1.5"
+            className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg bg-amber-800 px-3 py-2 text-xs font-medium text-white hover:bg-amber-900 disabled:opacity-50"
           >
             {cancelling ? <Loader2 size={11} className="animate-spin" /> : null}
             Cancel &amp; retry

@@ -125,7 +125,7 @@ export default function DisputePage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-xl font-bold tracking-tight">Disputes</h1>
         {canRaiseDispute && !showForm && (
           <button
@@ -184,7 +184,7 @@ export default function DisputePage() {
             </p>
           </div>
 
-          <div className="flex gap-3">
+          <div className="flex flex-col gap-3 sm:flex-row">
             <button
               onClick={() => raiseMutation.mutate()}
               disabled={

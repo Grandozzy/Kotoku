@@ -95,7 +95,7 @@ function VaultListItem({ entry }: { entry: VaultEntry }) {
   return (
     <Link
       href={`/vault/${entry.agreement}`}
-      className="flex items-center justify-between gap-4 px-4 py-3 rounded-xl border border-neutral-100 hover:border-emerald-100 transition-colors"
+      className="flex flex-col gap-3 rounded-xl border border-neutral-100 px-4 py-3 transition-colors hover:border-emerald-100 sm:flex-row sm:items-center sm:justify-between"
     >
       <div className="min-w-0">
         <p className="text-sm font-semibold text-neutral-800 truncate">
@@ -118,7 +118,7 @@ function VaultListItem({ entry }: { entry: VaultEntry }) {
           )}
         </p>
       </div>
-      <div className="flex shrink-0 items-center gap-2">
+      <div className="flex shrink-0 items-center gap-2 self-start sm:self-center">
         {pdf && (
           <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${pdf.className}`}>
             {pdf.label}

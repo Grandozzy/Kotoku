@@ -5,7 +5,7 @@ import { Loader } from "lucide-react-native";
 import { useState } from "react";
 import { Text, View } from "react-native";
 
-import { Button } from "@/components/ui";
+import { Button, NoticeCard } from "@/components/ui";
 import { colors } from "@/theme/tokens";
 import type { PdfStatus } from "@/types/vault";
 
@@ -83,7 +83,12 @@ export function ExportButton({
 
   if (pdfStatus === "ready" && pdfUrl) {
     return (
-      <View className="gap-xs">
+      <View className="gap-sm">
+        <NoticeCard
+          variant="success"
+          title="PDF ready"
+          body="Save the sealed agreement to your device or share it securely with the other party."
+        />
         <Button
           title={saving ? "Saving…" : "Save to Device"}
           variant="primary"
@@ -94,11 +99,7 @@ export function ExportButton({
           onPress={handleSaveToDevice}
           accessibilityLabel="Save PDF to device"
         />
-        {saveError && (
-          <Text className="text-xs text-semantic-error text-center">
-            {saveError}
-          </Text>
-        )}
+        {saveError && <NoticeCard variant="error" title="Save failed" body={saveError} />}
         <Button
           title={sharing ? "Preparing…" : "Share PDF"}
           variant="secondary"
@@ -109,11 +110,7 @@ export function ExportButton({
           onPress={handleShare}
           accessibilityLabel="Share agreement PDF"
         />
-        {shareError && (
-          <Text className="text-xs text-semantic-error text-center">
-            {shareError}
-          </Text>
-        )}
+        {shareError && <NoticeCard variant="error" title="Share failed" body={shareError} />}
       </View>
     );
   }
@@ -129,13 +126,12 @@ export function ExportButton({
 
   if (pdfStatus === "failed") {
     return (
-      <View className="gap-xs">
-        <View className="flex-row items-center gap-sm bg-red-50 rounded-lg p-md">
-          <AlertCircle size={16} color={colors.error} />
-          <Text className="text-sm text-semantic-error flex-1">
-            PDF generation failed.
-          </Text>
-        </View>
+      <View className="gap-sm">
+        <NoticeCard
+          variant="error"
+          title="PDF generation failed"
+          body="Kotoku could not prepare the agreement PDF. Retry to generate a fresh copy."
+        />
         <Button
           title={isRetrying ? "Retrying…" : "Retry"}
           variant="secondary"

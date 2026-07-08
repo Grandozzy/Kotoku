@@ -247,7 +247,7 @@ export default function EvidencePage() {
 
       {/* Queue */}
       {canProceed && (
-        <div className="rounded-xl bg-emerald-50 px-4 py-3 flex items-center justify-between gap-4">
+        <div className="flex flex-col gap-3 rounded-xl bg-emerald-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-1.5 text-sm text-emerald-700">
             <Check size={14} className="shrink-0" strokeWidth={2.5} />
             {effectiveConfirmedCount} file{effectiveConfirmedCount > 1 ? "s" : ""} confirmed
@@ -267,7 +267,7 @@ export default function EvidencePage() {
           {items.map((item) => (
             <div
               key={item.id}
-              className="flex items-center justify-between px-4 py-2.5 rounded-xl border border-neutral-100 bg-white"
+              className="flex flex-col gap-3 rounded-xl border border-neutral-100 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
             >
               <div className="flex items-center gap-3 min-w-0">
                 <span className="shrink-0">
@@ -294,7 +294,7 @@ export default function EvidencePage() {
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-2 ml-2">
+              <div className="ml-0 flex items-center gap-2 sm:ml-2">
                 {item.status === "error" && (
                   <button
                     onClick={() => void uploadItem(item)}
@@ -319,7 +319,7 @@ export default function EvidencePage() {
           <button
             onClick={uploadAll}
             disabled={uploadInProgress || uploadableCount === 0}
-            className="mt-2 px-5 py-2.5 rounded-full bg-neutral-900 text-white text-sm font-medium disabled:opacity-50 hover:bg-neutral-700 transition-colors w-fit"
+            className="mt-2 w-full rounded-full bg-neutral-900 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-neutral-700 disabled:opacity-50 sm:w-fit"
           >
             {uploadInProgress
               ? "Uploading…"

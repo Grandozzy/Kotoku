@@ -89,8 +89,8 @@ def _charge_success_payload(account, plan_id: str, event_id: str) -> dict:
 
 @pytest.mark.django_db
 @override_settings(PAYSTACK_WEBHOOK_SECRET=_WEBHOOK_SECRET)
-@patch("apps.payments.tasks._notify")
-@patch("apps.payments.tasks._notify_email")
+@patch("apps.payments.services.PaymentService._notify")
+@patch("apps.payments.services.PaymentService._notify_email")
 def test_valid_webhook_charge_success_promotes_plan(mock_email, mock_sms):
     """
     POST a valid charge.success webhook → task runs eagerly →
@@ -152,8 +152,8 @@ def test_invalid_signature_does_not_promote_plan():
 
 @pytest.mark.django_db
 @override_settings(PAYSTACK_WEBHOOK_SECRET=_WEBHOOK_SECRET)
-@patch("apps.payments.tasks._notify")
-@patch("apps.payments.tasks._notify_email")
+@patch("apps.payments.services.PaymentService._notify")
+@patch("apps.payments.services.PaymentService._notify_email")
 def test_replayed_webhook_does_not_double_promote(mock_email, mock_sms):
     """
     The same event_id posted twice must be a no-op on the second delivery.

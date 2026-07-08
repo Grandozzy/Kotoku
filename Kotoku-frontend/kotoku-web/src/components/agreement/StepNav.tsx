@@ -105,7 +105,7 @@ export function StepNav({ agreement }: { agreement: Agreement }) {
   const steps = getSteps(agreement.id);
 
   return (
-    <nav className="flex flex-col gap-1">
+    <nav className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-1 lg:mx-0 lg:flex-col lg:px-0 lg:pb-0">
       {steps.map((step, i) => {
         const done = step.check(agreement);
         const isBlocked = done === "blocked";
@@ -116,7 +116,7 @@ export function StepNav({ agreement }: { agreement: Agreement }) {
             key={step.href}
             href={isBlocked ? "#" : step.href}
             aria-disabled={isBlocked}
-            className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+            className={`inline-flex shrink-0 items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors lg:flex ${
               isActive
                 ? "bg-neutral-100 text-neutral-900"
                 : isBlocked

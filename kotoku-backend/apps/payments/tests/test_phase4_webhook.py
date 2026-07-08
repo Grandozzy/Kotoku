@@ -158,7 +158,7 @@ def test_webhook_missing_event_id_returns_400():
 
 
 @pytest.mark.django_db
-@patch("apps.payments.tasks._notify")
+@patch("apps.payments.services.PaymentService._notify")
 def test_charge_success_activates_plan(mock_notify):
     account = _make_account(plan="personal_basic")
     SubscriptionCheckout.objects.create(
@@ -197,8 +197,8 @@ def test_charge_success_activates_plan(mock_notify):
 
 
 @pytest.mark.django_db
-@patch("apps.payments.tasks._notify")
-@patch("apps.payments.tasks._notify_email")
+@patch("apps.payments.services.PaymentService._notify")
+@patch("apps.payments.services.PaymentService._notify_email")
 def test_charge_success_without_plan_reactivates_recovery_checkout(mock_email, mock_notify):
     account = _make_account(plan="personal_plus")
     sub = Subscription.objects.create(

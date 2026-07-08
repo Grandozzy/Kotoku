@@ -1,10 +1,10 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
-import { FileText, Image as ImageIcon, Pencil } from "lucide-react-native";
+import { CircleCheckBig, FileText, Image as ImageIcon, Pencil } from "lucide-react-native";
 import { Image, Pressable, ScrollView, Text, View } from "react-native";
 
 import { listEvidence, type EvidenceItemResponse } from "@/api/evidence";
-import { Button } from "@/components/ui";
+import { Button, NoticeCard } from "@/components/ui";
 import { useAgreementStore, STEPS } from "@/features/agreements/agreementStore";
 import { useTemplate } from "@/features/agreements/useAgreementDraft";
 import { colors } from "@/theme/tokens";
@@ -50,12 +50,22 @@ export default function ReviewStep() {
       contentContainerClassName="px-lg py-xl gap-xl"
       contentContainerStyle={{ paddingBottom: 60 }}
     >
-      <Text className="text-xl font-semibold text-ink-primary">
-        Review your agreement
-      </Text>
-      <Text className="text-sm text-ink-secondary -mt-md">
-        Check all details before requesting consent codes.
-      </Text>
+      <View className="gap-md rounded-3xl bg-ink-primary p-lg">
+        <View className="flex-row items-start gap-md">
+          <View className="h-11 w-11 items-center justify-center rounded-2xl bg-white/10">
+            <CircleCheckBig size={22} color="#fff" strokeWidth={1.8} />
+          </View>
+          <View className="flex-1 gap-xs">
+            <Text className="text-[11px] font-semibold uppercase tracking-[2px] text-white/60">
+              Step 4
+            </Text>
+            <Text className="text-xl font-semibold text-white">Review the final record</Text>
+            <Text className="text-sm leading-relaxed text-white/75">
+              This is the moment to catch anything wrong before consent codes go out and the agreement becomes locked.
+            </Text>
+          </View>
+        </View>
+      </View>
 
       {/* Parties */}
       <Section
@@ -119,6 +129,13 @@ export default function ReviewStep() {
           </Text>
         )}
       </Section>
+
+      <NoticeCard
+        variant="warning"
+        title="Next: consent codes"
+        body="Once you proceed, the agreement moves into consent and details should no longer be treated as editable. Check names, numbers, dates, and photos carefully now."
+        compact
+      />
 
       <View className="flex-row gap-sm">
         {stepIndex > 0 && (

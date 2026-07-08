@@ -13,9 +13,12 @@ interface StepProgressProps {
 export function StepProgress({ currentIndex, onStepPress }: StepProgressProps) {
   return (
     <View
-      className="items-center bg-surface-card border-b border-border-subtle"
-      style={{ paddingTop: 8, paddingBottom: 12 }}
+      className="items-center border-b border-border-subtle bg-surface-card"
+      style={{ paddingTop: 10, paddingBottom: 14 }}
     >
+      <Text className="mb-sm text-[11px] font-semibold uppercase tracking-[2px] text-ink-muted">
+        Agreement flow
+      </Text>
       <View className="flex-row items-center">
         {STEP_LABELS.map((label, idx) => {
           const done = idx < currentIndex;
@@ -36,7 +39,7 @@ export function StepProgress({ currentIndex, onStepPress }: StepProgressProps) {
               >
                 <View
                   className={[
-                    "w-7 h-7 rounded-pill items-center justify-center",
+                    "h-8 w-8 rounded-pill items-center justify-center",
                     done
                       ? "bg-brand-primary"
                       : active
@@ -58,7 +61,7 @@ export function StepProgress({ currentIndex, onStepPress }: StepProgressProps) {
                 </View>
                 <Text
                   className={[
-                    "text-xs mt-xs",
+                    "mt-xs text-[11px]",
                     active ? "text-brand-primary font-semibold" : "text-ink-muted",
                   ].join(" ")}
                   numberOfLines={1}
@@ -70,7 +73,7 @@ export function StepProgress({ currentIndex, onStepPress }: StepProgressProps) {
               {idx < STEP_LABELS.length - 1 && (
                 <View
                   className={[
-                    "h-px w-6 mx-xs mb-4",
+                    "mb-4 mx-sm h-px w-6",
                     done ? "bg-brand-primary" : "bg-border-subtle",
                   ].join(" ")}
                 />

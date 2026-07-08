@@ -1,7 +1,8 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { Camera, Images } from "lucide-react-native";
 import { ScrollView, Text, View } from "react-native";
 
-import { Button, ScreenLoader } from "@/components/ui";
+import { Button, NoticeCard, ScreenLoader } from "@/components/ui";
 import { PhotoSlot } from "@/components/evidence/PhotoSlot";
 import { useAgreementStore, STEPS } from "@/features/agreements/agreementStore";
 import { useEvidenceUpload } from "@/features/evidence/useEvidenceUpload";
@@ -42,8 +43,25 @@ export default function EvidenceStep() {
       contentContainerClassName="px-lg py-xl gap-xl"
       contentContainerStyle={{ paddingBottom: 60 }}
     >
+      <View className="gap-md rounded-3xl bg-ink-primary p-lg">
+        <View className="flex-row items-start gap-md">
+          <View className="h-11 w-11 items-center justify-center rounded-2xl bg-white/10">
+            <Images size={22} color="#fff" strokeWidth={1.8} />
+          </View>
+          <View className="flex-1 gap-xs">
+            <Text className="text-[11px] font-semibold uppercase tracking-[2px] text-white/60">
+              Step 3
+            </Text>
+            <Text className="text-xl font-semibold text-white">Capture the evidence</Text>
+            <Text className="text-sm leading-relaxed text-white/75">
+              Add clear photos that show the asset, its condition, and anything either party may later rely on.
+            </Text>
+          </View>
+        </View>
+      </View>
+
       {/* Photos */}
-      <View className="gap-md">
+      <View className="gap-md rounded-2xl border border-border-subtle bg-surface-card p-lg">
         <View>
           <Text className="text-lg font-semibold text-ink-primary">Photos</Text>
           <Text className="text-sm text-ink-secondary mt-xs">
@@ -82,18 +100,22 @@ export default function EvidenceStep() {
       </View>
 
       {error && (
-        <View className="bg-rose-50 border border-rose-100 rounded-xl p-md gap-xs">
-          <Text className="text-sm font-semibold text-rose-800">
-            Evidence upload needs attention
-          </Text>
-          <Text className="text-xs text-rose-700 leading-relaxed">{error}</Text>
-        </View>
+        <NoticeCard
+          variant="error"
+          title="Evidence upload needs attention"
+          body={error}
+          compact
+        />
       )}
 
       {!canProceed && (
-        <Text className="text-xs text-ink-muted text-center">
-          Upload at least {minimumPhotoCount} photo{minimumPhotoCount !== 1 ? "s" : ""} to continue.
-        </Text>
+        <NoticeCard
+          variant="info"
+          icon={Camera}
+          title="What to capture"
+          body={`Upload at least ${minimumPhotoCount} photo${minimumPhotoCount !== 1 ? "s" : ""}. Prioritize clear wide shots, visible defects, and identifying details.`}
+          compact
+        />
       )}
 
       <View className="flex-row gap-sm">

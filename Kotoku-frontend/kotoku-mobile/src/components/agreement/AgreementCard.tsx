@@ -1,5 +1,5 @@
 import { useRouter } from "expo-router";
-import { ChevronRight } from "lucide-react-native";
+import { ChevronRight, FileText } from "lucide-react-native";
 import { Pressable, Text, View } from "react-native";
 
 import { Badge } from "@/components/ui";
@@ -50,9 +50,12 @@ export function AgreementCard({ agreement }: AgreementCardProps) {
       onPress={() => router.push(`/agreement/${agreement.id}/steps/review`)}
       accessibilityRole="button"
       accessibilityLabel={`Open agreement ${agreement.title}`}
-      className="bg-surface-card rounded-lg p-lg flex-row items-center justify-between border border-border-subtle active:opacity-70"
+      className="bg-surface-card rounded-2xl p-lg flex-row items-center justify-between border border-border-subtle active:opacity-70"
     >
-      <View className="flex-1 gap-xs mr-md">
+      <View className="flex-1 gap-sm mr-md">
+        <View className="w-11 h-11 rounded-2xl bg-brand-primary/10 items-center justify-center">
+          <FileText size={18} color={colors.brandPrimary} />
+        </View>
         <Text className="text-md font-semibold text-ink-primary" numberOfLines={1}>
           {agreement.title}
         </Text>

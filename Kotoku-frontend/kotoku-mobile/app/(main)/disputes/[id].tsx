@@ -3,7 +3,7 @@ import { Pressable, ScrollView, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { Card, EmptyState, ScreenLoader } from "@/components/ui";
+import { Card, EmptyState, NoticeCard, ScreenLoader } from "@/components/ui";
 import { useDisputeDetail } from "@/hooks/useDisputes";
 import { colors } from "@/theme/tokens";
 
@@ -58,18 +58,33 @@ export default function DisputeDetailScreen() {
       contentContainerClassName="px-lg pb-2xl gap-lg"
       contentContainerStyle={{ paddingTop: insets.top + 12 }}
     >
-      {/* Header */}
-      <View className="flex-row items-center gap-md">
-        <Pressable onPress={() => router.back()} className="p-sm -ml-sm active:opacity-70">
-          <ChevronLeft size={24} color={colors.inkPrimary} strokeWidth={1.8} />
-        </Pressable>
-        <Text className="text-2xl font-semibold text-ink-primary flex-1">Dispute</Text>
-        <View className={`px-md py-xs rounded-full ${config.bg}`}>
-          <Text className={`text-xs font-semibold ${config.text}`}>{config.label}</Text>
+      <View className="gap-md">
+        <View className="flex-row items-center gap-md">
+          <Pressable onPress={() => router.back()} className="p-sm -ml-sm active:opacity-70">
+            <ChevronLeft size={24} color={colors.inkPrimary} strokeWidth={1.8} />
+          </Pressable>
+          <Text className="text-2xl font-semibold text-ink-primary flex-1">Dispute</Text>
+          <View className={`px-md py-xs rounded-full ${config.bg}`}>
+            <Text className={`text-xs font-semibold ${config.text}`}>{config.label}</Text>
+          </View>
+        </View>
+
+        <View className="bg-surface-card rounded-3xl border border-border-subtle p-lg gap-md">
+          <View className="w-12 h-12 rounded-2xl bg-brand-primary/10 items-center justify-center">
+            <AlertCircle size={22} color={colors.brandPrimary} />
+          </View>
+          <View className="gap-xs">
+            <Text className="text-lg font-semibold text-ink-primary">
+              {dispute.agreement_type}
+            </Text>
+            <Text className="text-sm leading-relaxed text-ink-secondary">
+              Raised by {dispute.raised_by_display_name}. Kotoku keeps the dispute
+              reason and any final resolution attached to the sealed agreement record.
+            </Text>
+          </View>
         </View>
       </View>
 
-      {/* Details card */}
       <Card elevation="sm">
         <View className="gap-lg">
           <DetailRow label="Agreement" value={dispute.agreement_type} />
@@ -85,7 +100,6 @@ export default function DisputeDetailScreen() {
         </View>
       </Card>
 
-      {/* Reason card */}
       <View className="gap-sm">
         <Text className="text-xs font-semibold text-ink-muted uppercase tracking-widest">
           Reason
@@ -95,24 +109,21 @@ export default function DisputeDetailScreen() {
         </Card>
       </View>
 
-      {/* Resolution (if any) */}
       {dispute.resolution && (
-        <View className="gap-sm">
-          <Text className="text-xs font-semibold text-semantic-success uppercase tracking-widest">
-            Resolution
-          </Text>
-          <View className="bg-semantic-success/10 rounded-xl px-lg py-md border border-semantic-success/20">
-            <Text className="text-md text-ink-primary leading-relaxed">{dispute.resolution}</Text>
-            {dispute.resolved_at && (
-              <Text className="text-xs text-ink-muted mt-sm">
-                Resolved{" "}
-                {new Date(dispute.resolved_at).toLocaleDateString("en-GH", {
-                  day: "numeric", month: "long", year: "numeric",
-                })}
-              </Text>
-            )}
-          </View>
-        </View>
+        <NoticeCard
+          variant="success"
+          title="Resolution"
+          body={dispute.resolution}
+          footer={
+            dispute.resolved_at
+              ? `Resolved ${new Date(dispute.resolved_at).toLocaleDateString("en-GH", {
+                  day: "numeric",
+                  month: "long",
+                  year: "numeric",
+                })}`
+              : undefined
+          }
+        />
       )}
     </ScrollView>
   );

@@ -1,10 +1,11 @@
-import { ChevronLeft } from "lucide-react-native";
+import { ChevronLeft, ShieldCheck, Sparkles } from "lucide-react-native";
 import { Linking, Pressable, ScrollView, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { colors } from "@/theme/tokens";
 import { KotokuLogo } from "@/components/brand/KotokuLogo";
+import { NoticeCard } from "@/components/ui";
 
 const VERSION = "1.0.0";
 
@@ -27,9 +28,17 @@ export default function AboutScreen() {
       </View>
 
       {/* Logo block */}
-      <View className="items-center gap-md py-lg">
+      <View className="items-center gap-md rounded-3xl bg-ink-primary px-lg py-2xl">
         <KotokuLogo variant="stacked" size={80} color="navy" />
-        <Text className="text-sm text-ink-muted">Version {VERSION}</Text>
+        <View className="items-center gap-xs">
+          <Text className="text-[11px] font-semibold uppercase tracking-[2px] text-white/55">
+            Kotoku mobile
+          </Text>
+          <Text className="text-xl font-semibold text-white">Version {VERSION}</Text>
+          <Text className="text-sm text-center leading-relaxed text-white/70">
+            Built to turn informal agreements into reliable evidence-backed records.
+          </Text>
+        </View>
       </View>
 
       {/* Mission */}
@@ -59,18 +68,25 @@ export default function AboutScreen() {
         </Text>
       </View>
 
+      <NoticeCard
+        variant="info"
+        icon={Sparkles}
+        title="What makes Kotoku different"
+        body="Kotoku is not just storage. It ties together identity, timestamps, evidence, OTP consent, and a tamper-evident vault so a dispute has a real record behind it."
+      />
+
       {/* Links */}
       <View className="gap-sm">
         <Pressable
           onPress={() => Linking.openURL("https://www.kotoku-app.com/legal")}
-          className="bg-surface-card rounded-xl border border-border-subtle px-lg py-md flex-row justify-between items-center active:opacity-70"
+          className="bg-surface-card rounded-2xl border border-border-subtle px-lg py-md flex-row justify-between items-center active:opacity-70"
         >
           <Text className="text-md text-ink-primary">Terms & Privacy Policy</Text>
           <Text className="text-ink-muted">›</Text>
         </Pressable>
         <Pressable
           onPress={() => Linking.openURL("https://www.kotoku-app.com")}
-          className="bg-surface-card rounded-xl border border-border-subtle px-lg py-md flex-row justify-between items-center active:opacity-70"
+          className="bg-surface-card rounded-2xl border border-border-subtle px-lg py-md flex-row justify-between items-center active:opacity-70"
         >
           <Text className="text-md text-ink-primary">www.kotoku-app.com</Text>
           <Text className="text-ink-muted">›</Text>

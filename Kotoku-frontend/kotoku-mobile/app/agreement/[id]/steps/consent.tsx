@@ -11,8 +11,9 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { Button, OTPInput, ScreenLoader } from "@/components/ui";
+import { Button, NoticeCard, OTPInput, ScreenLoader } from "@/components/ui";
 import { useAgreementStore, type PartyDraft } from "@/features/agreements/agreementStore";
+import { getCapReachedMessage } from "@/features/billing/capReached";
 import {
   useConfirmOtp,
   useConsentStatus,
@@ -160,16 +161,12 @@ export default function ConsentStep() {
           Both parties must confirm with a one-time code sent to their phone
           before the agreement can be sealed.
         </Text>
-        <View className="bg-blue-50 border border-blue-100 rounded-xl p-md gap-xs">
-          <Text className="text-sm font-semibold text-blue-900">
-            Each party confirms with their own OTP.
-          </Text>
-          <Text className="text-xs text-blue-800 leading-relaxed">
-            The creator receives an OTP only. The other party receives their OTP
-            plus a secure review link, so they can confirm without installing the
-            app.
-          </Text>
-        </View>
+        <NoticeCard
+          variant="info"
+          title="Each party confirms with their own OTP"
+          body="The creator receives an OTP only. The other party receives their OTP plus a secure review link, so they can confirm without installing the app."
+          compact
+        />
       </View>
 
       {!otpsSent && (
@@ -184,9 +181,12 @@ export default function ConsentStep() {
       )}
 
       {requestOtp.isError && (!otpsSent || consentExpired) && (
-        <Text className="text-sm text-semantic-error text-center">
-          {getApiErrorMessage(requestOtp.error)}
-        </Text>
+        <NoticeCard
+          variant="error"
+          title="Could not request consent codes"
+          body={getApiErrorMessage(requestOtp.error)}
+          compact
+        />
       )}
 
       <ConsentProgressCard
@@ -200,80 +200,76 @@ export default function ConsentStep() {
       />
 
       {otpsSent && !bothConfirmed && (
-        <View className="bg-surface-card border border-border-subtle rounded-xl p-md gap-sm">
-          <View className="flex-row items-center gap-sm">
-            <RefreshCw size={16} color={colors.inkSecondary} strokeWidth={2} />
-            <Text className="text-sm font-semibold text-ink-primary flex-1">
-              Waiting for consent updates
-            </Text>
-          </View>
-          <Text className="text-xs text-ink-secondary leading-relaxed">
-            Kotoku checks automatically. Pull down or tap refresh after the
-            other party confirms from their link.
-          </Text>
-          <Button
-            title="Refresh consent status"
-            variant="secondary"
-            size="md"
-            fullWidth
-            loading={consentStatus.isFetching}
-            onPress={() => consentStatus.refetch()}
-          />
-        </View>
+        <NoticeCard
+          variant="info"
+          icon={RefreshCw}
+          title="Waiting for consent updates"
+          body="Kotoku checks automatically. Pull down or tap refresh after the other party confirms from their link."
+          footer={
+            <Button
+              title="Refresh consent status"
+              variant="secondary"
+              size="md"
+              fullWidth
+              loading={consentStatus.isFetching}
+              onPress={() => consentStatus.refetch()}
+            />
+          }
+        />
       )}
 
       {consentStatus.isError && (
-        <View className="bg-rose-50 border border-rose-100 rounded-xl p-md gap-sm">
-          <Text className="text-sm font-semibold text-rose-800">
-            Could not refresh consent status
-          </Text>
-          <Text className="text-xs text-rose-700 leading-relaxed">
-            {getApiErrorMessage(consentStatus.error)}
-          </Text>
-          <Button
-            title="Try again"
-            variant="secondary"
-            size="md"
-            fullWidth
-            loading={consentStatus.isFetching}
-            onPress={() => consentStatus.refetch()}
-          />
-        </View>
+        <NoticeCard
+          variant="error"
+          title="Could not refresh consent status"
+          body={getApiErrorMessage(consentStatus.error)}
+          footer={
+            <Button
+              title="Try again"
+              variant="secondary"
+              size="md"
+              fullWidth
+              loading={consentStatus.isFetching}
+              onPress={() => consentStatus.refetch()}
+            />
+          }
+        />
       )}
 
       {consentExpired && (
-        <View className="bg-amber-50 border border-amber-200 rounded-xl p-md gap-md">
-          <Text className="text-sm text-amber-900 leading-relaxed">
-            These consent codes have expired. Request new codes so both parties
-            can confirm within the active OTP window.
-          </Text>
-          <Button
-            title="Request new consent codes"
-            variant="primary"
-            size="md"
-            fullWidth
-            loading={requestOtp.isPending}
-            onPress={() => handleRequestCodes(false)}
-          />
-        </View>
+        <NoticeCard
+          variant="warning"
+          title="Consent codes expired"
+          body="Request new codes so both parties can confirm within the active OTP window."
+          footer={
+            <Button
+              title="Request new consent codes"
+              variant="primary"
+              size="md"
+              fullWidth
+              loading={requestOtp.isPending}
+              onPress={() => handleRequestCodes(false)}
+            />
+          }
+        />
       )}
 
       {otpsSent && (
-        <View className="bg-surface-subtle border border-border-subtle rounded-xl p-md">
-          <Text className="text-sm text-ink-secondary leading-relaxed">
-            Consent has started, so agreement details are locked. If something is
-            wrong, do not confirm; restart the agreement with corrected details.
-          </Text>
-        </View>
+        <NoticeCard
+          variant="info"
+          title="Agreement details are now locked"
+          body="Consent has started, so if something is wrong, do not confirm. Restart the agreement with corrected details."
+          compact
+        />
       )}
 
       {activeOtpsSent && !currentParty && (
-        <View className="bg-amber-50 border border-amber-200 rounded-xl p-md">
-          <Text className="text-sm text-amber-800 leading-relaxed">
-            This signed-in phone is not one of the pending parties. Sign in with
-            the phone number that received the OTP to confirm consent.
-          </Text>
-        </View>
+        <NoticeCard
+          variant="warning"
+          title="Wrong signed-in phone"
+          body="Sign in with the phone number that received the OTP to confirm consent."
+          compact
+        />
       )}
 
       {activeOtpsSent && currentParty === "A" && (
@@ -311,21 +307,21 @@ export default function ConsentStep() {
       )}
 
       {activeOtpsSent && currentParty && currentPartyConfirmed && !bothConfirmed && (
-        <View className="bg-emerald-50 border border-emerald-100 rounded-xl p-md">
-          <Text className="text-sm text-emerald-800 leading-relaxed">
-            Your consent is confirmed. Waiting for {otherPartyRole} to enter
-            their OTP before this agreement can be sealed.
-          </Text>
-        </View>
+        <NoticeCard
+          variant="success"
+          title="Your consent is confirmed"
+          body={`Waiting for ${otherPartyRole} to enter their OTP before this agreement can be sealed.`}
+          compact
+        />
       )}
 
       {activeOtpsSent && currentParty && !currentPartyConfirmed && !bothConfirmed && (
-        <View className="bg-blue-50 border border-blue-100 rounded-xl p-md">
-          <Text className="text-sm text-blue-800 leading-relaxed">
-            Enter the OTP sent to your phone. The agreement can only be sealed
-            after both parties have confirmed.
-          </Text>
-        </View>
+        <NoticeCard
+          variant="info"
+          title="Enter your OTP"
+          body="The agreement can only be sealed after both parties have confirmed."
+          compact
+        />
       )}
 
       {activeOtpsSent && !currentParty && onlyPartyAConfirmed && !bothConfirmed && (
@@ -347,21 +343,37 @@ export default function ConsentStep() {
 
           {/* Cap-reached blocker */}
           {capReached ? (
-            <View className="bg-amber-50 border border-amber-200 rounded-xl p-lg gap-sm">
-              <View className="flex-row items-center gap-sm">
-                <TrendingUp size={16} color="#d97706" strokeWidth={2} />
-                <Text className="text-sm font-semibold text-amber-900 flex-1">
-                  Monthly sealing limit reached
-                </Text>
-              </View>
-              <Text className="text-xs text-amber-700 leading-relaxed">
-                You&apos;ve used all {plan?.plan.max_agreements_per_month} seals for this
-                month on {plan?.plan.name ?? "your plan"}.
-                {upgradeOption
-                  ? ` Upgrade to ${upgradeOption.name} (${upgradeOption.price_amount_monthly} GHS/mo) for up to ${upgradeOption.max_agreements_per_month} seals.`
-                  : " Wait until next month or upgrade your plan."}
-              </Text>
-            </View>
+            <NoticeCard
+              variant="warning"
+              icon={TrendingUp}
+              title="Monthly sealing limit reached"
+              body={
+                plan
+                  ? getCapReachedMessage(plan, upgradeOption)
+                  : "Your monthly sealing limit has been reached. Upgrade now or wait until next month."
+              }
+              footer={
+                <View className="gap-sm">
+                  {upgradeOption ? (
+                    <Button
+                      title={`Upgrade to ${upgradeOption.name}`}
+                      variant="primary"
+                      size="md"
+                      fullWidth
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                      onPress={() => router.push("/(main)/plans" as any)}
+                    />
+                  ) : null}
+                  <Button
+                    title="Wait until next month"
+                    variant="secondary"
+                    size="md"
+                    fullWidth
+                    onPress={() => router.back()}
+                  />
+                </View>
+              }
+            />
           ) : (
             <Button
               title="Seal agreement"
@@ -374,9 +386,12 @@ export default function ConsentStep() {
           )}
 
           {sealMutation.isError && !capReached && (
-            <Text className="text-sm text-semantic-error text-center">
-              {getApiErrorMessage(sealMutation.error)}
-            </Text>
+            <NoticeCard
+              variant="error"
+              title="Could not seal agreement"
+              body={getApiErrorMessage(sealMutation.error)}
+              compact
+            />
           )}
         </View>
       )}

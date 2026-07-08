@@ -14,15 +14,18 @@ function ReeditHeader({ onExit }: { onExit: () => void }) {
 
   return (
     <View
-      className="flex-row items-center px-lg bg-surface-card"
-      style={{ paddingTop: insets.top + 12, paddingBottom: 5 }}
+      className="flex-row items-center border-b border-border-subtle bg-surface-card px-lg"
+      style={{ paddingTop: insets.top + 12, paddingBottom: 8 }}
     >
-      <Pressable onPress={onExit} className="p-xs">
+      <Pressable onPress={onExit} className="h-9 w-9 items-center justify-center rounded-full bg-surface-canvas">
         <ChevronLeft size={24} color={colors.inkPrimary} />
       </Pressable>
-      <Text className="text-md font-semibold text-ink-primary flex-1 text-center mr-xl">
-        Edit agreement
-      </Text>
+      <View className="flex-1 px-md">
+        <Text className="text-[11px] font-semibold uppercase tracking-[2px] text-ink-muted">
+          Reopen
+        </Text>
+        <Text className="text-md font-semibold text-ink-primary">Edit agreement</Text>
+      </View>
     </View>
   );
 }
@@ -32,15 +35,18 @@ function FormHeader({ onExit }: { onExit: () => void }) {
 
   return (
     <View
-      className="flex-row items-center px-lg bg-surface-card"
-      style={{ paddingTop: insets.top + 12, paddingBottom: 5 }}
+      className="flex-row items-center border-b border-border-subtle bg-surface-card px-lg"
+      style={{ paddingTop: insets.top + 12, paddingBottom: 8 }}
     >
-      <Pressable onPress={onExit} className="p-xs">
+      <Pressable onPress={onExit} className="h-9 w-9 items-center justify-center rounded-full bg-surface-canvas">
         <ChevronLeft size={24} color={colors.inkPrimary} />
       </Pressable>
-      <Text className="text-md font-semibold text-ink-primary flex-1 text-center mr-xl">
-        New Agreement
-      </Text>
+      <View className="flex-1 px-md">
+        <Text className="text-[11px] font-semibold uppercase tracking-[2px] text-ink-muted">
+          Draft
+        </Text>
+        <Text className="text-md font-semibold text-ink-primary">New agreement</Text>
+      </View>
     </View>
   );
 }

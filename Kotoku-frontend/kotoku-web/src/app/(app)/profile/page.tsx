@@ -51,10 +51,10 @@ function EditableField({
   const cancel = () => { setDraft(value); setEditing(false); };
 
   return (
-    <div className="flex items-center justify-between px-4 py-3 gap-4">
-      <span className="text-sm text-neutral-500 w-32 shrink-0">{label}</span>
+    <div className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+      <span className="w-full shrink-0 text-sm text-neutral-500 sm:w-32">{label}</span>
       {editing ? (
-        <div className="flex items-center gap-2 flex-1">
+        <div className="flex w-full items-center gap-2 sm:flex-1">
           <input
             autoFocus
             type={type}
@@ -80,7 +80,7 @@ function EditableField({
         <button
           onClick={() => { setDraft(value); setEditing(true); }}
           disabled={isSaving}
-          className="flex items-center gap-2 flex-1 justify-end group text-right disabled:opacity-60"
+          className="group flex w-full items-center gap-2 text-left disabled:opacity-60 sm:flex-1 sm:justify-end sm:text-right"
         >
           <span className={`text-sm font-medium ${value ? "text-neutral-800" : "text-neutral-400"}`}>
             {isSaving ? "Saving…" : (value || placeholder)}
@@ -215,16 +215,16 @@ export default function ProfilePage() {
           </div>
 
           {renewalDate && (
-            <div className="flex items-center justify-between px-4 py-3">
+            <div className="flex flex-col gap-1 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
               <span className="text-sm text-neutral-500">Billing period ends</span>
               <span className="text-sm font-medium text-neutral-700">{renewalDate}</span>
             </div>
           )}
 
           {showUsage && (
-            <div className="flex items-center justify-between px-4 py-3">
+            <div className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
               <span className="text-sm text-neutral-500">Seals this month</span>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 sm:justify-end">
                 <div className="w-24 h-1.5 rounded-full bg-neutral-100 overflow-hidden">
                   <div
                     className={`h-full rounded-full transition-all ${
@@ -260,7 +260,7 @@ export default function ProfilePage() {
           )}
 
           {plan?.flags.show_upgrade_recommendation && plan.recommended_upgrades[0] && (
-            <div className="flex items-center gap-3 px-4 py-3 bg-amber-50">
+            <div className="flex flex-col gap-3 bg-amber-50 px-4 py-3 sm:flex-row sm:items-center">
               <TrendingUp size={14} className="text-amber-600 shrink-0" strokeWidth={2} />
               <span className="text-xs text-amber-700 flex-1">
                 Upgrade to <strong>{plan.recommended_upgrades[0].name}</strong> for more seals and longer retention.

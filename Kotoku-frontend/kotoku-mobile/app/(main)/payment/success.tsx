@@ -4,7 +4,7 @@ import { CheckCircle, Zap } from "lucide-react-native";
 import { useEffect } from "react";
 import { Text, View } from "react-native";
 
-import { Button } from "@/components/ui";
+import { Button, NoticeCard } from "@/components/ui";
 import { colors } from "@/theme/tokens";
 
 // Plan ID → display name map for the confirmation message.
@@ -40,22 +40,21 @@ export default function PaymentSuccessScreen() {
 
       <View className="items-center gap-sm">
         <Text className="text-2xl font-semibold text-ink-primary text-center">
-          Payment received
+          Upgrade confirmed
         </Text>
         <Text className="text-md text-ink-secondary text-center leading-relaxed">
           Your <Text className="font-semibold text-ink-primary">{planName}</Text> subscription
-          is being activated. This usually takes a few seconds.
+          is now active.
         </Text>
       </View>
 
       {/* Activation note */}
-      <View className="bg-green-50 border border-green-200 rounded-2xl px-lg py-md flex-row items-start gap-sm w-full">
-        <Zap size={16} color="#16a34a" strokeWidth={2} style={{ marginTop: 2 }} />
-        <Text className="text-sm text-green-800 flex-1 leading-relaxed">
-          You'll see your updated plan and new seal limit as soon as activation
-          is confirmed. Pull to refresh on the home screen if it hasn't updated yet.
-        </Text>
-      </View>
+      <NoticeCard
+        variant="success"
+        icon={Zap}
+        title="Billing confirmed"
+        body="If the home screen still shows old usage, open it once and Kotoku will refresh the latest plan details."
+      />
 
       <View className="w-full gap-md">
         <Button

@@ -9,10 +9,11 @@ import {
   Sparkles,
   Zap,
 } from "lucide-react-native";
-import { Alert, Pressable, ScrollView, Text, View } from "react-native";
+import { Pressable, ScrollView, Text, View } from "react-native";
+import { useState } from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { Card, ErrorState, ScreenLoader } from "@/components/ui";
+import { BottomSheet, Button, Card, ErrorState, NoticeCard, ScreenLoader } from "@/components/ui";
 import { useCancelSubscription, useRecoverPayment } from "@/features/billing/usePayment";
 import { useSubscription } from "@/features/billing/useSubscription";
 import { getApiErrorMessage } from "@/lib/errorHandler";
@@ -49,6 +50,7 @@ export default function SubscriptionScreen() {
   const { data: sub, isError, isLoading, refetch } = useSubscription();
   const { mutate: cancel, isPending: cancelling, error: cancelError } = useCancelSubscription();
   const { mutate: recover, isPending: recovering, error: recoveryError } = useRecoverPayment();
+  const [cancelSheetVisible, setCancelSheetVisible] = useState(false);
 
   if (isLoading) return <ScreenLoader />;
 
@@ -68,18 +70,7 @@ export default function SubscriptionScreen() {
   }
 
   function handleCancel() {
-    Alert.alert(
-      "Cancel subscription?",
-      "You'll keep access to your current plan until the end of the billing period. After that, your account moves to Personal Basic.",
-      [
-        { text: "Keep subscription", style: "cancel" },
-        {
-          text: "Cancel subscription",
-          style: "destructive",
-          onPress: () => cancel(),
-        },
-      ]
-    );
+    setCancelSheetVisible(true);
   }
 
   // No active subscription
@@ -146,23 +137,21 @@ export default function SubscriptionScreen() {
 
       {/* Cancellation warning banner */}
       {isCancelling && periodEnd && (
-        <View className="bg-amber-50 border border-amber-200 rounded-xl px-lg py-md flex-row items-start gap-sm">
-          <AlertCircle size={16} color="#d97706" strokeWidth={2} style={{ marginTop: 2 }} />
-          <Text className="text-sm text-amber-800 flex-1 leading-relaxed">
-            Your subscription is set to cancel on{" "}
-            <Text className="font-semibold">{periodEnd}</Text>. You'll keep
-            full access until then.
-          </Text>
-        </View>
+        <NoticeCard
+          variant="warning"
+          icon={AlertCircle}
+          title="Cancellation scheduled"
+          body={`Your subscription is set to cancel on ${periodEnd}. You'll keep full access until then.`}
+        />
       )}
 
       {isPastDue && (
-        <View className="bg-red-50 border border-red-200 rounded-xl px-lg py-md flex-row items-start gap-sm">
-          <AlertCircle size={16} color="#dc2626" strokeWidth={2} style={{ marginTop: 2 }} />
-          <Text className="text-sm text-red-800 flex-1 leading-relaxed">
-            Your last renewal payment failed. Pay now with card or Mobile Money to reactivate this subscription.
-          </Text>
-        </View>
+        <NoticeCard
+          variant="error"
+          icon={AlertCircle}
+          title="Renewal payment failed"
+          body="Pay now with card or Mobile Money to reactivate this subscription."
+        />
       )}
 
       {/* Subscription details card */}
@@ -211,15 +200,21 @@ export default function SubscriptionScreen() {
 
       {/* Cancel error */}
       {!!cancelError && (
-        <View className="bg-red-50 border border-red-200 rounded-xl px-lg py-md">
-          <Text className="text-sm text-red-700">{getApiErrorMessage(cancelError)}</Text>
-        </View>
+        <NoticeCard
+          variant="error"
+          title="Could not cancel subscription"
+          body={getApiErrorMessage(cancelError)}
+          compact
+        />
       )}
 
       {!!recoveryError && (
-        <View className="bg-red-50 border border-red-200 rounded-xl px-lg py-md">
-          <Text className="text-sm text-red-700">{getApiErrorMessage(recoveryError)}</Text>
-        </View>
+        <NoticeCard
+          variant="error"
+          title="Recovery payment could not start"
+          body={getApiErrorMessage(recoveryError)}
+          compact
+        />
       )}
 
       {/* Actions */}
@@ -281,6 +276,37 @@ export default function SubscriptionScreen() {
           </Pressable>
         )}
       </View>
+
+      <BottomSheet
+        visible={cancelSheetVisible}
+        onClose={() => setCancelSheetVisible(false)}
+        title="Cancel subscription?"
+        body="You'll keep access to your current plan until the end of the billing period. After that, your account moves to Personal Basic."
+        icon={AlertCircle}
+        tone="danger"
+        footer={
+          <>
+            <Button
+              title="Keep subscription"
+              variant="secondary"
+              size="lg"
+              fullWidth
+              onPress={() => setCancelSheetVisible(false)}
+            />
+            <Button
+              title={cancelling ? "Cancelling…" : "Cancel subscription"}
+              variant="primary"
+              size="lg"
+              fullWidth
+              loading={cancelling}
+              onPress={() => {
+                setCancelSheetVisible(false);
+                cancel();
+              }}
+            />
+          </>
+        }
+      />
     </ScrollView>
   );
 }

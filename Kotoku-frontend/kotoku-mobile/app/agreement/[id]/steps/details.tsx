@@ -3,8 +3,9 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { Controller, useForm } from "react-hook-form";
 import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from "react-native";
 import { z } from "zod";
+import { FileBadge2 } from "lucide-react-native";
 
-import { Button, ScreenLoader } from "@/components/ui";
+import { Button, NoticeCard, ScreenLoader } from "@/components/ui";
 import { FieldRenderer } from "@/components/agreement/FieldRenderer";
 import {
   useAgreementStore,
@@ -86,11 +87,33 @@ export default function DetailsStep() {
       contentContainerStyle={{ paddingBottom: 60 }}
       keyboardShouldPersistTaps="handled"
     >
+      <View className="gap-md rounded-3xl bg-ink-primary p-lg">
+        <View className="flex-row items-start gap-md">
+          <View className="h-11 w-11 items-center justify-center rounded-2xl bg-white/10">
+            <FileBadge2 size={22} color="#fff" strokeWidth={1.8} />
+          </View>
+          <View className="flex-1 gap-xs">
+            <Text className="text-[11px] font-semibold uppercase tracking-[2px] text-white/60">
+              Step 2
+            </Text>
+            <Text className="text-xl font-semibold text-white">Record the agreement details</Text>
+            <Text className="text-sm leading-relaxed text-white/75">
+              Fill in the facts exactly as agreed. These details will appear in the sealed record and final PDF.
+            </Text>
+          </View>
+        </View>
+      </View>
+
       {template.detailSections.map((section) => (
-        <View key={section.title} className="gap-md">
-          <Text className="text-lg font-semibold text-ink-primary border-b border-border-subtle pb-sm">
-            {section.title}
-          </Text>
+        <View key={section.title} className="gap-md rounded-2xl border border-border-subtle bg-surface-card p-lg">
+          <View className="gap-xs border-b border-border-subtle pb-sm">
+            <Text className="text-[11px] font-semibold uppercase tracking-[2px] text-ink-muted">
+              Section
+            </Text>
+            <Text className="text-lg font-semibold text-ink-primary">
+              {section.title}
+            </Text>
+          </View>
 
           {section.fields.map((fieldKey) => {
             const fieldDef = template.fields[fieldKey];
@@ -108,6 +131,13 @@ export default function DetailsStep() {
           })}
         </View>
       ))}
+
+      <NoticeCard
+        variant="info"
+        title="Be precise"
+        body="If a number, date, or condition matters later, put it here now. Kotoku's value is the quality of the record you build."
+        compact
+      />
 
       <View className="flex-row gap-sm">
         {stepIndex > 0 && (

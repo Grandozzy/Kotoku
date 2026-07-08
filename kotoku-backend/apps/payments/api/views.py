@@ -89,6 +89,22 @@ class SubscriptionView(APIView):
         return ok(get_subscription_status(account))
 
 
+class CheckoutStatusView(APIView):
+    """
+    GET /api/payments/checkout-status/?reference=<ref>
+    Returns the current payment confirmation state for one checkout.
+    """
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        reference = (request.query_params.get("reference") or "").strip()
+        if not reference:
+            raise DomainError("reference is required.")
+        account = _get_account(request)
+        return ok(PaymentService.get_checkout_status(account=account, reference=reference))
+
+
 class CancelCheckoutView(APIView):
     """
     POST /api/payments/checkout/cancel/

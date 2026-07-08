@@ -7,15 +7,15 @@ export default function HowItWorksPage() {
     <div className="min-h-screen flex flex-col">
       <PublicNav />
 
-      <main className="max-w-3xl mx-auto px-6 py-16 flex flex-col gap-16">
+      <main className="mx-auto flex max-w-3xl flex-col gap-12 px-4 py-12 sm:px-6 sm:py-16 sm:gap-16">
         <div>
           <p className="text-sm font-medium text-emerald-600 uppercase tracking-wide mb-3">
             The process
           </p>
-          <h1 className="text-4xl font-bold tracking-tight leading-tight">
+          <h1 className="text-3xl font-bold leading-tight tracking-tight sm:text-4xl">
             How Kotoku works
           </h1>
-          <p className="mt-4 text-neutral-500 text-lg leading-relaxed">
+          <p className="mt-4 text-base leading-relaxed text-neutral-500 sm:text-lg">
             From the moment you open the app to the moment both parties walk away
             with a sealed vault entry — here&apos;s what happens.
           </p>
@@ -72,9 +72,9 @@ export default function HowItWorksPage() {
               "The vault entry is retained for your free retention period and then archived. Archived entries remain stored; they just move out of your active vault view. You can retrieve them at any time.",
           },
         ].map(({ number, title, body, detail }) => (
-          <div key={number} className="flex gap-6">
+          <div key={number} className="flex flex-col gap-3 sm:flex-row sm:gap-6">
             <div className="shrink-0">
-              <span className="text-5xl font-bold text-neutral-100">{number}</span>
+              <span className="text-4xl font-bold text-neutral-100 sm:text-5xl">{number}</span>
             </div>
             <div className="flex flex-col gap-2 pt-2">
               <h2 className="text-xl font-bold">{title}</h2>
@@ -86,8 +86,8 @@ export default function HowItWorksPage() {
           </div>
         ))}
 
-        <div className="rounded-2xl bg-neutral-900 text-white px-8 py-8 text-center">
-          <p className="text-2xl font-bold mb-2">Record it today. Rest easy tomorrow.</p>
+        <div className="rounded-2xl bg-neutral-900 px-6 py-8 text-center text-white sm:px-8">
+          <p className="mb-2 text-xl font-bold sm:text-2xl">Record it today. Rest easy tomorrow.</p>
           <p className="text-neutral-400 mb-6">
             Good agreements make good friends, but sealed agreements make better ones.
           </p>
