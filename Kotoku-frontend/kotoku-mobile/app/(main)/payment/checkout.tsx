@@ -129,7 +129,10 @@ export default function CheckoutScreen() {
 
       {/* Loading overlay — shown until WebView reports onLoad */}
       {loading && (
-        <View className="absolute inset-0 items-center justify-center bg-surface-canvas z-10">
+        <View
+          pointerEvents="none"
+          className="absolute inset-0 items-center justify-center bg-surface-canvas z-10"
+        >
           <ActivityIndicator size="large" color={colors.brandPrimary} />
           <Text className="text-sm text-ink-muted mt-md">Loading secure payment…</Text>
         </View>
