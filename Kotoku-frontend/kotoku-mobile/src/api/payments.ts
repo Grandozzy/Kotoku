@@ -11,6 +11,9 @@ export interface InitiatePaymentResponse {
   reference: string;
 }
 
+export type PaymentInitiationMode = "subscription" | "recovery";
+export type PaymentChannel = "card" | "mobile_money";
+
 export type SubscriptionStatus =
   | "pending"
   | "active"
@@ -37,10 +40,30 @@ export async function getPaymentConfig(): Promise<PaymentConfig> {
 export async function initiatePayment(
   planId: string,
   callbackUrl?: string,
+  options?: {
+    mode?: PaymentInitiationMode;
+    channels?: PaymentChannel[];
+  },
 ): Promise<InitiatePaymentResponse> {
+  const payload: {
+    plan_id: string;
+    callback_url?: string;
+    mode?: PaymentInitiationMode;
+    channels?: PaymentChannel[];
+  } = { plan_id: planId };
+  if (callbackUrl) {
+    payload.callback_url = callbackUrl;
+  }
+  if (options?.mode) {
+    payload.mode = options.mode;
+  }
+  if (options?.channels?.length) {
+    payload.channels = options.channels;
+  }
+
   const res = await apiClient.post<ApiResponse<InitiatePaymentResponse>>(
     "/payments/initiate/",
-    callbackUrl ? { plan_id: planId, callback_url: callbackUrl } : { plan_id: planId }
+    payload,
   );
   return res.data.data;
 }

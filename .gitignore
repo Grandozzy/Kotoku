@@ -97,3 +97,7 @@ minio/
 # Local planning assets
 Plan_A_NEW_Project.jpg
 .vercel
+vercel.json
+
+# Root workspace package.json (not part of any tracked package)
+/package.json
