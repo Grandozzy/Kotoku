@@ -13,6 +13,10 @@
     },
     "preview": {
       "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://api.kotoku-app.com",
+        "EXPO_PUBLIC_WEB_URL": "https://www.kotoku-app.com"
+      },
       "ios": {
         "simulator": false
       },
