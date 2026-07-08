@@ -6,9 +6,14 @@ from apps.payments.models import Invoice, PaymentEvent, Subscription, Subscripti
 
 @admin.register(Subscription)
 class SubscriptionAdmin(admin.ModelAdmin):
-    list_display = ("id", "account_link", "plan_id", "status_badge", "paystack_sub_id", "current_period_end", "cancel_at_period_end", "created_at")
+    list_display = (
+        "id", "account_link", "plan_id", "status_badge",
+        "paystack_sub_id", "current_period_end", "cancel_at_period_end", "created_at",
+    )
     list_filter = ("status", "plan_id")
-    search_fields = ("account__email", "account__phone", "paystack_sub_id", "paystack_customer_code")
+    search_fields = (
+        "account__email", "account__phone", "paystack_sub_id", "paystack_customer_code",
+    )
     ordering = ("-created_at",)
     readonly_fields = (
         "account", "paystack_sub_id", "paystack_customer_code", "paystack_email",
@@ -29,7 +34,8 @@ class SubscriptionAdmin(admin.ModelAdmin):
     def status_badge(self, obj: Subscription) -> str:
         style = self._STATUS_STYLES.get(obj.status, "")
         return format_html(
-            '<span style="padding:2px 10px;border-radius:999px;font-size:12px;font-weight:600;{}">{}</span>',
+            '<span style="padding:2px 10px;border-radius:999px;'
+            'font-size:12px;font-weight:600;{}">{}</span>',
             style,
             obj.get_status_display(),
         )
@@ -81,6 +87,13 @@ class SubscriptionCheckoutAdmin(admin.ModelAdmin):
         "account", "reference", "target_plan_id", "status", "replaces_subscription",
         "activated_subscription", "authorization_url", "access_code", "created_at", "updated_at",
     )
+    actions = ["cancel_open_checkouts"]
+
+    @admin.action(description="Cancel selected open checkouts (unblocks the account)")
+    def cancel_open_checkouts(self, request, queryset):
+        open_qs = queryset.filter(status__in=SubscriptionCheckout.OPEN_STATUSES)
+        updated = open_qs.update(status=SubscriptionCheckout.STATUS_CANCELLED)
+        self.message_user(request, f"{updated} checkout(s) cancelled.")
 
     def account_link(self, obj: SubscriptionCheckout) -> str:
         url = f"/admin/accounts/account/{obj.account_id}/change/"
@@ -96,7 +109,10 @@ class SubscriptionCheckoutAdmin(admin.ModelAdmin):
 
 @admin.register(Invoice)
 class InvoiceAdmin(admin.ModelAdmin):
-    list_display = ("id", "account_link", "paystack_ref", "amount_ghs", "status", "period_end", "paid_at", "created_at")
+    list_display = (
+        "id", "account_link", "paystack_ref", "amount_ghs", "status",
+        "period_end", "paid_at", "created_at",
+    )
     list_filter = ("status", "currency")
     search_fields = ("account__email", "paystack_ref")
     ordering = ("-created_at",)
