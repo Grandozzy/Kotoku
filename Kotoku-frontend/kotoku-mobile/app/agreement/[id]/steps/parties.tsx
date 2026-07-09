@@ -9,6 +9,7 @@ import { ShieldCheck, Users2 } from "lucide-react-native";
 
 import { setParties } from "@/api/agreements";
 import { PhotoSlot } from "@/components/evidence/PhotoSlot";
+import { UploadSourceSheet } from "@/components/evidence/UploadSourceSheet";
 import { Button, NoticeCard, ScreenLoader, TextInput } from "@/components/ui";
 import { useAgreementStore } from "@/features/agreements/agreementStore";
 import {
@@ -78,6 +79,17 @@ function toDraftParty(party?: {
   };
 }
 
+interface UploadSheetState {
+  slotId: string;
+  evidenceType: string;
+  title: string;
+  body: string;
+  guidance: string;
+  cameraType: "front" | "back";
+  cameraLabel?: string;
+  libraryLabel?: string;
+}
+
 export default function PartiesStep() {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -93,6 +105,7 @@ export default function PartiesStep() {
 
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [uploadSheet, setUploadSheet] = useState<UploadSheetState | null>(null);
 
   const roles = template?.partyRoles ?? ["Seller", "Buyer"];
   const roleKeys = useMemo(
@@ -245,6 +258,16 @@ export default function PartiesStep() {
     router.push(`/agreement/${id}/steps/details?scenarioId=${scenarioId}`);
   });
 
+  const handleSourcePick = async (source: "camera" | "library") => {
+    if (!uploadSheet) return;
+    const current = uploadSheet;
+    setUploadSheet(null);
+    await pickImage(current.slotId, current.evidenceType, {
+      source,
+      cameraType: current.cameraType,
+    });
+  };
+
   return (
     <KeyboardAvoidingView
       style={{ flex: 1 }}
@@ -341,7 +364,15 @@ export default function PartiesStep() {
                             void retryUpload(frontEvidenceType);
                             return;
                           }
-                          void pickImage(frontEvidenceType, frontEvidenceType);
+                          setUploadSheet({
+                            slotId: frontEvidenceType,
+                            evidenceType: frontEvidenceType,
+                            title: "Ghana Card front",
+                            body: "Add a clear image of the front of the Ghana Card for OCR and identity checks.",
+                            guidance:
+                              "Keep all card edges visible, avoid glare, and make sure the PIN and printed details are readable.",
+                            cameraType: "back",
+                          });
                         }}
                       />
                     </View>
@@ -358,7 +389,15 @@ export default function PartiesStep() {
                             void retryUpload(backEvidenceType);
                             return;
                           }
-                          void pickImage(backEvidenceType, backEvidenceType);
+                          setUploadSheet({
+                            slotId: backEvidenceType,
+                            evidenceType: backEvidenceType,
+                            title: "Ghana Card back",
+                            body: "Add a clear image of the back of the Ghana Card so the backend can verify the document details.",
+                            guidance:
+                              "Capture the full card on a flat background and avoid blur, shadows, and cropped corners.",
+                            cameraType: "back",
+                          });
                         }}
                       />
                     </View>
@@ -376,7 +415,16 @@ export default function PartiesStep() {
                           void retryUpload(selfieEvidenceType);
                           return;
                         }
-                        void pickImage(selfieEvidenceType, selfieEvidenceType, "camera");
+                        setUploadSheet({
+                          slotId: selfieEvidenceType,
+                          evidenceType: selfieEvidenceType,
+                          title: "Selfie photo",
+                          body: "Capture or choose a clear selfie photo for face comparison against the Ghana Card portrait.",
+                          guidance:
+                            "Look straight at the camera, use good lighting, and keep hats, heavy shadows, and blur out of the frame.",
+                          cameraType: "front",
+                          cameraLabel: "Take selfie",
+                        });
                       }}
                     />
                   </View>
@@ -411,6 +459,21 @@ export default function PartiesStep() {
           </View>
         </View>
       </ScrollView>
+      <UploadSourceSheet
+        visible={Boolean(uploadSheet)}
+        onClose={() => setUploadSheet(null)}
+        title={uploadSheet?.title ?? "Add photo"}
+        body={uploadSheet?.body ?? "Choose how to add this photo."}
+        guidance={uploadSheet?.guidance}
+        cameraLabel={uploadSheet?.cameraLabel}
+        libraryLabel={uploadSheet?.libraryLabel}
+        onPickCamera={() => {
+          void handleSourcePick("camera");
+        }}
+        onPickLibrary={() => {
+          void handleSourcePick("library");
+        }}
+      />
     </KeyboardAvoidingView>
   );
 }

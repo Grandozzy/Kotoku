@@ -1,12 +1,22 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Camera, Images } from "lucide-react-native";
+import { useState } from "react";
 import { ScrollView, Text, View } from "react-native";
 
+import { UploadSourceSheet } from "@/components/evidence/UploadSourceSheet";
 import { Button, NoticeCard, ScreenLoader } from "@/components/ui";
 import { PhotoSlot } from "@/components/evidence/PhotoSlot";
 import { useAgreementStore, STEPS } from "@/features/agreements/agreementStore";
 import { useEvidenceUpload } from "@/features/evidence/useEvidenceUpload";
 import { useTemplate } from "@/features/agreements/useAgreementDraft";
+
+interface UploadSheetState {
+  slotId: string;
+  evidenceType: string;
+  title: string;
+  body: string;
+  guidance: string;
+}
 
 export default function EvidenceStep() {
   const router = useRouter();
@@ -18,6 +28,7 @@ export default function EvidenceStep() {
   const agreementId = Number(id);
 
   const { items, pickImage, retryUpload, error } = useEvidenceUpload(agreementId);
+  const [uploadSheet, setUploadSheet] = useState<UploadSheetState | null>(null);
 
   if (!template) return <ScreenLoader />;
 
@@ -35,6 +46,13 @@ export default function EvidenceStep() {
   const handleNext = () => {
     goToStep(3);
     router.push(`/agreement/${id}/steps/review?scenarioId=${scenarioId}`);
+  };
+
+  const handleSourcePick = async (source: "camera" | "library") => {
+    if (!uploadSheet) return;
+    const current = uploadSheet;
+    setUploadSheet(null);
+    await pickImage(current.slotId, current.evidenceType, { source, cameraType: "back" });
   };
 
   return (
@@ -84,13 +102,27 @@ export default function EvidenceStep() {
                   onPress={() => {
                     if (item?.uploadStatus === "failed") {
                       if (item.retryable === false) {
-                        void pickImage(slot.id, slot.id);
+                        setUploadSheet({
+                          slotId: slot.id,
+                          evidenceType: slot.id,
+                          title: slot.label,
+                          body: "Add a clear evidence photo using the camera or your gallery.",
+                          guidance:
+                            "Use well-lit images that clearly show the asset, its condition, and any details the parties may later rely on.",
+                        });
                         return;
                       }
                       void retryUpload(slot.id);
                       return;
                     }
-                    void pickImage(slot.id, slot.id);
+                    setUploadSheet({
+                      slotId: slot.id,
+                      evidenceType: slot.id,
+                      title: slot.label,
+                      body: "Add a clear evidence photo using the camera or your gallery.",
+                      guidance:
+                        "Prefer wide shots first, then capture close details, defects, serial numbers, or other identifying marks.",
+                    });
                   }}
                 />
               </View>
@@ -142,6 +174,19 @@ export default function EvidenceStep() {
           />
         </View>
       </View>
+      <UploadSourceSheet
+        visible={Boolean(uploadSheet)}
+        onClose={() => setUploadSheet(null)}
+        title={uploadSheet?.title ?? "Add evidence photo"}
+        body={uploadSheet?.body ?? "Choose how to add this evidence photo."}
+        guidance={uploadSheet?.guidance}
+        onPickCamera={() => {
+          void handleSourcePick("camera");
+        }}
+        onPickLibrary={() => {
+          void handleSourcePick("library");
+        }}
+      />
     </ScrollView>
   );
 }

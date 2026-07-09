@@ -38,11 +38,16 @@ interface UseEvidenceUploadReturn {
   pickImage: (
     slotId: string,
     evidenceType: string,
-    source?: "library" | "camera",
+    options?: PickImageOptions,
   ) => Promise<void>;
   retryUpload: (slotId: string) => Promise<void>;
   uploadStatus: (slotId: string) => UploadStatus;
   error: string | null;
+}
+
+interface PickImageOptions {
+  source?: "library" | "camera";
+  cameraType?: "front" | "back";
 }
 
 export function useEvidenceUpload(
@@ -148,15 +153,17 @@ export function useEvidenceUpload(
   const pickImage = async (
     slotId: string,
     evidenceType: string,
-    source: "library" | "camera" = "library",
+    options: PickImageOptions = {},
   ) => {
     setError(null);
     let step = "permissions";
     try {
+      const source = options.source ?? "library";
+      const cameraType = options.cameraType ?? "back";
       if (source === "camera") {
         const camera = await ImagePicker.requestCameraPermissionsAsync();
         if (!camera.granted) {
-          setError("Camera access is required to capture a live selfie.");
+          setError("Camera access is required to capture a photo.");
           return;
         }
       } else {
@@ -177,7 +184,10 @@ export function useEvidenceUpload(
               mediaTypes: ["images"],
               quality: 0.75,
               allowsEditing: false,
-              cameraType: ImagePicker.CameraType.front,
+              cameraType:
+                cameraType === "front"
+                  ? ImagePicker.CameraType.front
+                  : ImagePicker.CameraType.back,
             })
           : await ImagePicker.launchImageLibraryAsync({
               mediaTypes: ["images"],
