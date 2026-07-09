@@ -15,6 +15,7 @@ import { Badge, BottomSheet, Button, CardSkeleton, EmptyState, ErrorState, Notic
 import { deleteDraft, getAgreement } from "@/api/agreements";
 import { usePendingActions } from "@/features/agreements/usePendingActions";
 import { useAgreementStore } from "@/features/agreements/agreementStore";
+import { getDraftResumeStep } from "@/features/agreements/resumeStep";
 import { formatCapResetDate, getCapReachedMessage } from "@/features/billing/capReached";
 import { usePlan } from "@/features/billing/usePlan";
 import type { ScenarioId } from "@/constants/scenarios";
@@ -336,29 +337,15 @@ function DraftCard({ item, onDeleted }: { item: HomeAgreementItem; onDeleted: ()
       const agreement = await getAgreement(item.id);
       const partyA = agreement.parties[0];
       const partyB = agreement.parties[1];
-      const hasParties = agreement.parties.length >= 2;
-      const hasDetails = Object.keys(agreement.fieldData ?? {}).length > 0;
-      const targetStep =
+      const resumeStep =
         item.status !== "draft"
-          ? "review"
-          : hasDetails
-            ? "evidence"
-            : hasParties
-              ? "details"
-              : "parties";
-      const targetIndex =
-        targetStep === "review"
-          ? 3
-          : targetStep === "evidence"
-            ? 2
-            : targetStep === "details"
-              ? 1
-              : 0;
+          ? { step: "review" as const, index: 3 as const }
+          : getDraftResumeStep(agreement);
 
       hydrateDraft(
         agreement.id,
         agreement.scenarioId,
-        targetIndex,
+        resumeStep.index,
         partyA
           ? {
               fullName: partyA.displayName,
@@ -378,7 +365,7 @@ function DraftCard({ item, onDeleted }: { item: HomeAgreementItem; onDeleted: ()
         agreement.fieldData,
       );
       router.push(
-        `/agreement/${agreement.id}/steps/${targetStep}?scenarioId=${agreement.scenarioId}`,
+        `/agreement/${agreement.id}/steps/${resumeStep.step}?scenarioId=${agreement.scenarioId}`,
       );
     } catch {
       setLoadError(true);

@@ -30,8 +30,13 @@ class PartySerializer(serializers.Serializer):
     id_number = serializers.CharField()
     ghana_card_front_uploaded = serializers.SerializerMethodField()
     ghana_card_back_uploaded = serializers.SerializerMethodField()
+    identity_selfie_uploaded = serializers.SerializerMethodField()
     ghana_card_front_view_url = serializers.SerializerMethodField()
     ghana_card_back_view_url = serializers.SerializerMethodField()
+    identity_selfie_view_url = serializers.SerializerMethodField()
+    identity_verification_status = serializers.SerializerMethodField()
+    identity_verification_detail = serializers.SerializerMethodField()
+    identity_verification_failure_codes = serializers.SerializerMethodField()
 
     def _identity_state(self, obj):
         states = self.context.get("party_identity_states", {})
@@ -45,6 +50,10 @@ class PartySerializer(serializers.Serializer):
         state = self._identity_state(obj)
         return bool(state and state.back_uploaded)
 
+    def get_identity_selfie_uploaded(self, obj) -> bool:
+        state = self._identity_state(obj)
+        return bool(state and state.selfie_uploaded)
+
     def get_ghana_card_front_view_url(self, obj) -> str | None:
         state = self._identity_state(obj)
         return state.front_view_url if state else None
@@ -52,6 +61,22 @@ class PartySerializer(serializers.Serializer):
     def get_ghana_card_back_view_url(self, obj) -> str | None:
         state = self._identity_state(obj)
         return state.back_view_url if state else None
+
+    def get_identity_selfie_view_url(self, obj) -> str | None:
+        state = self._identity_state(obj)
+        return state.selfie_view_url if state else None
+
+    def get_identity_verification_status(self, obj) -> str:
+        state = self._identity_state(obj)
+        return state.verification_status if state else "pending"
+
+    def get_identity_verification_detail(self, obj) -> str:
+        state = self._identity_state(obj)
+        return state.verification_detail if state else "Awaiting Ghana Card verification."
+
+    def get_identity_verification_failure_codes(self, obj) -> list[str]:
+        state = self._identity_state(obj)
+        return list(state.verification_failure_codes) if state else []
 
 
 class AgreementIdentitySerializerMixin:

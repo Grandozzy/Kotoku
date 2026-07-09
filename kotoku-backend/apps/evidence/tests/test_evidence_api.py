@@ -250,6 +250,38 @@ class TestUploadUrlApi:
         )
         assert resp.status_code == 400
 
+    def test_selfie_slot_requires_matching_party_role(self, mock_presign):
+        client, acct = _make_client("+233501400014")
+        agreement = _agreement(acct)
+        _set_parties(agreement, acct.phone)
+        resp = client.post(
+            _UPLOAD_URL_PATH.format(id=agreement.pk),
+            {
+                "evidence_type": "tenant_selfie",
+                "mime_type": "image/jpeg",
+                "size_bytes": 500,
+                "checksum_sha256": _FAKE_CHECKSUM,
+            },
+            format="json",
+        )
+        assert resp.status_code == 400
+
+    def test_identity_slot_rejects_pdf(self, mock_presign):
+        client, acct = _make_client("+233501400015")
+        agreement = _agreement(acct)
+        _set_parties(agreement, acct.phone)
+        resp = client.post(
+            _UPLOAD_URL_PATH.format(id=agreement.pk),
+            {
+                "evidence_type": "seller_ghana_card_front",
+                "mime_type": "application/pdf",
+                "size_bytes": 500,
+                "checksum_sha256": _FAKE_CHECKSUM,
+            },
+            format="json",
+        )
+        assert resp.status_code == 400
+
     def test_storage_presign_failure_returns_503(self, mock_presign):
         mock_presign.side_effect = EndpointConnectionError(endpoint_url="http://storage.local")
         client, acct = _make_client("+233501400012")

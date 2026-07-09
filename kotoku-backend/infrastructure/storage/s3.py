@@ -188,5 +188,13 @@ class S3StorageClient:
             "metadata": response.get("Metadata", {}),
         }
 
+    def get_object_bytes(self, key: str) -> bytes:
+        client = _get_client()
+        response = client.get_object(
+            Bucket=settings.AWS_STORAGE_BUCKET_NAME,
+            Key=key,
+        )
+        return response["Body"].read()
+
     def build_object_url(self, key: str) -> str:
         return _build_object_url(key)

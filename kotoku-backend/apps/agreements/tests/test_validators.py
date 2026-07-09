@@ -15,6 +15,7 @@ from apps.agreements.domain.validators import (
 )
 from apps.agreements.models import Agreement
 from apps.evidence.models import EvidenceItem
+from apps.identity.models import PartyIdentityVerification
 from apps.parties.models import Party
 
 _VALIDATE_PATH = "/api/agreements/{id}/validate/"
@@ -65,6 +66,18 @@ def _evidence(agreement, evidence_type, status=EvidenceItem.UploadStatus.CONFIRM
 def _identity_evidence(agreement, role):
     _evidence(agreement, f"{role}_ghana_card_front")
     _evidence(agreement, f"{role}_ghana_card_back")
+    _evidence(agreement, f"{role}_selfie")
+    party = agreement.parties.get(role=role)
+    PartyIdentityVerification.objects.create(
+        party=party,
+        status=PartyIdentityVerification.Status.VERIFIED,
+        entered_pin=party.id_number,
+        entered_full_name=party.display_name,
+        ocr_pin=party.id_number,
+        ocr_full_name=party.display_name.upper(),
+        detail="Ghana Card and selfie verified.",
+        face_match_score=99.0,
+    )
 
 
 def _api_client(phone):
@@ -196,6 +209,22 @@ class TestUsedVehicleSaleValidation:
         id_errors = [e for e in result.errors if e.code == "MISSING_GHANA_CARD_FRONT"]
         assert len(id_errors) == 1
         assert "buyer" in id_errors[0].message
+
+    def test_missing_identity_selfie(self):
+        a = self._base()
+        for t in ("vehicle_photo_front", "vehicle_photo_rear", "vehicle_photo_side"):
+            _evidence(a, t)
+        _identity_evidence(a, "seller")
+        _evidence(a, "buyer_ghana_card_front")
+        _evidence(a, "buyer_ghana_card_back")
+        PartyIdentityVerification.objects.create(
+            party=a.parties.get(role="buyer"),
+            status=PartyIdentityVerification.Status.PENDING,
+            detail="Awaiting selfie upload.",
+        )
+        result = validate_agreement(a)
+        codes = {e.code for e in result.errors}
+        assert "MISSING_IDENTITY_SELFIE" in codes
 
     def test_pending_evidence_not_counted(self):
         a = self._base()
@@ -415,6 +444,23 @@ class TestIdentityBaselineValidation:
         assert "INVALID_GHANA_CARD_PIN" not in codes
         assert "MISSING_GHANA_CARD_FRONT" not in codes
         assert "MISSING_GHANA_CARD_BACK" not in codes
+
+    def test_identity_verification_must_be_verified(self):
+        _, acct = _user_and_account("+233600500055")
+        a = _agreement(acct, scenario=SCENARIO_USED_VEHICLE_SALE)
+        buyer = _party(a, "buyer", id_type="ghana_card", id_number=_pin(555555551))
+        _party(a, "seller", id_type="ghana_card", id_number=_pin(666666662))
+        for t in ("vehicle_photo_front", "vehicle_photo_rear", "vehicle_photo_side"):
+            _evidence(a, t)
+        _identity_evidence(a, "buyer")
+        _identity_evidence(a, "seller")
+        PartyIdentityVerification.objects.filter(party=buyer).update(
+            status=PartyIdentityVerification.Status.PENDING,
+            detail="Verifying Ghana Card details.",
+        )
+        result = validate_agreement(a)
+        codes = {e.code for e in result.errors}
+        assert "GHANA_CARD_VERIFICATION_PENDING" in codes
 
     def test_party_with_non_ghana_card_type_fails(self):
         _, acct = _user_and_account("+233600500006")

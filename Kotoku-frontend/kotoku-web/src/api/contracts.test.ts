@@ -119,8 +119,13 @@ const party: Party = {
   id_number: "GHA-123456789-0",
   ghana_card_front_uploaded: false,
   ghana_card_back_uploaded: false,
+  identity_selfie_uploaded: false,
   ghana_card_front_view_url: null,
   ghana_card_back_view_url: null,
+  identity_selfie_view_url: null,
+  identity_verification_status: "pending",
+  identity_verification_detail: "Awaiting Ghana Card verification.",
+  identity_verification_failure_codes: [],
   created_at: "2026-05-19T12:00:00Z",
   updated_at: "2026-05-19T12:00:00Z",
 };

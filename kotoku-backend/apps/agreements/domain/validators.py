@@ -219,6 +219,35 @@ def _check_party_ghana_card_uploads(
                 message=f"A confirmed Ghana Card back image is required for the {party.role}.",
                 field_name="evidence",
             )
+            continue
+        if not state.selfie_uploaded:
+            result.add(
+                code="MISSING_IDENTITY_SELFIE",
+                message=f"A confirmed selfie photo is required for the {party.role}.",
+                field_name="evidence",
+            )
+            continue
+        if state.verification_status == "verified":
+            continue
+        if state.verification_status in ("pending", "processing"):
+            result.add(
+                code="GHANA_CARD_VERIFICATION_PENDING",
+                message=f"Ghana Card verification is still pending for the {party.role}.",
+                field_name="evidence",
+            )
+            continue
+        if state.verification_status == "manual_review_required":
+            result.add(
+                code="GHANA_CARD_REVIEW_REQUIRED",
+                message=f"Ghana Card verification needs manual review for the {party.role}.",
+                field_name="evidence",
+            )
+            continue
+        result.add(
+            code="GHANA_CARD_VERIFICATION_FAILED",
+            message=f"Ghana Card verification failed for the {party.role}. Upload a clearer card image that matches the entered details.",
+            field_name="evidence",
+        )
 
 
 _SCENARIO_CHECKERS = {

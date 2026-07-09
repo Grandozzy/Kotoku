@@ -21,8 +21,18 @@ interface RawAgreement {
     id_number: string;
     ghana_card_front_uploaded: boolean;
     ghana_card_back_uploaded: boolean;
+    identity_selfie_uploaded: boolean;
     ghana_card_front_view_url: string | null;
     ghana_card_back_view_url: string | null;
+    identity_selfie_view_url: string | null;
+    identity_verification_status:
+      | "pending"
+      | "processing"
+      | "verified"
+      | "failed"
+      | "manual_review_required";
+    identity_verification_detail: string;
+    identity_verification_failure_codes: string[];
   }[];
 }
 
@@ -45,8 +55,13 @@ function mapAgreement(raw: RawAgreement): Agreement {
       phoneVerifiedAt: null,
       ghanaCardFrontUploaded: p.ghana_card_front_uploaded,
       ghanaCardBackUploaded: p.ghana_card_back_uploaded,
+      identitySelfieUploaded: p.identity_selfie_uploaded,
       ghanaCardFrontViewUrl: p.ghana_card_front_view_url,
       ghanaCardBackViewUrl: p.ghana_card_back_view_url,
+      identitySelfieViewUrl: p.identity_selfie_view_url,
+      identityVerificationStatus: p.identity_verification_status,
+      identityVerificationDetail: p.identity_verification_detail,
+      identityVerificationFailureCodes: p.identity_verification_failure_codes ?? [],
     })),
   };
 }

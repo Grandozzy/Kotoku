@@ -14,7 +14,8 @@ export function formatGhanaCardPin(raw: string): string {
   return out;
 }
 
-export function identityEvidenceType(role: string, side: "front" | "back"): string {
+export function identityEvidenceType(role: string, side: "front" | "back" | "selfie"): string {
+  if (side === "selfie") return `${role}_selfie`;
   return `${role}_ghana_card_${side}`;
 }
 
@@ -23,6 +24,8 @@ export function isPartyIdentityComplete(party: Party): boolean {
   return (
     GHANA_CARD_PIN_REGEX.test(normalizeGhanaCardPin(party.id_number ?? "")) &&
     party.ghana_card_front_uploaded &&
-    party.ghana_card_back_uploaded
+    party.ghana_card_back_uploaded &&
+    party.identity_selfie_uploaded &&
+    party.identity_verification_status === "verified"
   );
 }

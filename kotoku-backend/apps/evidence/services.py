@@ -10,6 +10,7 @@ from apps.agreements.models import Agreement
 from apps.audit.services import AuditService
 from apps.evidence.models import EvidenceItem
 from apps.evidence.storage import store_evidence
+from apps.identity.services import IdentityService
 from apps.parties.identity import validate_identity_evidence_type
 from apps.parties.models import Party
 from common.exceptions import DomainError, ServiceUnavailableError
@@ -88,6 +89,14 @@ def _validate_file(file_type: str, file_data: bytes) -> None:
         raise DomainError(
             f"File content does not match the declared type '{file_type}'"
         )
+
+
+def _is_identity_evidence(evidence_type: str) -> bool:
+    return (
+        evidence_type.endswith("_ghana_card_front")
+        or evidence_type.endswith("_ghana_card_back")
+        or evidence_type.endswith("_selfie")
+    )
 
 
 class EvidenceService:
@@ -180,6 +189,8 @@ class EvidenceService:
         ):
             raise DomainError("Cannot add evidence: agreement is not in an editable state.")
         validate_identity_evidence_type(agreement=agreement, evidence_type=evidence_type)
+        if _is_identity_evidence(evidence_type) and mime_type not in ("image/jpeg", "image/png"):
+            raise DomainError("Ghana Card uploads must be JPEG or PNG images.")
 
         ext = _MIME_TO_EXT[mime_type]
         file_key = (
@@ -397,6 +408,15 @@ class EvidenceService:
 
         item.upload_status = EvidenceItem.UploadStatus.CONFIRMED
         item.save(update_fields=["upload_status"])
+
+        if _is_identity_evidence(evidence_type):
+            party = item.agreement.parties.filter(role=evidence_type.split("_", 1)[0]).first()
+            if party is not None:
+                IdentityService.reset_party_verification(
+                    party=party,
+                    detail="Ghana Card upload received. Verification queued.",
+                )
+                IdentityService.queue_party_verification(party_id=party.pk)
 
         AuditService.record_event(
             event_type="evidence.confirmed",

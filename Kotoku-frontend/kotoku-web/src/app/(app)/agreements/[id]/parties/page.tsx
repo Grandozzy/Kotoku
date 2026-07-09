@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, Check, Loader2, Upload, UserRound } from "lucide-react";
@@ -226,11 +226,13 @@ function IdentityUploadButton({
   label,
   viewUrl,
   status,
+  captureMode,
   onSelect,
 }: {
   label: string;
   viewUrl?: string | null;
   status?: UploadState;
+  captureMode?: "user" | "environment";
   onSelect: (file: File) => void;
 }) {
   const busy = status?.phase === "hashing" || status?.phase === "uploading" || status?.phase === "confirming";
@@ -252,7 +254,8 @@ function IdentityUploadButton({
       </div>
       <input
         type="file"
-        accept="image/*,application/pdf"
+        accept="image/*"
+        capture={captureMode}
         className="hidden"
         disabled={busy}
         onChange={(event) => {
@@ -318,6 +321,21 @@ export default function PartiesPage() {
     savedParties.length >= 2 &&
     savedParties.filter((party) => party.role !== "witness").every(isPartyIdentityComplete);
 
+  useEffect(() => {
+    const needsRefresh = savedParties.some((party) =>
+      party.ghana_card_front_uploaded &&
+      party.ghana_card_back_uploaded &&
+      party.identity_selfie_uploaded &&
+      (party.identity_verification_status === "pending" ||
+        party.identity_verification_status === "processing"),
+    );
+    if (!needsRefresh) return;
+    const timer = window.setInterval(() => {
+      void queryClient.invalidateQueries({ queryKey: ["agreements", agreementId] });
+    }, 2500);
+    return () => window.clearInterval(timer);
+  }, [agreementId, queryClient, savedParties]);
+
   function addParty(party: PartyInput) {
     setDraftParties([...parties, party]);
     setAddingNew(false);
@@ -334,7 +352,11 @@ export default function PartiesPage() {
     setDraftParties(parties.filter((_, itemIndex) => itemIndex !== index));
   }
 
-  async function handleIdentityUpload(party: Party, side: "front" | "back", file: File) {
+  async function handleIdentityUpload(
+    party: Party,
+    side: "front" | "back" | "selfie",
+    file: File,
+  ) {
     const stateKey = `${party.role}:${side}`;
     try {
       await uploadEvidenceFile({
@@ -380,7 +402,7 @@ export default function PartiesPage() {
       </div>
 
       <p className="text-sm text-neutral-500">
-        Add at least 2 parties. Each non-witness party must have a full name, phone number, Ghana Card PIN, and confirmed front/back Ghana Card uploads before you can proceed.
+        Add at least 2 parties. Each non-witness party must have a full name, phone number, Ghana Card PIN, confirmed front/back Ghana Card uploads, and a selfie photo before you can proceed.
       </p>
 
       {parties.length === 0 && !addingNew && (
@@ -465,7 +487,7 @@ export default function PartiesPage() {
           <div>
             <p className="text-sm font-semibold text-neutral-900">Ghana Card uploads</p>
             <p className="mt-1 text-xs text-neutral-500">
-              Upload front and back Ghana Card images for each non-witness party. Kotoku only treats the step as complete after the backend confirms these uploads.
+              Upload front and back Ghana Card images and a selfie photo for each non-witness party. Kotoku only treats the step as complete after the backend confirms the uploads and verifies the Ghana Card details.
             </p>
           </div>
           {savedParties
@@ -476,7 +498,18 @@ export default function PartiesPage() {
                 <p className="mt-1 text-xs text-neutral-500">
                   {ROLE_LABEL[party.role as PartyRole]} · {party.id_number}
                 </p>
-                <div className="mt-3 grid gap-3 md:grid-cols-2">
+                <p
+                  className={`mt-1 text-xs ${
+                    party.identity_verification_status === "verified"
+                      ? "text-emerald-700"
+                      : party.identity_verification_status === "failed"
+                        ? "text-red-600"
+                        : "text-neutral-500"
+                  }`}
+                >
+                  {party.identity_verification_detail}
+                </p>
+                <div className="mt-3 grid gap-3 md:grid-cols-3">
                   <IdentityUploadButton
                     label="Ghana Card front"
                     viewUrl={party.ghana_card_front_view_url}
@@ -488,6 +521,13 @@ export default function PartiesPage() {
                     viewUrl={party.ghana_card_back_view_url}
                     status={uploadStates[`${party.role}:back`]}
                     onSelect={(file) => void handleIdentityUpload(party, "back", file)}
+                  />
+                  <IdentityUploadButton
+                    label="Selfie photo"
+                    viewUrl={party.identity_selfie_view_url}
+                    status={uploadStates[`${party.role}:selfie`]}
+                    captureMode="user"
+                    onSelect={(file) => void handleIdentityUpload(party, "selfie", file)}
                   />
                 </div>
               </div>
@@ -503,7 +543,7 @@ export default function PartiesPage() {
               ? `${parties.length} parties ready to save`
               : identityComplete
               ? `${savedParties.length} parties and identity records confirmed`
-              : `${savedParties.length} parties saved — complete Ghana Card uploads to continue`}
+              : `${savedParties.length} parties saved — complete Ghana Card uploads and wait for verification to continue`}
           </div>
           <button
             onClick={() => void handlePrimaryAction()}

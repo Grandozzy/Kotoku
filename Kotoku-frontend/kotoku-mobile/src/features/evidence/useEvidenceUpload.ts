@@ -1,4 +1,5 @@
 import * as ImagePicker from "expo-image-picker";
+import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 
 import { listEvidence } from "@/api/evidence";
@@ -34,7 +35,11 @@ interface UploadItem {
 
 interface UseEvidenceUploadReturn {
   items: Record<string, UploadItem>;
-  pickImage: (slotId: string, evidenceType: string) => Promise<void>;
+  pickImage: (
+    slotId: string,
+    evidenceType: string,
+    source?: "library" | "camera",
+  ) => Promise<void>;
   retryUpload: (slotId: string) => Promise<void>;
   uploadStatus: (slotId: string) => UploadStatus;
   error: string | null;
@@ -43,6 +48,7 @@ interface UseEvidenceUploadReturn {
 export function useEvidenceUpload(
   agreementId: number,
 ): UseEvidenceUploadReturn {
+  const queryClient = useQueryClient();
   const [items, setItems] = useState<Record<string, UploadItem>>({});
   const [error, setError] = useState<string | null>(null);
 
@@ -84,6 +90,10 @@ export function useEvidenceUpload(
           error: undefined,
         },
       }));
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["agreement", agreementId] }),
+        queryClient.invalidateQueries({ queryKey: ["agreements"] }),
+      ]);
       feedbackSuccess();
     } catch (err) {
       const prefix = `[step:${step}]`;
@@ -135,25 +145,45 @@ export function useEvidenceUpload(
     return () => { cancelled = true; };
   }, [agreementId]);
 
-  const pickImage = async (slotId: string, evidenceType: string) => {
+  const pickImage = async (
+    slotId: string,
+    evidenceType: string,
+    source: "library" | "camera" = "library",
+  ) => {
     setError(null);
     let step = "permissions";
     try {
-      const permission =
-        await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!permission.granted) {
+      if (source === "camera") {
         const camera = await ImagePicker.requestCameraPermissionsAsync();
         if (!camera.granted) {
-          setError("Camera and gallery access are required to attach photos.");
+          setError("Camera access is required to capture a live selfie.");
           return;
+        }
+      } else {
+        const permission =
+          await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (!permission.granted) {
+          const camera = await ImagePicker.requestCameraPermissionsAsync();
+          if (!camera.granted) {
+            setError("Camera and gallery access are required to attach photos.");
+            return;
+          }
         }
       }
 
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ["images"],
-        quality: 0.75,
-        allowsEditing: false,
-      });
+      const result =
+        source === "camera"
+          ? await ImagePicker.launchCameraAsync({
+              mediaTypes: ["images"],
+              quality: 0.75,
+              allowsEditing: false,
+              cameraType: ImagePicker.CameraType.front,
+            })
+          : await ImagePicker.launchImageLibraryAsync({
+              mediaTypes: ["images"],
+              quality: 0.75,
+              allowsEditing: false,
+            });
 
       if (result.canceled || !result.assets[0]) return;
 

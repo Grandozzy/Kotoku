@@ -146,6 +146,21 @@ export default function PartiesStep() {
     });
   }, [reset, savedParties, setPartyA, setPartyB]);
 
+  useEffect(() => {
+    const needsRefresh = savedParties.some((party) =>
+      party.ghanaCardFrontUploaded &&
+      party.ghanaCardBackUploaded &&
+      party.identitySelfieUploaded &&
+      (party.identityVerificationStatus === "pending" ||
+        party.identityVerificationStatus === "processing"),
+    );
+    if (!needsRefresh) return;
+    const timer = setInterval(() => {
+      void queryClient.invalidateQueries({ queryKey: ["agreement", agreementId] });
+    }, 2500);
+    return () => clearInterval(timer);
+  }, [agreementId, queryClient, savedParties]);
+
   if (!template || isLoading) {
     return <ScreenLoader />;
   }
@@ -252,7 +267,7 @@ export default function PartiesStep() {
               </Text>
               <Text className="text-xl font-semibold text-white">Set up both parties</Text>
               <Text className="text-sm leading-relaxed text-white/75">
-                Each party needs a phone number, Ghana Card PIN, and confirmed Ghana Card images before you can continue.
+                Each party needs a phone number, Ghana Card PIN, confirmed Ghana Card images, and a selfie photo before you can continue.
               </Text>
             </View>
           </View>
@@ -281,7 +296,7 @@ export default function PartiesStep() {
               <View className="flex-1 gap-xs">
                 <Text className="text-base font-semibold text-ink-primary">Ghana Card uploads</Text>
                 <Text className="text-sm text-ink-secondary leading-relaxed">
-                  Upload the front and back of each Ghana Card. This step only completes after the backend confirms the files in storage.
+                  Upload the front and back of each Ghana Card, then capture a selfie photo. This step only completes after the backend confirms the files in storage and verifies the match.
                 </Text>
               </View>
             </View>
@@ -289,14 +304,27 @@ export default function PartiesStep() {
             {savedParties.map((party) => {
               const frontEvidenceType = identityEvidenceType(party.role, "front");
               const backEvidenceType = identityEvidenceType(party.role, "back");
+              const selfieEvidenceType = identityEvidenceType(party.role, "selfie");
               const frontItem = items[frontEvidenceType];
               const backItem = items[backEvidenceType];
+              const selfieItem = items[selfieEvidenceType];
               return (
                 <View key={party.id} className="gap-sm rounded-2xl border border-border-subtle bg-surface-subtle p-md">
                   <View className="gap-xs">
                     <Text className="text-sm font-semibold text-ink-primary">{party.displayName}</Text>
                     <Text className="text-xs text-ink-muted">
                       {party.idNumber}
+                    </Text>
+                    <Text
+                      className={`text-xs ${
+                        party.identityVerificationStatus === "verified"
+                          ? "text-semantic-success"
+                          : party.identityVerificationStatus === "failed"
+                            ? "text-semantic-error"
+                            : "text-ink-muted"
+                      }`}
+                    >
+                      {party.identityVerificationDetail}
                     </Text>
                   </View>
                   <View className="flex-row gap-sm">
@@ -335,6 +363,23 @@ export default function PartiesStep() {
                       />
                     </View>
                   </View>
+                  <View>
+                    <PhotoSlot
+                      label="Selfie photo"
+                      required
+                      localUri={selfieItem?.localUri || party.identitySelfieViewUrl || undefined}
+                      status={selfieItem?.uploadStatus || (party.identitySelfieUploaded ? "uploaded" : "pending")}
+                      error={selfieItem?.error}
+                      failedActionLabel={selfieItem?.retryable === false ? "Retake" : "Retry"}
+                      onPress={() => {
+                        if (selfieItem?.uploadStatus === "failed" && selfieItem.retryable !== false) {
+                          void retryUpload(selfieEvidenceType);
+                          return;
+                        }
+                        void pickImage(selfieEvidenceType, selfieEvidenceType, "camera");
+                      }}
+                    />
+                  </View>
                 </View>
               );
             })}
@@ -347,7 +392,7 @@ export default function PartiesStep() {
 
         {!identityComplete && savedParties.length === roleKeys.length && !formState.isDirty && (
           <Text className="text-xs text-ink-muted text-center">
-            Finish the Ghana Card uploads for both parties to continue.
+            Finish the Ghana Card uploads, capture a selfie photo for each party, and wait for backend verification to continue.
           </Text>
         )}
 

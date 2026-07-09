@@ -3,7 +3,12 @@ from django.db import transaction
 from apps.agreements.domain.enums import AgreementStatus
 from apps.agreements.models import Agreement
 from apps.audit.services import AuditService
-from apps.parties.identity import ensure_unique_pins, validate_party_identity_input
+from apps.identity.services import IdentityService
+from apps.parties.identity import (
+    ensure_unique_pins,
+    is_identity_required,
+    validate_party_identity_input,
+)
 from apps.parties.models import Party
 from common.exceptions import DomainError
 from common.phone_numbers import normalize_phone_for_compare, normalize_phone_to_e164
@@ -107,6 +112,12 @@ class PartyService:
             for p in parties_data
         ]
         Party.objects.bulk_create(parties)
+        parties = list(Party.objects.filter(agreement=agreement).order_by("created_at"))
+        for party in parties:
+            if not party.id or not is_identity_required(party.role):
+                continue
+            IdentityService.reset_party_verification(party=party)
+            IdentityService.queue_party_verification(party_id=party.pk)
 
         AuditService.record_event(
             event_type="agreement.parties_set",
@@ -115,7 +126,7 @@ class PartyService:
             actor=str(initiator_account.pk),
             metadata={"party_count": len(parties), "roles": roles},
         )
-        return list(Party.objects.filter(agreement=agreement).order_by("created_at"))
+        return parties
 
     @staticmethod
     @transaction.atomic
@@ -145,9 +156,11 @@ class PartyService:
                     f"No party with role '{role}' exists on this agreement."
                 ) from None
             update_fields = []
+            identity_changed = False
             if "full_name" in patch:
                 party.display_name = patch["full_name"]
                 update_fields.append("display_name")
+                identity_changed = True
             if "phone" in patch:
                 normalized_phone = normalize_phone_to_e164(patch["phone"])
                 normalized_phone_key = normalize_phone_for_compare(normalized_phone)
@@ -167,9 +180,11 @@ class PartyService:
             if "id_type" in patch:
                 party.id_type = patch["id_type"]
                 update_fields.append("id_type")
+                identity_changed = True
             if "id_number" in patch:
                 party.id_number = patch["id_number"]
                 update_fields.append("id_number")
+                identity_changed = True
             if "id_type" in patch or "id_number" in patch:
                 party.id_number = validate_party_identity_input(
                     role=role,
@@ -194,6 +209,9 @@ class PartyService:
             if update_fields:
                 update_fields.append("updated_at")
                 party.save(update_fields=update_fields)
+                if is_identity_required(party.role) and identity_changed:
+                    IdentityService.reset_party_verification(party=party)
+                    IdentityService.queue_party_verification(party_id=party.pk)
             updated.append(party)
 
         AuditService.record_event(

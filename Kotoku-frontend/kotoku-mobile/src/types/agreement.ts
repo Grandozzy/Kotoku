@@ -25,8 +25,18 @@ export interface Party {
   phoneVerifiedAt: string | null;
   ghanaCardFrontUploaded: boolean;
   ghanaCardBackUploaded: boolean;
+  identitySelfieUploaded: boolean;
   ghanaCardFrontViewUrl: string | null;
   ghanaCardBackViewUrl: string | null;
+  identitySelfieViewUrl: string | null;
+  identityVerificationStatus:
+    | "pending"
+    | "processing"
+    | "verified"
+    | "failed"
+    | "manual_review_required";
+  identityVerificationDetail: string;
+  identityVerificationFailureCodes: string[];
 }
 
 export interface Agreement {

@@ -10,7 +10,7 @@ from apps.agreements.domain.enums import AgreementStatus
 from apps.agreements.services import AgreementService
 from apps.audit.models import AuditLog
 from apps.evidence.models import EvidenceItem
-from apps.identity.models import IdentityRecord
+from apps.identity.models import IdentityRecord, PartyIdentityVerification
 from apps.parties.models import Party
 from common.exceptions import DomainError
 
@@ -152,6 +152,43 @@ class TestRequestConsent:
 
 
 class TestSealAgreement:
+    def _verified_identity_bundle(self, agreement, party, *, include_selfie: bool = True):
+        EvidenceItem.objects.create(
+            agreement=agreement,
+            uploaded_by=party,
+            file_type=EvidenceItem.FileType.PHOTO,
+            evidence_type=f"{party.role}_ghana_card_front",
+            mime_type="image/jpeg",
+            upload_status=EvidenceItem.UploadStatus.CONFIRMED,
+        )
+        EvidenceItem.objects.create(
+            agreement=agreement,
+            uploaded_by=party,
+            file_type=EvidenceItem.FileType.PHOTO,
+            evidence_type=f"{party.role}_ghana_card_back",
+            mime_type="image/jpeg",
+            upload_status=EvidenceItem.UploadStatus.CONFIRMED,
+        )
+        if include_selfie:
+            EvidenceItem.objects.create(
+                agreement=agreement,
+                uploaded_by=party,
+                file_type=EvidenceItem.FileType.PHOTO,
+                evidence_type=f"{party.role}_selfie",
+                mime_type="image/jpeg",
+                upload_status=EvidenceItem.UploadStatus.CONFIRMED,
+            )
+        PartyIdentityVerification.objects.create(
+            party=party,
+            status=PartyIdentityVerification.Status.VERIFIED,
+            entered_pin=party.id_number or "",
+            entered_full_name=party.display_name,
+            ocr_pin=party.id_number or "",
+            ocr_full_name=party.display_name.upper(),
+            detail="Verified",
+            face_match_score=99.0 if include_selfie else None,
+        )
+
     def test_transitions_to_sealed(self, db):
         account = _account("f@t.com")
         agreement = AgreementService.create_draft(title="T", created_by=account)
@@ -163,13 +200,19 @@ class TestSealAgreement:
             identity=id1,
             role=Party.Role.BUYER,
             display_name="A",
+            phone=account.phone,
+            id_type="ghana_card",
+            id_number="GHA-111111111-1",
         )
         EvidenceItem.objects.create(
             agreement=agreement,
             uploaded_by=party,
             file_type=EvidenceItem.FileType.PHOTO,
             file_hash="abc123",
+            evidence_type="vehicle_photo_front",
+            mime_type="image/jpeg",
         )
+        self._verified_identity_bundle(agreement, party)
         sealed = AgreementService.seal_agreement(agreement_id=agreement.pk)
         assert sealed.status == AgreementStatus.SEALED
         assert sealed.sealed_at is not None
@@ -197,6 +240,32 @@ class TestSealAgreement:
         sealed = AgreementService.seal_agreement(agreement_id=agreement.pk)
         assert sealed.seal_hash != ""
         assert len(sealed.seal_hash) == 64  # SHA-256 hex digest
+
+    def test_seal_fails_when_identity_not_verified(self, db):
+        account = _account("seal_identity@t.com")
+        agreement = AgreementService.create_draft(title="Identity Required", created_by=account)
+        agreement.status = AgreementStatus.ACTIVE
+        agreement.save()
+        identity = _identity(account, "seal-id-check")
+        party = Party.objects.create(
+            agreement=agreement,
+            identity=identity,
+            role=Party.Role.BUYER,
+            display_name="Buyer",
+            phone=account.phone,
+            id_type="ghana_card",
+            id_number="GHA-222222222-2",
+        )
+        EvidenceItem.objects.create(
+            agreement=agreement,
+            uploaded_by=party,
+            file_type=EvidenceItem.FileType.PHOTO,
+            evidence_type="vehicle_photo_front",
+            mime_type="image/jpeg",
+            upload_status=EvidenceItem.UploadStatus.CONFIRMED,
+        )
+        with pytest.raises(DomainError, match="validation failed"):
+            AgreementService.seal_agreement(agreement_id=agreement.pk)
 
     def test_seal_hash_is_deterministic(self, db):
         """Same agreement data always produces the same hash."""

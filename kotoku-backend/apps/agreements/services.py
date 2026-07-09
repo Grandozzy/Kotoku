@@ -14,6 +14,7 @@ from apps.agreements.domain.policies import (
     can_request_reopen,
     can_seal,
 )
+from apps.agreements.domain.validators import validate_agreement
 from apps.agreements.domain.state_machine import next_state
 from apps.agreements.models import Agreement, AgreementRevision
 from apps.audit.services import AuditService
@@ -282,6 +283,11 @@ class AgreementService:
             raise DomainError(
                 "Cannot seal: all parties must have consented and at least one "
                 "piece of evidence must be confirmed."
+            )
+        validation = validate_agreement(agreement)
+        if not validation.valid:
+            raise DomainError(
+                "Cannot seal: agreement validation failed. Resolve the remaining identity or evidence issues first."
             )
         new_status = next_state(agreement.status, "seal")
         agreement.status = new_status

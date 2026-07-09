@@ -27,6 +27,7 @@ dependencies = [
   "channels-redis>=4.2,<5.0",
   "whitenoise>=6.7,<7.0",
   "django-anymail[resend]>=11.0,<12.0",
+  "google-auth>=2.35,<3.0",
 ]
 
 [project.optional-dependencies]
