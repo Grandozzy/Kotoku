@@ -1,5 +1,6 @@
 import json
 import logging
+import hashlib
 
 from django.conf import settings
 from django.http import HttpResponse
@@ -26,6 +27,30 @@ def _get_account(request):
         return request.user.account
     except Exception as exc:
         raise DomainError("Account not found for this user.") from exc
+
+
+def _derive_webhook_event_id(payload: dict) -> str:
+    direct_id = str(payload.get("id", "")).strip()
+    if direct_id:
+        return direct_id
+
+    event_type = str(payload.get("event", "")).strip() or "unknown"
+    data = payload.get("data") or {}
+
+    for candidate in (
+        data.get("id"),
+        data.get("reference"),
+        data.get("subscription_code"),
+        data.get("invoice_code"),
+        data.get("customer", {}).get("customer_code") if isinstance(data.get("customer"), dict) else "",
+    ):
+        value = str(candidate or "").strip()
+        if value:
+            return f"derived:{event_type}:{value}"
+
+    canonical_payload = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+    digest = hashlib.sha256(canonical_payload.encode("utf-8")).hexdigest()
+    return f"derived:{event_type}:sha256:{digest}"
 
 
 class ConfigView(APIView):
@@ -180,12 +205,19 @@ class WebhookView(APIView):
             logger.error("Webhook body is not valid JSON")
             return HttpResponse(status=400)
 
-        event_id = str(payload.get("id", ""))
+        event_id = _derive_webhook_event_id(payload)
         event_type = payload.get("event", "")
 
         if not event_id:
             logger.error("Webhook payload missing event id: %s", payload)
             return HttpResponse(status=400)
+
+        if not str(payload.get("id", "")).strip():
+            logger.warning(
+                "Webhook payload missing top-level event id; derived fallback event_id=%s type=%s",
+                event_id,
+                event_type,
+            )
 
         # Step 4: idempotency check.
         existing = PaymentEvent.objects.filter(event_id=event_id).first()

@@ -99,7 +99,8 @@ def test_config_requires_auth():
 @override_settings(PAYSTACK_PLAN_CODES=_PLAN_CODES, PAYSTACK_CALLBACK_URL="https://www.kotoku-app.com/payment/callback")
 @patch("apps.payments.services.get_paystack_client")
 def test_initiate_happy_path(mock_factory):
-    mock_factory.return_value = _mock_client(reference="kotoku_xyz")
+    mock = _mock_client(reference="kotoku_xyz")
+    mock_factory.return_value = mock
     account, client = _make_account_client()
 
     resp = client.post(_INITIATE_URL, {"plan_id": "personal_plus"}, format="json")
@@ -117,6 +118,11 @@ def test_initiate_happy_path(mock_factory):
     assert checkout.authorization_url == "https://checkout.paystack.com/abc"
     assert checkout.access_code == "acc_test"
     assert not Subscription.objects.filter(account=account).exists()
+    sent_metadata = mock.initialize_transaction.call_args.kwargs["metadata"]
+    assert sent_metadata["cancel_action"] == (
+        "https://www.kotoku-app.com/payment/callback"
+        "?reference=kotoku_xyz&plan_id=personal_plus&payment_state=cancelled"
+    )
 
 
 @pytest.mark.django_db
@@ -381,6 +387,42 @@ def test_checkout_status_reconciles_successful_charge_when_webhook_delayed(mock_
     assert data["checkout_status"] == "succeeded"
     assert account.plan == "personal_plus"
     assert checkout.status == SubscriptionCheckout.STATUS_CHARGED
+
+
+@pytest.mark.django_db
+@override_settings(PAYSTACK_PLAN_CODES=_PLAN_CODES)
+@patch("apps.payments.services.get_paystack_client")
+def test_checkout_status_rejects_amount_mismatch(mock_factory):
+    mock = _mock_client()
+    mock.verify_transaction.return_value = {
+        "reference": "kotoku_status_bad_amount",
+        "status": "success",
+        "plan": {"plan_code": "PLN_plus"},
+        "customer": {"customer_code": "CUS_status", "email": "pay@test.com"},
+        "metadata": {},
+        "amount": 4900,
+        "currency": "GHS",
+    }
+    mock_factory.return_value = mock
+    account, client = _make_account_client(plan="personal_basic")
+    account.email = "pay@test.com"
+    account.save(update_fields=["email", "updated_at"])
+    checkout = SubscriptionCheckout.objects.create(
+        account=account,
+        reference="kotoku_status_bad_amount",
+        target_plan_id="personal_plus",
+        status=SubscriptionCheckout.STATUS_PENDING,
+    )
+
+    resp = client.get(f"{_CHECKOUT_STATUS_URL}?reference=kotoku_status_bad_amount")
+
+    assert resp.status_code == 200
+    data = resp.json()["data"]
+    checkout.refresh_from_db()
+    account.refresh_from_db()
+    assert data["checkout_status"] == "failed"
+    assert account.plan == "personal_basic"
+    assert checkout.status == SubscriptionCheckout.STATUS_FAILED
 
 
 @pytest.mark.django_db

@@ -151,7 +151,27 @@ def test_webhook_missing_event_id_returns_400():
         content_type="application/json",
         HTTP_X_PAYSTACK_SIGNATURE=sig,
     )
-    assert resp.status_code == 400
+    assert resp.status_code == 200
+    assert PaymentEvent.objects.filter(event_id__startswith="derived:charge.success:sha256:").exists()
+
+
+@pytest.mark.django_db
+@override_settings(PAYSTACK_WEBHOOK_SECRET=_WEBHOOK_SECRET)
+@patch("apps.payments.api.views.process_payment_event")
+def test_webhook_derives_event_id_from_transaction_data(mock_task):
+    client = APIClient()
+    payload = {
+        "event": "charge.success",
+        "data": {
+            "id": 987654321,
+            "reference": "kotoku_ref_fallback_001",
+        },
+    }
+    resp = _post_webhook(client, payload)
+    assert resp.status_code == 200
+    event_id = "derived:charge.success:987654321"
+    assert PaymentEvent.objects.filter(event_id=event_id).exists()
+    mock_task.delay.assert_called_once_with(event_id)
 
 
 # ── process_payment_event — charge.success ────────────────────────────────────

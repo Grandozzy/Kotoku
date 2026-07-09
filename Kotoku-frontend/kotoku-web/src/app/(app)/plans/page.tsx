@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { AlertCircle, ArrowLeft, Check, Loader2, ShieldCheck, Users } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { AlertCircle, ArrowLeft, Check, CreditCard, Loader2, ShieldCheck, Smartphone, Users } from "lucide-react";
 import { usePlan } from "@/hooks/usePlan";
 import { paymentsApi } from "@/api/payments";
 
@@ -218,6 +219,12 @@ function PlanCard({
 
 export default function PlansPage() {
   const { data: subscription, isLoading, isError: planLoadError } = usePlan();
+  const { data: subscriptionStatus } = useQuery({
+    queryKey: ["billing", "subscription"],
+    queryFn: paymentsApi.subscriptionStatus,
+    staleTime: 60_000,
+    retry: 1,
+  });
 
   const currentPlanId = subscription?.plan.id ?? null;
   const currentFamily = subscription?.plan.family ?? "personal";
@@ -228,17 +235,27 @@ export default function PlansPage() {
   const [manualTab, setManualTab] = useState<PlanFamily | null>(null);
   const tab = manualTab ?? currentFamily;
   const [actingPlanId, setActingPlanId] = useState<string | null>(null);
+  const [recoveryChannel, setRecoveryChannel] = useState<"card" | "mobile_money" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [sessionBlocked, setSessionBlocked] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const isPastDue = subscriptionStatus?.status === "past_due";
+  const recoveryPlanId = subscriptionStatus?.plan_id ?? currentPlanId;
 
-  async function handleAction(planId: string) {
+  async function handleAction(
+    planId: string,
+    options?: {
+      mode?: "subscription" | "recovery";
+      channels?: ("card" | "mobile_money")[];
+    }
+  ) {
     setActingPlanId(planId);
+    setRecoveryChannel(options?.channels?.[0] ?? null);
     setError(null);
     setSessionBlocked(false);
     try {
       const callbackUrl = `${window.location.origin}/payment/callback`;
-      const { authorization_url } = await paymentsApi.initiate(planId, callbackUrl);
+      const { authorization_url } = await paymentsApi.initiate(planId, callbackUrl, options);
       window.location.href = authorization_url;
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Could not start payment. Please try again.";
@@ -248,15 +265,22 @@ export default function PlansPage() {
         setError(msg);
       }
       setActingPlanId(null);
+      setRecoveryChannel(null);
     }
   }
 
-  async function handleCancelAndRetry(planId: string) {
+  async function handleCancelAndRetry(
+    planId: string,
+    options?: {
+      mode?: "subscription" | "recovery";
+      channels?: ("card" | "mobile_money")[];
+    }
+  ) {
     setCancelling(true);
     try {
       await paymentsApi.cancelCheckout();
       setSessionBlocked(false);
-      await handleAction(planId);
+      await handleAction(planId, options);
     } catch {
       setError("Could not cancel the previous session. Please try again.");
     } finally {
@@ -328,13 +352,70 @@ export default function PlansPage() {
             </p>
           </div>
           <button
-            onClick={() => actingPlanId && handleCancelAndRetry(actingPlanId)}
+            onClick={() =>
+              actingPlanId &&
+              handleCancelAndRetry(
+                actingPlanId,
+                recoveryChannel
+                  ? { mode: "recovery", channels: [recoveryChannel] }
+                  : undefined
+              )
+            }
             disabled={cancelling || !actingPlanId}
             className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg bg-amber-800 px-3 py-2 text-xs font-medium text-white hover:bg-amber-900 disabled:opacity-50"
           >
             {cancelling ? <Loader2 size={11} className="animate-spin" /> : null}
             Cancel &amp; retry
           </button>
+        </div>
+      )}
+      {isPastDue && recoveryPlanId && (
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-5 text-sm text-red-800">
+          <div className="flex items-start gap-3">
+            <AlertCircle size={18} className="shrink-0 mt-0.5 text-red-600" strokeWidth={2} />
+            <div className="flex-1">
+              <p className="font-semibold text-red-900">Renewal payment failed</p>
+              <p className="mt-1 leading-relaxed text-red-700">
+                Your current subscription is past due. Reactivate the same plan now with Card or Mobile Money.
+              </p>
+              <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+                <button
+                  onClick={() =>
+                    handleAction(recoveryPlanId, {
+                      mode: "recovery",
+                      channels: ["card"],
+                    })
+                  }
+                  disabled={actingPlanId === recoveryPlanId}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-neutral-900 px-4 py-3 text-sm font-medium text-white disabled:opacity-60"
+                >
+                  {actingPlanId === recoveryPlanId && recoveryChannel === "card" ? (
+                    <Loader2 size={14} className="animate-spin" strokeWidth={2} />
+                  ) : (
+                    <CreditCard size={14} strokeWidth={2} />
+                  )}
+                  Pay with card
+                </button>
+                <button
+                  onClick={() =>
+                    handleAction(recoveryPlanId, {
+                      mode: "recovery",
+                      channels: ["mobile_money"],
+                    })
+                  }
+                  disabled={actingPlanId === recoveryPlanId}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-300 bg-white px-4 py-3 text-sm font-medium text-red-800 disabled:opacity-60"
+                >
+                  {actingPlanId === recoveryPlanId && recoveryChannel === "mobile_money" ? (
+                    <Loader2 size={14} className="animate-spin" strokeWidth={2} />
+                  ) : (
+                    <Smartphone size={14} strokeWidth={2} />
+                  )}
+                  Pay with Mobile Money
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
       {error && (

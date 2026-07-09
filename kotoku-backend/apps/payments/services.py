@@ -3,6 +3,7 @@ import uuid
 from calendar import monthrange
 from datetime import date, datetime
 from datetime import timezone as dt_timezone
+from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 from django.conf import settings
 from django.db import transaction
@@ -16,9 +17,118 @@ from common.exceptions import DomainError
 from infrastructure.paystack.client import InitializeResult, PaystackError, get_paystack_client
 
 logger = logging.getLogger("kotoku")
+_PAYMENTS_CURRENCY = "GHS"
 
 
 class PaymentService:
+    @staticmethod
+    def _expected_plan_amount_kobo(plan_id: str) -> int:
+        plan = PLAN_MAP.get(plan_id)
+        if not plan:
+            raise DomainError(f"Invalid plan: {plan_id!r}.")
+        return int(plan.price_ghs * 100)
+
+    @staticmethod
+    def _build_cancel_action_url(
+        callback_url: str,
+        *,
+        reference: str,
+        plan_id: str,
+    ) -> str:
+        if not callback_url:
+            return ""
+        parsed = urlparse(callback_url)
+        query = dict(parse_qsl(parsed.query, keep_blank_values=True))
+        query["reference"] = reference
+        query["plan_id"] = plan_id
+        query["payment_state"] = "cancelled"
+        return urlunparse(parsed._replace(query=urlencode(query)))
+
+    @staticmethod
+    def _mark_checkout_verification_failed(
+        checkout: SubscriptionCheckout | None,
+        *,
+        reason: str,
+        data: dict,
+    ) -> None:
+        logger.error(reason)
+        if not checkout:
+            return
+        SubscriptionCheckout.objects.filter(
+            pk=checkout.pk,
+            status__in=(
+                SubscriptionCheckout.STATUS_PENDING,
+                SubscriptionCheckout.STATUS_CHARGED,
+                SubscriptionCheckout.STATUS_PROVIDER_CREATED,
+            ),
+        ).update(status=SubscriptionCheckout.STATUS_FAILED)
+        AuditService.record_event(
+            event_type="payment.checkout_verification_mismatch",
+            entity_type="subscription_checkout",
+            entity_id=str(checkout.pk),
+            metadata={
+                "reference": checkout.reference,
+                "target_plan_id": checkout.target_plan_id,
+                "reason": reason,
+                "paystack_reference": data.get("reference", ""),
+                "paystack_amount": data.get("amount"),
+                "paystack_currency": data.get("currency"),
+            },
+        )
+
+    @staticmethod
+    def _validate_verified_checkout(
+        *,
+        checkout: SubscriptionCheckout | None,
+        plan_id: str,
+        data: dict,
+    ) -> bool:
+        actual_reference = str(data.get("reference", "")).strip()
+        actual_currency = str(data.get("currency", "")).upper().strip()
+        try:
+            actual_amount = int(data.get("amount") or 0)
+        except (TypeError, ValueError):
+            actual_amount = 0
+
+        expected_amount = PaymentService._expected_plan_amount_kobo(plan_id)
+
+        if checkout and actual_reference and actual_reference != checkout.reference:
+            PaymentService._mark_checkout_verification_failed(
+                checkout,
+                reason=(
+                    "Verified payment reference mismatch for checkout="
+                    f"{checkout.pk}: expected={checkout.reference} got={actual_reference}"
+                ),
+                data=data,
+            )
+            return False
+
+        if actual_amount != expected_amount:
+            PaymentService._mark_checkout_verification_failed(
+                checkout,
+                reason=(
+                    "Verified payment amount mismatch"
+                    + (f" for checkout={checkout.pk}" if checkout else "")
+                    + f": expected={expected_amount} got={actual_amount}"
+                ),
+                data=data,
+            )
+            return False
+
+        if actual_currency and actual_currency != _PAYMENTS_CURRENCY:
+            PaymentService._mark_checkout_verification_failed(
+                checkout,
+                reason=(
+                    "Verified payment currency mismatch"
+                    + (f" for checkout={checkout.pk}" if checkout else "")
+                    + f": expected={_PAYMENTS_CURRENCY} got={actual_currency}"
+                ),
+                data=data,
+            )
+            return False
+
+        return True
+
     @staticmethod
     def _notify(account, body: str) -> None:
         try:
@@ -123,6 +233,13 @@ class PaymentService:
                     "checkout": locked_checkout,
                 }
 
+            if not PaymentService._validate_verified_checkout(
+                checkout=locked_checkout,
+                plan_id=locked_checkout.target_plan_id,
+                data=data,
+            ):
+                return None
+
             base_period_end = sub.current_period_end or date.today()
             next_period_end = PaymentService._add_one_month(base_period_end)
             sub.current_period_start = base_period_end
@@ -217,6 +334,13 @@ class PaymentService:
             plan_id = checkout.target_plan_id
         if not account_id or not plan_id:
             logger.error("charge.success missing account_id/plan_id in metadata: %s", metadata)
+            return None
+
+        if not PaymentService._validate_verified_checkout(
+            checkout=checkout,
+            plan_id=plan_id,
+            data=data,
+        ):
             return None
 
         customer = data.get("customer") or {}
@@ -432,6 +556,7 @@ class PaymentService:
             )
 
         reference = f"kotoku_{uuid.uuid4().hex}"
+        effective_callback_url = callback_url or getattr(settings, "PAYSTACK_CALLBACK_URL", "")
 
         try:
             client = get_paystack_client()
@@ -440,11 +565,16 @@ class PaymentService:
                 amount_kobo=plan.price_ghs * 100,
                 plan_code=plan_code,
                 reference=reference,
-                callback_url=callback_url or getattr(settings, "PAYSTACK_CALLBACK_URL", ""),
+                callback_url=effective_callback_url,
                 metadata={
                     "account_id": account.id,
                     "plan_id": plan_id,
                     "kotoku_ref": reference,
+                    "cancel_action": PaymentService._build_cancel_action_url(
+                        effective_callback_url,
+                        reference=reference,
+                        plan_id=plan_id,
+                    ),
                 },
             )
         except PaystackError as exc:
@@ -514,6 +644,7 @@ class PaymentService:
 
         reference = f"kotoku_{uuid.uuid4().hex}"
         selected_channels = channels or ["card", "mobile_money"]
+        effective_callback_url = callback_url or getattr(settings, "PAYSTACK_CALLBACK_URL", "")
 
         try:
             client = get_paystack_client()
@@ -521,13 +652,18 @@ class PaymentService:
                 email=account.email,
                 amount_kobo=plan.price_ghs * 100,
                 reference=reference,
-                callback_url=callback_url or getattr(settings, "PAYSTACK_CALLBACK_URL", ""),
+                callback_url=effective_callback_url,
                 metadata={
                     "account_id": account.id,
                     "plan_id": plan_id,
                     "payment_mode": SubscriptionCheckout.KIND_RECOVERY,
                     "subscription_id": existing.id,
                     "kotoku_ref": reference,
+                    "cancel_action": PaymentService._build_cancel_action_url(
+                        effective_callback_url,
+                        reference=reference,
+                        plan_id=plan_id,
+                    ),
                 },
                 channels=selected_channels,
             )

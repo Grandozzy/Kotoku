@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { ActivityIndicator, Text, View } from "react-native";
 
 import { Button, NoticeCard } from "@/components/ui";
-import { getCheckoutStatus } from "@/api/payments";
+import { cancelCheckout, getCheckoutStatus } from "@/api/payments";
 import { getApiErrorMessage } from "@/lib/errorHandler";
 import { colors } from "@/theme/tokens";
 
@@ -14,22 +14,47 @@ const CONFIRMATION_TIMEOUT_MS = 45_000;
 export default function PaymentCallbackScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { reference, plan_id } = useLocalSearchParams<{
+  const { reference, plan_id, payment_state } = useLocalSearchParams<{
     reference?: string;
     plan_id?: string;
+    payment_state?: string;
   }>();
   const [timedOut, setTimedOut] = useState(false);
+  const [cancelSyncing, setCancelSyncing] = useState(false);
+  const [cancelSyncError, setCancelSyncError] = useState<string | null>(null);
+  const paymentState = payment_state;
 
   useEffect(() => {
-    if (!reference || timedOut) return;
+    if (!reference || timedOut || paymentState === "cancelled") return;
     const timer = setTimeout(() => setTimedOut(true), CONFIRMATION_TIMEOUT_MS);
     return () => clearTimeout(timer);
-  }, [reference, timedOut]);
+  }, [paymentState, reference, timedOut]);
+
+  useEffect(() => {
+    if (paymentState !== "cancelled" || !reference) return;
+    let active = true;
+    const syncCancellation = async () => {
+      setCancelSyncing(true);
+      setCancelSyncError(null);
+      try {
+        await cancelCheckout();
+      } catch (error) {
+        if (!active) return;
+        setCancelSyncError(getApiErrorMessage(error));
+      } finally {
+        if (active) setCancelSyncing(false);
+      }
+    };
+    void syncCancellation();
+    return () => {
+      active = false;
+    };
+  }, [paymentState, reference]);
 
   const statusQuery = useQuery({
     queryKey: ["billing", "checkout-status", reference],
     queryFn: () => getCheckoutStatus(reference!),
-    enabled: !!reference,
+    enabled: !!reference && paymentState !== "cancelled",
     retry: 1,
     staleTime: 0,
     refetchInterval: (query) => {
@@ -78,6 +103,54 @@ export default function PaymentCallbackScreen() {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           onPress={() => router.replace("/(main)/plans" as any)}
         />
+      </View>
+    );
+  }
+
+  if (paymentState === "cancelled") {
+    return (
+      <View className="flex-1 bg-surface-canvas px-lg items-center justify-center gap-xl">
+        <View className="w-20 h-20 rounded-full bg-amber-50 items-center justify-center">
+          <AlertCircle size={36} color="#d97706" strokeWidth={1.6} />
+        </View>
+        <View className="items-center gap-sm">
+          <Text className="text-2xl font-semibold text-ink-primary text-center">
+            Payment cancelled
+          </Text>
+          <Text className="text-md text-ink-secondary text-center leading-relaxed">
+            {cancelSyncing
+              ? "Finalising the cancelled checkout before you return to plans."
+              : "This checkout was cancelled before confirmation. You can start a new payment when ready."}
+          </Text>
+          <Text className="text-xs text-ink-muted text-center">
+            Reference: {reference}
+          </Text>
+        </View>
+        {cancelSyncError ? (
+          <NoticeCard
+            variant="warning"
+            title="Cancellation sync needs another try"
+            body={cancelSyncError}
+          />
+        ) : null}
+        <View className="w-full gap-md">
+          <Button
+            title="Back to plans"
+            variant="primary"
+            size="lg"
+            fullWidth
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            onPress={() => router.replace("/(main)/plans" as any)}
+          />
+          <Button
+            title="View subscription"
+            variant="secondary"
+            size="lg"
+            fullWidth
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            onPress={() => router.replace("/(main)/subscription" as any)}
+          />
+        </View>
       </View>
     );
   }
