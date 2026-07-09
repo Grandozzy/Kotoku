@@ -2,6 +2,7 @@ import json
 import logging
 import urllib.parse
 import urllib.request
+from urllib.parse import urlparse
 
 from django.conf import settings
 
@@ -15,11 +16,32 @@ class SmsGateway:
         self.username = getattr(settings, "SMS_USERNAME", "sandbox")
         self.sender_id = getattr(settings, "SMS_SENDER_ID", "")
 
+    def _mode(self) -> str:
+        return "sandbox" if self.username == "sandbox" else "live"
+
+    @staticmethod
+    def _mask_phone(phone: str) -> str:
+        if len(phone) <= 5:
+            return phone
+        return f"{phone[:4]}***{phone[-3:]}"
+
+    def _log_context(self, to: str) -> dict[str, str]:
+        endpoint = urlparse(self.api_url)
+        return {
+            "mode": self._mode(),
+            "username": self.username,
+            "sender_id": self.sender_id or "<default>",
+            "endpoint_host": endpoint.netloc,
+            "endpoint_path": endpoint.path,
+            "to_masked": self._mask_phone(to),
+        }
+
     def send(self, to: str, body: str) -> bool:
         if not self.api_key:
             raise RuntimeError(
                 "SMS_API_KEY is not configured. Set SMS_API_KEY in your environment."
             )
+        log_context = self._log_context(to)
         data = {
             "username": self.username,
             "to": to,
@@ -44,15 +66,59 @@ class SmsGateway:
                 result = json.loads(resp.read().decode())
                 sms_data = result.get("SMSMessageData", {})
                 recipients = sms_data.get("Recipients", [])
-                if recipients and recipients[0].get("status") == "Success":
-                    logger.info("SMS sent successfully to %s (messageId: %s)", to, recipients[0].get("messageId"))
+                if recipients:
+                    recipient = recipients[0]
+                    recipient_status = recipient.get("status")
+                    recipient_payload = {
+                        "message_id": recipient.get("messageId"),
+                        "status": recipient_status,
+                        "status_code": recipient.get("statusCode"),
+                        "number": recipient.get("number"),
+                        "cost": recipient.get("cost"),
+                    }
+                else:
+                    recipient = {}
+                    recipient_status = None
+                    recipient_payload = None
+                if recipient_status == "Success":
+                    logger.info(
+                        "SMS accepted by gateway",
+                        extra={
+                            "sms": {
+                                **log_context,
+                                "provider_message": sms_data.get("Message"),
+                                "recipient": recipient_payload,
+                            }
+                        },
+                    )
                     return True
-                logger.warning("SMS not delivered to %s: %s", to, sms_data.get("Message", "unknown error"))
+                logger.warning(
+                    "SMS rejected by gateway",
+                    extra={
+                        "sms": {
+                            **log_context,
+                            "provider_message": sms_data.get("Message", "unknown error"),
+                            "recipient": recipient_payload,
+                        }
+                    },
+                )
                 return False
         except urllib.error.HTTPError as e:
             error_body = e.read().decode()
-            logger.exception("SMS gateway HTTP error %d for %s: %s", e.code, to, error_body)
+            logger.exception(
+                "SMS gateway HTTP error",
+                extra={
+                    "sms": {
+                        **log_context,
+                        "http_status": e.code,
+                        "error_body": error_body,
+                    }
+                },
+            )
             return False
         except Exception:
-            logger.exception("SMS gateway error for destination %s", to)
+            logger.exception(
+                "SMS gateway error",
+                extra={"sms": log_context},
+            )
             return False

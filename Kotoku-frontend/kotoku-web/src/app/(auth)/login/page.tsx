@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowRight, ShieldCheck } from "lucide-react";
 import { authApi } from "@/api/auth";
+import { isValidE164Phone } from "@/lib/phone";
 import { useSessionStore } from "@/store/sessionStore";
 import { KotokuLogo } from "@/components/brand/KotokuLogo";
 
@@ -18,6 +19,8 @@ export default function LoginPage() {
   const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const normalizedPhone = phone.trim();
+  const isValidPhone = isValidE164Phone(normalizedPhone);
 
   useEffect(() => {
     if (!hasHydrated || isBootstrapping || isRecoveringSession) return;
@@ -30,11 +33,15 @@ export default function LoginPage() {
 
   async function handleSubmit(e: React.SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (!isValidPhone) {
+      setError("Enter a valid number with country code, e.g. +233501234567.");
+      return;
+    }
     setError(null);
     setLoading(true);
     try {
-      await authApi.requestOtp(phone);
-      router.push(`/verify?phone=${encodeURIComponent(phone)}`);
+      await authApi.requestOtp(normalizedPhone);
+      router.push(`/verify?phone=${encodeURIComponent(normalizedPhone)}`);
     } catch {
       setError("Could not send OTP. Check the number and try again.");
     } finally {
@@ -66,15 +73,21 @@ export default function LoginPage() {
               type="tel"
               placeholder="+233 XX XXX XXXX"
               value={phone}
-              onChange={(e) => setPhone(e.target.value)}
+              onChange={(e) => {
+                setPhone(e.target.value);
+                if (error) setError(null);
+              }}
               required
               className="mt-1 w-full rounded-lg border border-neutral-200 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
+            <p className="mt-1 text-xs text-neutral-500">
+              Use the same number linked to your Kotoku agreements, in full international format.
+            </p>
           </div>
           {error && <p className="text-sm text-red-600">{error}</p>}
           <button
             type="submit"
-            disabled={loading || !phone}
+            disabled={loading || !isValidPhone}
             className="inline-flex items-center justify-center gap-1.5 w-full py-2.5 rounded-full bg-neutral-900 text-white font-medium text-sm disabled:opacity-50 hover:bg-neutral-700 transition-colors"
           >
             {loading ? "Sending…" : <><span>Send code</span><ArrowRight size={14} /></>}

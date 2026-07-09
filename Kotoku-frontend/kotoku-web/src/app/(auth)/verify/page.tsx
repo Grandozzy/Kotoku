@@ -3,15 +3,16 @@
 import { useEffect, useState, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, ArrowRight, ShieldCheck } from "lucide-react";
+import { ArrowLeft, ArrowRight, CheckCircle2, ShieldCheck } from "lucide-react";
 import { authApi } from "@/api/auth";
+import { isValidE164Phone } from "@/lib/phone";
 import { useSessionStore } from "@/store/sessionStore";
 import { KotokuLogo } from "@/components/brand/KotokuLogo";
 
 function VerifyForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const phone = searchParams.get("phone") ?? "";
+  const phone = (searchParams.get("phone") ?? "").trim();
   const accessToken = useSessionStore((s) => s.accessToken);
   const hasHydrated = useSessionStore((s) => s.hasHydrated);
   const isAuthenticated = useSessionStore((s) => s.isAuthenticated);
@@ -22,6 +23,9 @@ function VerifyForm() {
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendSuccess, setResendSuccess] = useState(false);
+  const isValidPhone = isValidE164Phone(phone);
 
   useEffect(() => {
     if (!hasHydrated || isBootstrapping || isRecoveringSession) return;
@@ -34,19 +38,43 @@ function VerifyForm() {
 
   async function handleSubmit(e: React.SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (!isValidPhone) {
+      setError("Go back and enter a valid phone number in international format.");
+      return;
+    }
     setError(null);
+    setResendSuccess(false);
     setLoading(true);
     try {
       const res = await authApi.verifyOtp(phone, code);
       if (!res.user.account_id) {
         throw new Error("Account not linked to verified user.");
       }
-      setSession(res.access, res.user.account_id, phone);
+      setSession(res.access, res.user.account_id, res.user.phone);
       router.replace("/dashboard");
     } catch {
       setError("Invalid or expired code. Try again.");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleResend() {
+    if (!isValidPhone) {
+      setError("Go back and enter a valid phone number in international format.");
+      return;
+    }
+    setCode("");
+    setError(null);
+    setResendSuccess(false);
+    setResendLoading(true);
+    try {
+      await authApi.requestOtp(phone);
+      setResendSuccess(true);
+    } catch {
+      setError("Could not resend OTP. Check the number and try again.");
+    } finally {
+      setResendLoading(false);
     }
   }
 
@@ -73,19 +101,43 @@ function VerifyForm() {
             maxLength={8}
             placeholder="00000000"
             value={code}
-            onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
+            onChange={(e) => {
+              setCode(e.target.value.replace(/\D/g, ""));
+              if (error) setError(null);
+            }}
             required
             className="w-full rounded-lg border border-neutral-200 px-3 py-3 text-center font-mono text-xl tracking-[0.25em] focus:outline-none focus:ring-2 focus:ring-blue-500 sm:px-4 sm:text-2xl sm:tracking-[0.4em]"
           />
           {error && <p className="text-sm text-red-600">{error}</p>}
           <button
             type="submit"
-            disabled={loading || code.length < 8}
+            disabled={loading || resendLoading || code.length < 8}
             className="inline-flex items-center justify-center gap-1.5 w-full py-2.5 rounded-full bg-neutral-900 text-white font-medium text-sm disabled:opacity-50 hover:bg-neutral-700 transition-colors"
           >
             {loading ? "Verifying…" : <><span>Confirm</span><ArrowRight size={14} /></>}
           </button>
         </form>
+
+        <div className="mt-4 flex flex-col items-center gap-2">
+          <p className="text-sm text-neutral-500">Didn&apos;t receive a code?</p>
+          <button
+            type="button"
+            onClick={handleResend}
+            disabled={loading || resendLoading}
+            className="inline-flex items-center justify-center gap-1 text-sm font-medium text-blue-600 disabled:text-neutral-400"
+          >
+            {resendSuccess ? (
+              <>
+                <CheckCircle2 size={14} />
+                Code sent
+              </>
+            ) : resendLoading ? (
+              "Sending…"
+            ) : (
+              "Resend code"
+            )}
+          </button>
+        </div>
 
         <button
           onClick={() => router.back()}
