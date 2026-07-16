@@ -35,12 +35,15 @@ _missing_runtime_settings = [
     *_missing_setting_names(REQUIRED_STORAGE_SETTING_NAMES),  # noqa: F405
     *_missing_setting_names(REQUIRED_PAYMENT_SETTING_NAMES),  # noqa: F405
 ]
-if SMS_BACKEND != "stub":  # noqa: F405
-    _missing_runtime_settings.extend(_missing_setting_names(REQUIRED_SMS_SETTING_NAMES))  # noqa: F405
 if SMS_BACKEND == "console":  # noqa: F405
     raise ImproperlyConfigured(
         "Production cannot run with SMS_BACKEND=console because OTPs would be written to logs."
     )
+if SMS_BACKEND == "infobip":  # noqa: F405
+    _missing_runtime_settings.extend(_missing_setting_names(REQUIRED_INFOBIP_SETTING_NAMES))  # noqa: F405
+elif SMS_BACKEND not in ("stub",):  # noqa: F405
+    # africastalking standby or any other named backend
+    _missing_runtime_settings.extend(_missing_setting_names(REQUIRED_SMS_SETTING_NAMES))  # noqa: F405
 
 for plan_id, env_name in PAYSTACK_PLAN_CODE_ENV_MAP.items():  # noqa: F405
     if not PAYSTACK_PLAN_CODES.get(plan_id, ""):  # noqa: F405

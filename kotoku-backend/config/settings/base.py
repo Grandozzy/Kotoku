@@ -198,6 +198,16 @@ AWS_ENDPOINT_URL_S3 = (
     or os.getenv("AWS_S3_ENDPOINT_URL", "").strip()
 )
 
+# --- Infobip (primary SMS provider) ---
+INFOBIP_API_KEY = os.getenv("INFOBIP_API_KEY", "")
+INFOBIP_BASE_URL = os.getenv("INFOBIP_BASE_URL", "")  # e.g. https://xxxxx.api.infobip.com
+INFOBIP_SMS_SENDER = os.getenv("INFOBIP_SMS_SENDER", "")
+INFOBIP_WHATSAPP_NUMBER = os.getenv("INFOBIP_WHATSAPP_NUMBER", "")
+INFOBIP_WHATSAPP_TEMPLATE_NAME = os.getenv("INFOBIP_WHATSAPP_TEMPLATE_NAME", "")
+INFOBIP_SMS_TIMEOUT_SECONDS = int(os.getenv("INFOBIP_SMS_TIMEOUT_SECONDS", "30"))
+INFOBIP_WEBHOOK_SECRET = os.getenv("INFOBIP_WEBHOOK_SECRET", "")
+
+# --- Africa's Talking (cold standby — set SMS_BACKEND=africastalking to re-enable) ---
 _SMS_USERNAME = os.getenv("SMS_USERNAME", "sandbox")
 _SMS_MODE_URL = (
     "https://api.sandbox.africastalking.com/version1/messaging"
@@ -245,7 +255,8 @@ REQUIRED_STORAGE_SETTING_NAMES = (
     "AWS_STORAGE_BUCKET_NAME",
     "AWS_S3_REGION_NAME",
 )
-REQUIRED_SMS_SETTING_NAMES = ("SMS_API_KEY",)
+REQUIRED_SMS_SETTING_NAMES = ("SMS_API_KEY",)  # Africa's Talking standby
+REQUIRED_INFOBIP_SETTING_NAMES = ("INFOBIP_API_KEY", "INFOBIP_BASE_URL")
 REQUIRED_PAYMENT_SETTING_NAMES = (
     "PAYSTACK_SECRET_KEY",
     "PAYSTACK_PUBLIC_KEY",

@@ -35,6 +35,7 @@ urlpatterns = [
     path("api/disputes/", include("apps.disputes.api.urls")),
     path("api/billing/", include("apps.billing.api.urls")),
     path("api/payments/", include("apps.payments.api.urls")),
+    path("api/webhooks/", include("apps.notifications.api.urls")),
     path(
         "api/consent-links/<str:token>/confirm/",
         PublicConsentLinkConfirmView.as_view(),

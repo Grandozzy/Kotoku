@@ -5,6 +5,11 @@ from infrastructure.sms.gateway import SmsGateway
 
 
 def get_sms_gateway():
-    if getattr(settings, "SMS_BACKEND", "africastalking") == "console":
+    backend = getattr(settings, "SMS_BACKEND", "infobip")
+    if backend == "console":
         return ConsoleSmsGateway()
-    return SmsGateway()
+    if backend == "africastalking":
+        return SmsGateway()
+    # Default: infobip (primary) — imported lazily so AT/console paths stay fast
+    from infrastructure.sms.infobip_gateway import InfobipSmsGateway
+    return InfobipSmsGateway()

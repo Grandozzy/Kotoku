@@ -77,7 +77,7 @@ def _agreement_with_parties():
 class TestGenerateOtp:
     def test_returns_numeric_string(self):
         otp = generate_otp()
-        assert len(otp) == 8
+        assert len(otp) == 4
         assert otp.isdigit()
 
     def test_respects_length(self):

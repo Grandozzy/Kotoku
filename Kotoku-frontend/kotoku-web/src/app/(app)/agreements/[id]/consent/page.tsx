@@ -247,8 +247,8 @@ export default function ConsentPage() {
               <input
                 type="text"
                 inputMode="numeric"
-                maxLength={8}
-                placeholder="123456"
+                maxLength={4}
+                placeholder="1234"
                 value={otp}
                 onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
                 className="mt-1 w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm font-mono tracking-widest text-center focus:outline-none focus:ring-2 focus:ring-blue-500"

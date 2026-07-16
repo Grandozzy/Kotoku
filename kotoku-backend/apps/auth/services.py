@@ -18,7 +18,7 @@ from common.phone_numbers import normalize_phone_to_e164
 
 logger = logging.getLogger(__name__)
 
-_OTP_LENGTH = 8
+_OTP_LENGTH = 4
 _OTP_TTL_SECONDS = 300              # 5 minutes
 _OTP_RATE_TTL_SECONDS = 60          # 1 minute between sends
 _OTP_MAX_ATTEMPTS = 5               # per OTP record
@@ -51,7 +51,7 @@ _SEQUENTIAL_PINS = {
 }
 
 _ph = argon2.PasswordHasher()
-_OTP_BODY_RE = re.compile(r"(\d{8})")
+_OTP_BODY_RE = re.compile(r"(\d{4})")
 
 
 # ─────────────────────────────────────────────────────────────────────────────

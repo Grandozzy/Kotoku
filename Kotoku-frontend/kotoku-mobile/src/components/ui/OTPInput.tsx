@@ -13,7 +13,6 @@ import { useSmsOtp } from "@/hooks/useSmsOtp";
 import { cn } from "@/lib/cn";
 
 interface OTPInputProps {
-  // Default is 8 to match Kotoku's OTP policy (8-digit codes).
   length?: number;
   value: string;
   onChange: (val: string) => void;
@@ -26,7 +25,7 @@ const normalizeOtpValue = (text: string, length: number) =>
   text.replace(/\D/g, "").slice(0, length);
 
 export const OTPInput: React.FC<OTPInputProps> = ({
-  length = 8,
+  length = 4,
   value,
   onChange,
   error,

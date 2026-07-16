@@ -44,7 +44,7 @@ class SmsGateway:
         log_context = self._log_context(to)
         data = {
             "username": self.username,
-            "to": to,
+            "to": to.lstrip("+"),
             "message": body,
             "bulkSMSMode": 1,
         }

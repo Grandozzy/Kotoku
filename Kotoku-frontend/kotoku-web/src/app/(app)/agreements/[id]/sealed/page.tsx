@@ -225,7 +225,7 @@ export default function SealedPage() {
                     <input
                       type="text"
                       inputMode="numeric"
-                      maxLength={8}
+                      maxLength={4}
                       placeholder="OTP"
                       value={reopenOtp}
                       onChange={(e) => setReopenOtp(e.target.value.replace(/\D/g, ""))}

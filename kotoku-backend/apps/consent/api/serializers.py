@@ -9,11 +9,11 @@ class RequestOtpSerializer(serializers.Serializer):
 
 class ConfirmConsentSerializer(serializers.Serializer):
     party_phone = serializers.RegexField(_E164_PATTERN, max_length=20)
-    otp_code = serializers.CharField(max_length=8, min_length=1)
+    otp_code = serializers.CharField(min_length=4, max_length=4)
 
 
 class PublicConsentConfirmSerializer(serializers.Serializer):
-    otp_code = serializers.CharField(max_length=8, min_length=1)
+    otp_code = serializers.CharField(min_length=4, max_length=4)
 
 
 class ConsentRecordOutputSerializer(serializers.Serializer):

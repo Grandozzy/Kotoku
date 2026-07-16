@@ -16,11 +16,19 @@ export default function LoginPage() {
   const isAuthenticated = useSessionStore((s) => s.isAuthenticated);
   const isBootstrapping = useSessionStore((s) => s.isBootstrapping);
   const isRecoveringSession = hasHydrated && isAuthenticated && !accessToken;
-  const [phone, setPhone] = useState("");
+  const [localDigits, setLocalDigits] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const normalizedPhone = phone.trim();
-  const isValidPhone = isValidE164Phone(normalizedPhone);
+  const normalizedPhone = `+233${localDigits}`;
+  const isValidPhone = localDigits.length === 9 && isValidE164Phone(normalizedPhone);
+
+  function handleDigitsChange(raw: string) {
+    const d = raw.replace(/\D/g, "");
+    // Accept paste of full number: 0XXXXXXXXX or 233XXXXXXXXX
+    if (d.startsWith("233") && d.length >= 12) { setLocalDigits(d.slice(3, 12)); return; }
+    if (d.startsWith("0") && d.length >= 10) { setLocalDigits(d.slice(1, 10)); return; }
+    setLocalDigits(d.slice(0, 9));
+  }
 
   useEffect(() => {
     if (!hasHydrated || isBootstrapping || isRecoveringSession) return;
@@ -34,7 +42,7 @@ export default function LoginPage() {
   async function handleSubmit(e: React.SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!isValidPhone) {
-      setError("Enter a valid number with country code, e.g. +233501234567.");
+      setError("Enter your 9-digit Ghana number after the +233 prefix.");
       return;
     }
     setError(null);
@@ -68,20 +76,26 @@ export default function LoginPage() {
             <label htmlFor="phone" className="text-sm font-medium text-neutral-700">
               Phone number
             </label>
-            <input
-              id="phone"
-              type="tel"
-              placeholder="+233 XX XXX XXXX"
-              value={phone}
-              onChange={(e) => {
-                setPhone(e.target.value);
-                if (error) setError(null);
-              }}
-              required
-              className="mt-1 w-full rounded-lg border border-neutral-200 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+            <div className="mt-1 flex rounded-lg border border-neutral-200 focus-within:ring-2 focus-within:ring-blue-500">
+              <span className="flex items-center px-3 text-sm text-neutral-500 bg-neutral-50 border-r border-neutral-200 rounded-l-lg select-none whitespace-nowrap">
+                🇬🇭 +233
+              </span>
+              <input
+                id="phone"
+                type="tel"
+                placeholder="XX XXX XXXX"
+                maxLength={9}
+                value={localDigits}
+                onChange={(e) => {
+                  handleDigitsChange(e.target.value);
+                  if (error) setError(null);
+                }}
+                required
+                className="flex-1 px-4 py-2.5 text-sm focus:outline-none rounded-r-lg"
+              />
+            </div>
             <p className="mt-1 text-xs text-neutral-500">
-              Use the same number linked to your Kotoku agreements, in full international format.
+              Use the same number linked to your Kotoku agreements.
             </p>
           </div>
           {error && <p className="text-sm text-red-600">{error}</p>}

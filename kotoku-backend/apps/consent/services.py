@@ -70,7 +70,7 @@ def get_sms_gateway():
     return SmsNotificationProvider()
 
 
-def generate_otp(length: int = 8) -> str:
+def generate_otp(length: int = 4) -> str:
     return "".join(secrets.choice("0123456789") for _ in range(length))
 
 

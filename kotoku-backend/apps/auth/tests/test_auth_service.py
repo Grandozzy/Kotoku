@@ -25,7 +25,7 @@ class TestAuthService(TestCase):
         with patch("apps.auth.services.send_sms_message.delay", return_value=None) as mocked_delay:
             AuthService.send_otp(phone="+233501234567")
         otp = self._sent_otp(mocked_delay)
-        assert len(otp) == 8
+        assert len(otp) == 4
         hourly_count = cache.get("auth_otp_hour:+233501234567")
         assert hourly_count == 1
 
@@ -62,7 +62,7 @@ class TestAuthService(TestCase):
 
         OTPRequest.objects.update(expires_at=timezone.now() - timedelta(minutes=1))
         with self.assertRaises(DomainError):
-            AuthService.verify_otp(phone="+233501234567", otp_code="12345678")
+            AuthService.verify_otp(phone="+233501234567", otp_code="1234")
 
     def test_verify_otp_returns_existing_user(self):
         user = User.objects.create_user(phone="+233501234567")

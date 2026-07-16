@@ -17,7 +17,10 @@ def mock_sms_gateway(request):
     if request.node.get_closest_marker("real_sms_gateway"):
         yield
     else:
-        with patch("infrastructure.sms.gateway.SmsGateway.send", return_value=True):
+        with (
+            patch("infrastructure.sms.gateway.SmsGateway.send", return_value=True),
+            patch("infrastructure.sms.infobip_gateway.InfobipSmsGateway.send", return_value=True),
+        ):
             yield
 
 
