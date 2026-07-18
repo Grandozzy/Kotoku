@@ -10,20 +10,14 @@ from apps.agreements.services import AgreementService
 from apps.audit.models import AuditLog
 from apps.consent.models import ConsentRecord
 from apps.consent.selectors import ConsentSelector
-from apps.consent.services import (
-    ConsentService,
-    generate_otp,
-    generate_otp_expiry,
-    hash_otp,
-    verify_otp_hash,
-)
+from apps.consent.services import ConsentService
 from apps.consent.tasks import sync_consent
 from apps.identity.models import IdentityRecord
 from apps.parties.models import Party
 from common.exceptions import DomainError
 
 _seq = 0
-_PATCH_DIRECT_SMS = patch("apps.consent.services.send_sms_message.delay", return_value=None)
+_PATCH_DIRECT_SMS = patch("apps.consent.services.send_arkesel_otp.delay", return_value=None)
 _PATCH_NOTIFICATION_DISPATCH = patch(
     "apps.notifications.services.dispatch_notification.delay",
     return_value=None,
@@ -34,6 +28,16 @@ _PATCH_NOTIFICATION_DISPATCH = patch(
 def _patch_async_dispatch():
     with _PATCH_DIRECT_SMS, _PATCH_NOTIFICATION_DISPATCH:
         yield
+
+
+@pytest.fixture(autouse=True)
+def _patch_arkesel_verify():
+    """All consent tests mock Arkesel verify_otp to return True by default."""
+    with patch(
+        "infrastructure.sms.arkesel_client.ArkeselOtpClient.verify_otp",
+        return_value=True,
+    ) as mock_verify:
+        yield mock_verify
 
 
 def _account(email="user@test.com"):
@@ -72,45 +76,6 @@ def _agreement_with_parties():
     AgreementService.request_consent(agreement_id=agreement.pk)
     agreement.refresh_from_db()
     return agreement
-
-
-class TestGenerateOtp:
-    def test_returns_numeric_string(self):
-        otp = generate_otp()
-        assert len(otp) == 4
-        assert otp.isdigit()
-
-    def test_respects_length(self):
-        assert len(generate_otp(4)) == 4
-
-
-class TestHashOtp:
-    def test_known_input(self):
-        result = hash_otp("123456")
-        assert len(result) == 64
-
-    def test_deterministic(self):
-        assert hash_otp("abc") == hash_otp("abc")
-
-
-class TestVerifyOtpHash:
-    def test_correct_otp(self):
-        otp = "654321"
-        assert verify_otp_hash(otp, hash_otp(otp)) is True
-
-    def test_wrong_otp(self):
-        assert verify_otp_hash("000000", hash_otp("111111")) is False
-
-
-class TestGenerateOtpExpiry:
-    def test_in_future(self):
-        expires = generate_otp_expiry(minutes=10)
-        assert expires > timezone.now()
-
-    def test_custom_minutes(self):
-        expires = generate_otp_expiry(minutes=5)
-        expected = timezone.now() + timedelta(minutes=5)
-        assert abs((expires - expected).total_seconds()) < 2
 
 
 class TestRequestConsent:
@@ -174,7 +139,7 @@ class TestRequestConsent:
 
         with (
             patch("apps.consent.services.AuditService.record_event") as mock_audit,
-            patch("apps.consent.services.send_sms_message.delay") as mock_delay,
+            patch("apps.consent.services.send_arkesel_otp.delay") as mock_delay,
         ):
             mock_audit.side_effect = RuntimeError("force rollback")
 
@@ -190,9 +155,6 @@ class TestVerifyOtp:
         agreement = _agreement_with_parties()
         records = ConsentService.request_consent(agreement_id=agreement.pk)
         record = records[0]
-        ConsentRecord.objects.filter(pk=record.pk).update(
-            otp_code_hash=hash_otp("111111")
-        )
         result = ConsentService.verify_otp(
             consent_record_id=record.pk, otp_code="111111"
         )
@@ -203,26 +165,27 @@ class TestVerifyOtp:
         agreement = _agreement_with_parties()
         records = ConsentService.request_consent(agreement_id=agreement.pk)
         record = records[0]
-        ConsentRecord.objects.filter(pk=record.pk).update(
-            otp_code_hash=hash_otp("222222")
-        )
         ConsentService.verify_otp(consent_record_id=record.pk, otp_code="222222")
         assert AuditLog.objects.filter(event_type="consent.granted").exists()
 
     def test_raises_on_wrong_otp(self, db):
         agreement = _agreement_with_parties()
         records = ConsentService.request_consent(agreement_id=agreement.pk)
-        with pytest.raises(DomainError, match="Invalid or expired"):
-            ConsentService.verify_otp(
-                consent_record_id=records[0].pk, otp_code="00000000"
-            )
+        with patch(
+            "infrastructure.sms.arkesel_client.ArkeselOtpClient.verify_otp",
+            return_value=False,
+        ):
+            with pytest.raises(DomainError, match="Invalid or expired"):
+                ConsentService.verify_otp(
+                    consent_record_id=records[0].pk, otp_code="00000000"
+                )
 
     def test_raises_on_expired_otp(self, db):
         agreement = _agreement_with_parties()
         records = ConsentService.request_consent(agreement_id=agreement.pk)
         record = records[0]
         ConsentRecord.objects.filter(pk=record.pk).update(
-            otp_code_hash=hash_otp("333333"), expires_at=timezone.now() - timedelta(minutes=1)
+            expires_at=timezone.now() - timedelta(minutes=1)
         )
         with pytest.raises(DomainError, match="expired"):
             ConsentService.verify_otp(
@@ -233,9 +196,7 @@ class TestVerifyOtp:
         agreement = _agreement_with_parties()
         records = ConsentService.request_consent(agreement_id=agreement.pk)
         record = records[0]
-        ConsentRecord.objects.filter(pk=record.pk).update(
-            otp_code_hash=hash_otp("444444"), granted=True
-        )
+        ConsentRecord.objects.filter(pk=record.pk).update(granted=True)
         with pytest.raises(DomainError, match="Invalid or expired"):
             ConsentService.verify_otp(
                 consent_record_id=record.pk, otp_code="44444444"
@@ -248,12 +209,6 @@ class TestVerifyOtp:
     def test_transitions_agreement_to_active_when_all_consented(self, db):
         agreement = _agreement_with_parties()
         records = ConsentService.request_consent(agreement_id=agreement.pk)
-        ConsentRecord.objects.filter(pk=records[0].pk).update(
-            otp_code_hash=hash_otp("555555")
-        )
-        ConsentRecord.objects.filter(pk=records[1].pk).update(
-            otp_code_hash=hash_otp("666666")
-        )
         ConsentService.verify_otp(
             consent_record_id=records[0].pk, otp_code="555555"
         )
@@ -269,9 +224,6 @@ class TestVerifyOtp:
     def test_does_not_transition_when_only_one_consented(self, db):
         agreement = _agreement_with_parties()
         records = ConsentService.request_consent(agreement_id=agreement.pk)
-        ConsentRecord.objects.filter(pk=records[0].pk).update(
-            otp_code_hash=hash_otp("777777")
-        )
         ConsentService.verify_otp(
             consent_record_id=records[0].pk, otp_code="777777"
         )

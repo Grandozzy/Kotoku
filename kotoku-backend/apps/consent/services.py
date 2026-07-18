@@ -1,7 +1,4 @@
-import hashlib
-import hmac
 import logging
-import secrets
 from datetime import timedelta
 
 from django.conf import settings
@@ -17,7 +14,8 @@ from apps.agreements.models import Agreement, AgreementRevision
 from apps.audit.services import AuditService
 from apps.consent.models import ConsentRecord
 from apps.evidence.models import EvidenceItem
-from apps.notifications.tasks import send_sms_message
+from apps.notifications.tasks import send_arkesel_otp
+from infrastructure.sms.arkesel_client import ArkeselOtpClient
 from apps.parties.models import Party
 from common.exceptions import DomainError, ServiceUnavailableError
 from common.phone_numbers import normalize_phone_for_compare
@@ -70,20 +68,7 @@ def get_sms_gateway():
     return SmsNotificationProvider()
 
 
-def generate_otp(length: int = 4) -> str:
-    return "".join(secrets.choice("0123456789") for _ in range(length))
-
-
-def hash_otp(otp_code: str) -> str:
-    return hashlib.sha256(otp_code.encode()).hexdigest()
-
-
-def verify_otp_hash(otp_code: str, otp_hash: str) -> bool:
-    return hmac.compare_digest(hash_otp(otp_code), otp_hash)
-
-
-def generate_otp_expiry(minutes: int = 10) -> timezone.datetime:
-    return timezone.now() + timedelta(minutes=minutes)
+# OTP generation, hashing, and verification delegated to Arkesel OTP API.
 
 
 def _is_creator_party(*, agreement: Agreement, party: Party) -> bool:
@@ -114,19 +99,19 @@ def _get_party_by_phone(*, agreement_id: int, phone: str) -> Party:
     raise Party.DoesNotExist
 
 
-def _enqueue_consent_sms_after_commit(
+def _enqueue_consent_otp_after_commit(
     *,
     agreement_id: int,
     party_id: int,
-    to: str,
-    body: str,
+    number: str,
+    message: str,
 ) -> None:
-    def _send_sms() -> None:
+    def _send_otp() -> None:
         try:
-            send_sms_message.delay(to=to, body=body)
+            send_arkesel_otp.delay(number=number, message=message)
         except Exception as exc:
             logger.exception(
-                "Failed to enqueue consent OTP SMS",
+                "Failed to enqueue consent OTP via Arkesel",
                 extra={
                     "agreement_id": agreement_id,
                     "party_id": party_id,
@@ -137,7 +122,7 @@ def _enqueue_consent_sms_after_commit(
                 "Consent codes could not be sent right now. Please try again."
             ) from None
 
-    transaction.on_commit(_send_sms)
+    transaction.on_commit(_send_otp)
 
 
 class ConsentService:
@@ -182,14 +167,15 @@ class ConsentService:
     ) -> list[ConsentRecord]:
         records = []
         for party in parties:
-            otp_code = generate_otp()
+            # Arkesel generates and manages the OTP server-side.
+            # otp_code_hash kept as empty string — field retained for schema compat.
             record = ConsentRecord.objects.create(
                 agreement=agreement,
                 party=party,
                 purpose=purpose,
-                otp_code_hash=hash_otp(otp_code),
+                otp_code_hash="",
                 channel=ConsentRecord.Channel.SMS,
-                expires_at=generate_otp_expiry(),
+                expires_at=timezone.now() + timedelta(minutes=10),
             )
             phone = party.phone
             if phone:
@@ -205,20 +191,20 @@ class ConsentService:
                     )
                     consent_url = f"{settings.KOTOKU_WEB_URL}/consent/{token}"
                     body = (
-                        f"Your Kotoku {sms_label} code is {otp_code}. "
+                        f"Your Kotoku {sms_label} code is %otp_code%. "
                         f"Review and confirm: {consent_url}. "
                         f"Valid for 10 minutes. Do not share this code."
                     )
                 else:
                     body = (
-                        f"Your Kotoku {sms_label} code is {otp_code}. "
+                        f"Your Kotoku {sms_label} code is %otp_code%. "
                         f"Valid for 10 minutes. Do not share this code."
                     )
-                _enqueue_consent_sms_after_commit(
+                _enqueue_consent_otp_after_commit(
                     agreement_id=agreement.pk,
                     party_id=party.pk,
-                    to=phone,
-                    body=body,
+                    number=phone,
+                    message=body,
                 )
             AuditService.record_event(
                 event_type=event_type,
@@ -281,14 +267,14 @@ class ConsentService:
         except ConsentRecord.DoesNotExist:
             raise DomainError("Invalid or expired verification code") from None
 
-        # Validate all conditions before revealing which one failed, to avoid
-        # leaking whether the record exists, is already granted, or has expired.
-        valid = (
-            not record.granted
-            and record.expires_at >= timezone.now()
-            and verify_otp_hash(otp_code, record.otp_code_hash)
-        )
-        if not valid:
+        if record.granted:
+            raise DomainError("Invalid or expired verification code")
+        if record.expires_at < timezone.now():
+            raise DomainError("Invalid or expired verification code")
+
+        client = ArkeselOtpClient()
+        phone = record.party.phone
+        if not client.verify_otp(number=phone, code=otp_code):
             cache.set(cache_key, attempts + 1, timeout=_OTP_LOCKOUT_SECONDS)
             logger.warning(
                 "Failed OTP verification for consent_record=%s (attempt %s)",
@@ -467,11 +453,11 @@ class ConsentService:
         if attempts >= _OTP_MAX_ATTEMPTS:
             raise DomainError("Too many verification attempts. Try again later.")
 
-        valid = (
-            record.expires_at >= timezone.now()
-            and verify_otp_hash(otp_code, record.otp_code_hash)
-        )
-        if not valid:
+        if record.expires_at < timezone.now():
+            raise DomainError("Invalid or expired verification code.")
+
+        client = ArkeselOtpClient()
+        if not client.verify_otp(number=party_phone, code=otp_code):
             cache.set(cache_key, attempts + 1, timeout=_OTP_LOCKOUT_SECONDS)
             logger.warning(
                 "Failed reopen OTP for party phone=%s agreement=%s (attempt %s)",
@@ -537,11 +523,11 @@ class ConsentService:
         if attempts >= _OTP_MAX_ATTEMPTS:
             raise DomainError("Too many verification attempts. Try again later.")
 
-        valid = (
-            record.expires_at >= timezone.now()
-            and verify_otp_hash(otp_code, record.otp_code_hash)
-        )
-        if not valid:
+        if record.expires_at < timezone.now():
+            raise DomainError("Invalid or expired verification code.")
+
+        client = ArkeselOtpClient()
+        if not client.verify_otp(number=party_phone, code=otp_code):
             cache.set(cache_key, attempts + 1, timeout=_OTP_LOCKOUT_SECONDS)
             logger.warning(
                 "Failed consent OTP for party phone=%s agreement=%s (attempt %s)",

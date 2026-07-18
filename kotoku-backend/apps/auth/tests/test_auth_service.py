@@ -6,7 +6,7 @@ from django.test import TestCase, override_settings
 from django.utils import timezone
 
 from apps.accounts.models import Account, DeviceSession, User
-from apps.auth.services import AuthService, PinService, extract_otp_from_message
+from apps.auth.services import AuthService, PinService
 from common.exceptions import DomainError
 
 
@@ -15,62 +15,39 @@ class TestAuthService(TestCase):
     def setUp(self):
         cache.clear()
 
-    def _sent_otp(self, mocked_send):
-        body = mocked_send.call_args.kwargs["body"]
-        otp = extract_otp_from_message(body)
-        assert otp is not None
-        return otp
-
-    def test_send_otp_creates_db_request(self):
-        with patch("apps.auth.services.send_sms_message.delay", return_value=None) as mocked_delay:
+    def test_send_otp_dispatches_to_arkesel(self):
+        with patch("apps.auth.services.send_arkesel_otp.delay", return_value=None) as mocked_delay:
             AuthService.send_otp(phone="+233501234567")
-        otp = self._sent_otp(mocked_delay)
-        assert len(otp) == 4
-        hourly_count = cache.get("auth_otp_hour:+233501234567")
-        assert hourly_count == 1
-
-    def test_send_otp_rate_limited(self):
-        with patch("apps.auth.services.send_sms_message.delay", return_value=None):
-            AuthService.send_otp(phone="+233501234567")
-            with self.assertRaises(DomainError):
-                AuthService.send_otp(phone="+233501234567")
-
-    def test_send_otp_hourly_limit_enforced(self):
-        with patch("apps.auth.services.send_sms_message.delay", return_value=None):
-            cache.set("auth_otp_hour:+233501234567", 5, timeout=3600)
-            with self.assertRaises(DomainError):
-                AuthService.send_otp(phone="+233501234567")
+        mocked_delay.assert_called_once()
+        kwargs = mocked_delay.call_args.kwargs
+        assert kwargs["number"] == "+233501234567"
+        assert "%otp_code%" in kwargs["message"]
 
     def test_verify_otp_creates_user_and_account(self):
-        with patch("apps.auth.services.send_sms_message.delay", return_value=None) as mocked_delay:
-            AuthService.send_otp(phone="+233501234567")
-        otp = self._sent_otp(mocked_delay)
-        result = AuthService.verify_otp(phone="+233501234567", otp_code=otp)
+        with patch(
+            "infrastructure.sms.arkesel_client.ArkeselOtpClient.verify_otp",
+            return_value=True,
+        ):
+            result = AuthService.verify_otp(phone="+233501234567", otp_code="123456")
         assert result["user"].phone == "+233501234567"
         assert Account.objects.filter(user=result["user"]).exists()
 
     def test_verify_otp_wrong_code_raises(self):
-        with patch("apps.auth.services.send_sms_message.delay", return_value=None):
-            AuthService.send_otp(phone="+233501234567")
-        with self.assertRaises(DomainError):
-            AuthService.verify_otp(phone="+233501234567", otp_code="00000000")
-
-    def test_verify_otp_expired_raises(self):
-        with patch("apps.auth.services.send_sms_message.delay", return_value=None):
-            AuthService.send_otp(phone="+233501234567")
-        from apps.accounts.models import OTPRequest
-
-        OTPRequest.objects.update(expires_at=timezone.now() - timedelta(minutes=1))
-        with self.assertRaises(DomainError):
-            AuthService.verify_otp(phone="+233501234567", otp_code="1234")
+        with patch(
+            "infrastructure.sms.arkesel_client.ArkeselOtpClient.verify_otp",
+            return_value=False,
+        ):
+            with self.assertRaises(DomainError):
+                AuthService.verify_otp(phone="+233501234567", otp_code="000000")
 
     def test_verify_otp_returns_existing_user(self):
         user = User.objects.create_user(phone="+233501234567")
         Account.objects.create(user=user, email="+233501234567@kotoku.app", phone=user.phone)
-        with patch("apps.auth.services.send_sms_message.delay", return_value=None) as mocked_delay:
-            AuthService.send_otp(phone="+233501234567")
-        otp = self._sent_otp(mocked_delay)
-        result = AuthService.verify_otp(phone="+233501234567", otp_code=otp)
+        with patch(
+            "infrastructure.sms.arkesel_client.ArkeselOtpClient.verify_otp",
+            return_value=True,
+        ):
+            result = AuthService.verify_otp(phone="+233501234567", otp_code="123456")
         assert result["user"].pk == user.pk
         assert Account.objects.filter(user=result["user"]).count() == 1
 
@@ -81,25 +58,13 @@ class TestAuthService(TestCase):
             email="+233501234568@kotoku.app",
             phone="0501234568",
         )
-        with patch("apps.auth.services.send_sms_message.delay", return_value=None) as mocked_delay:
-            AuthService.send_otp(phone="+233501234568")
-        otp = self._sent_otp(mocked_delay)
-        AuthService.verify_otp(phone="+233501234568", otp_code=otp)
+        with patch(
+            "infrastructure.sms.arkesel_client.ArkeselOtpClient.verify_otp",
+            return_value=True,
+        ):
+            AuthService.verify_otp(phone="+233501234568", otp_code="123456")
         account.refresh_from_db()
         assert account.phone == user.phone
-
-    def test_verify_otp_locks_after_repeated_failures(self):
-        with patch("apps.auth.services.send_sms_message.delay", return_value=None):
-            AuthService.send_otp(phone="+233501234567")
-        for _ in range(5):
-            with self.assertRaises(DomainError):
-                AuthService.verify_otp(phone="+233501234567", otp_code="00000000")
-        from apps.accounts.models import OTPRequest
-
-        record = OTPRequest.objects.get(phone="+233501234567", purpose="login", is_used=False)
-        assert record.attempt_count == 5
-        with self.assertRaises(DomainError):
-            AuthService.verify_otp(phone="+233501234567", otp_code="00000000")
 
     def test_pin_verify_forces_otp_on_unknown_device(self):
         user = User.objects.create_user(phone="+233501234567")

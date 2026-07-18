@@ -24,7 +24,7 @@ from apps.agreements.domain.enums import AgreementStatus
 from apps.agreements.models import Agreement, Annotation
 from apps.agreements.services import AgreementService
 from apps.consent.models import ConsentRecord
-from apps.consent.services import ConsentService, generate_otp, hash_otp
+from apps.consent.services import ConsentService
 from apps.disputes.models import Dispute
 from apps.disputes.selectors import DisputeSelector
 from apps.disputes.services import DisputeService
@@ -36,6 +36,16 @@ from apps.vault.services import VaultService
 from common.exceptions import DomainError
 
 _seq = 0
+
+
+@pytest.fixture(autouse=True)
+def _patch_arkesel_verify():
+    """Mock Arkesel OTP verify for all sprint6 tests."""
+    with patch(
+        "infrastructure.sms.arkesel_client.ArkeselOtpClient.verify_otp",
+        return_value=True,
+    ):
+        yield
 
 
 def _pin(index: int) -> str:
@@ -155,7 +165,7 @@ class TestReopenOtpFlow:
         agreement = _sealed_agreement(acct, "+233700200001", "+233700200002")
         agreement.status = AgreementStatus.REOPEN_REQUESTED
         agreement.save()
-        with patch("apps.consent.services.send_sms_message.delay", return_value=None):
+        with patch("apps.consent.services.send_arkesel_otp.delay", return_value=None):
             records = ConsentService.request_reopen_otp(agreement_id=agreement.pk)
         assert len(records) == 2
         assert all(r.purpose == ConsentRecord.Purpose.REOPEN for r in records)
@@ -278,19 +288,18 @@ class TestReopenAPI:
         agreement = _sealed_agreement(acct, seller_phone, buyer_phone)
         agreement.status = AgreementStatus.REOPEN_REQUESTED
         agreement.save()
-        otp = generate_otp()
         party = agreement.parties.get(phone=seller_phone)
         ConsentRecord.objects.create(
             agreement=agreement,
             party=party,
             purpose=ConsentRecord.Purpose.REOPEN,
-            otp_code_hash=hash_otp(otp),
+            otp_code_hash="",
             channel=ConsentRecord.Channel.SMS,
             expires_at=timezone.now() + timedelta(minutes=10),
         )
         resp = client.post(
             _REOPEN_OTP_CONFIRM_PATH.format(id=agreement.pk),
-            data={"phone": seller_phone, "otp_code": otp},
+            data={"phone": seller_phone, "otp_code": "111111"},
             format="json",
         )
         assert resp.status_code == 200
@@ -303,21 +312,24 @@ class TestReopenAPI:
         agreement = _sealed_agreement(acct, seller_phone, buyer_phone)
         agreement.status = AgreementStatus.REOPEN_REQUESTED
         agreement.save()
-        otp = generate_otp()
         buyer_party = agreement.parties.get(phone=buyer_phone)
         ConsentRecord.objects.create(
             agreement=agreement,
             party=buyer_party,
             purpose=ConsentRecord.Purpose.REOPEN,
-            otp_code_hash=hash_otp(otp),
+            otp_code_hash="",
             channel=ConsentRecord.Channel.SMS,
             expires_at=timezone.now() + timedelta(minutes=10),
         )
-        resp = client.post(
-            _REOPEN_OTP_CONFIRM_PATH.format(id=agreement.pk),
-            data={"phone": buyer_phone, "otp_code": otp},
-            format="json",
-        )
+        with patch(
+            "infrastructure.sms.arkesel_client.ArkeselOtpClient.verify_otp",
+            return_value=False,
+        ):
+            resp = client.post(
+                _REOPEN_OTP_CONFIRM_PATH.format(id=agreement.pk),
+                data={"phone": buyer_phone, "otp_code": "000000"},
+                format="json",
+            )
         assert resp.status_code == 403
         assert not ConsentRecord.objects.get(
             agreement=agreement,

@@ -158,10 +158,6 @@ CELERY_BEAT_SCHEDULE = {
         "task": "apps.agreements.tasks.cleanup_stale_drafts",
         "schedule": 86400,
     },
-    "cleanup-expired-otp-requests": {
-        "task": "apps.auth.tasks.cleanup_expired_otp_requests",
-        "schedule": 3600,   # hourly
-    },
     "cleanup-expired-device-sessions": {
         "task": "apps.auth.tasks.cleanup_expired_device_sessions",
         "schedule": 86400,  # daily
@@ -218,7 +214,12 @@ SMS_API_URL = os.getenv("SMS_API_URL", _SMS_MODE_URL)
 SMS_API_KEY = os.getenv("SMS_API_KEY", "")
 SMS_USERNAME = _SMS_USERNAME
 SMS_SENDER_ID = os.getenv("SMS_SENDER_ID", "")
-SMS_BACKEND = os.getenv("SMS_BACKEND", "africastalking")
+SMS_BACKEND = os.getenv("SMS_BACKEND", "arkesel")
+
+# Arkesel OTP API (primary OTP provider)
+ARKESEL_API_KEY = os.getenv("ARKESEL_API_KEY", "").strip()
+ARKESEL_SMS_URL = os.getenv("ARKESEL_SMS_URL", "https://sms.arkesel.com/api/v2/otp").strip()
+ARKESEL_SENDER_ID = os.getenv("ARKESEL_SENDER_ID", "").strip()
 
 PAYSTACK_SECRET_KEY = os.getenv("PAYSTACK_SECRET_KEY", "")
 PAYSTACK_PUBLIC_KEY = os.getenv("PAYSTACK_PUBLIC_KEY", "")
@@ -255,7 +256,7 @@ REQUIRED_STORAGE_SETTING_NAMES = (
     "AWS_STORAGE_BUCKET_NAME",
     "AWS_S3_REGION_NAME",
 )
-REQUIRED_SMS_SETTING_NAMES = ("SMS_API_KEY",)  # Africa's Talking standby
+REQUIRED_ARKESEL_SETTING_NAMES = ("ARKESEL_API_KEY",)
 REQUIRED_INFOBIP_SETTING_NAMES = ("INFOBIP_API_KEY", "INFOBIP_BASE_URL")
 REQUIRED_PAYMENT_SETTING_NAMES = (
     "PAYSTACK_SECRET_KEY",

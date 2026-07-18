@@ -17,7 +17,7 @@ from apps.accounts.models import Account, User
 from apps.agreements.domain.enums import AgreementStatus
 from apps.agreements.models import Agreement
 from apps.consent.models import ConsentRecord
-from apps.consent.services import ConsentService, hash_otp
+from apps.consent.services import ConsentService
 from apps.evidence.models import EvidenceItem
 from apps.parties.models import Party
 from apps.parties.services import PartyService
@@ -31,6 +31,16 @@ _PUBLIC_CONSENT_PATH = "/api/consent-links/{token}/"
 _PUBLIC_CONSENT_CONFIRM_PATH = "/api/consent-links/{token}/confirm/"
 
 _seq = 0
+
+
+@pytest.fixture(autouse=True)
+def _patch_arkesel_verify():
+    """All consent API tests mock Arkesel verify_otp to return True."""
+    with patch(
+        "infrastructure.sms.arkesel_client.ArkeselOtpClient.verify_otp",
+        return_value=True,
+    ):
+        yield
 
 
 def _make_client(phone):
@@ -91,7 +101,7 @@ def _add_confirmed_evidence(agreement):
 
 
 @pytest.mark.django_db(transaction=True)
-@patch("apps.consent.services.send_sms_message.delay", return_value=None)
+@patch("apps.consent.services.send_arkesel_otp.delay", return_value=None)
 class TestRequestOtpApi:
     def test_returns_201_with_consent_records(self, mock_delay):
         client, acct = _make_client("+233500100001")
@@ -274,7 +284,7 @@ class TestRequestOtpApi:
 
 
 @pytest.mark.django_db
-@patch("apps.consent.services.send_sms_message.delay", return_value=None)
+@patch("apps.consent.services.send_arkesel_otp.delay", return_value=None)
 class TestConfirmConsentApi:
     def _setup(self, initiator_phone, second_phone):
         client, acct = _make_client(initiator_phone)
@@ -284,13 +294,12 @@ class TestConfirmConsentApi:
         return client, acct, agreement
 
     def _force_otp(self, agreement, phone, code):
-        record = ConsentRecord.objects.get(
+        # No local OTP hash to update — Arkesel manages verification server-side.
+        return ConsentRecord.objects.get(
             agreement=agreement,
             party__phone=phone,
             granted=False,
         )
-        ConsentRecord.objects.filter(pk=record.pk).update(otp_code_hash=hash_otp(code))
-        return record
 
     def test_valid_otp_returns_200(self, mock_delay):
         client, acct, agreement = self._setup("+233500200001", "+233500200002")
@@ -401,7 +410,7 @@ class TestConfirmConsentApi:
 
 
 @pytest.mark.django_db
-@patch("apps.consent.services.send_sms_message.delay", return_value=None)
+@patch("apps.consent.services.send_arkesel_otp.delay", return_value=None)
 class TestConsentStatusApi:
     def test_all_consented_false_when_no_records_exist(self, mock_delay):
         client, acct = _make_client("+233500300007")
@@ -440,7 +449,7 @@ class TestConsentStatusApi:
 
 
 @pytest.mark.django_db
-@patch("apps.consent.services.send_sms_message.delay", return_value=None)
+@patch("apps.consent.services.send_arkesel_otp.delay", return_value=None)
 class TestPublicConsentLinkApi:
     def _setup(self, initiator_phone, second_phone):
         client, acct = _make_client(initiator_phone)
@@ -489,10 +498,6 @@ class TestPublicConsentLinkApi:
 
     def test_public_link_confirms_only_token_party(self, mock_delay):
         agreement, party, token = self._setup("+233500350003", "+233500350004")
-        record = ConsentRecord.objects.get(agreement=agreement, party=party)
-        ConsentRecord.objects.filter(pk=record.pk).update(
-            otp_code_hash=hash_otp("12345678")
-        )
         resp = APIClient().post(
             _PUBLIC_CONSENT_CONFIRM_PATH.format(token=token),
             {"otp_code": "12345678"},
@@ -510,7 +515,7 @@ class TestPublicConsentLinkApi:
 
 
 @pytest.mark.django_db
-@patch("apps.consent.services.send_sms_message.delay", return_value=None)
+@patch("apps.consent.services.send_arkesel_otp.delay", return_value=None)
 class TestSealApi:
     def _ready_to_seal(self, initiator_phone, second_phone):
         """Create an agreement that is ready to seal (all consented + evidence)."""

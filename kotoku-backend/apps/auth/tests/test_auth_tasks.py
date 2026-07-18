@@ -3,22 +3,12 @@ from datetime import timedelta
 import pytest
 from django.utils import timezone
 
-from apps.accounts.models import DeviceSession, OTPRequest, User
-from apps.auth.tasks import cleanup_expired_device_sessions, cleanup_expired_otp_requests
+from apps.accounts.models import DeviceSession, User
+from apps.auth.tasks import cleanup_expired_device_sessions
 
 
 def _make_user(phone):
     return User.objects.create_user(phone=phone)
-
-
-def _make_otp(phone, expired=False):
-    delta = -timedelta(minutes=5) if expired else timedelta(minutes=5)
-    return OTPRequest.objects.create(
-        phone=phone,
-        otp_hash="x",
-        purpose=OTPRequest.PURPOSE_LOGIN,
-        expires_at=timezone.now() + delta,
-    )
 
 
 def _make_session(user, expired=False, revoked=False):
@@ -33,32 +23,6 @@ def _make_session(user, expired=False, revoked=False):
         revoked_reason="logout" if revoked else "",
         refresh_token_hash="x",
     )
-
-
-@pytest.mark.django_db
-class TestCleanupExpiredOtpRequests:
-    def test_deletes_expired_records(self):
-        _make_otp("+233500001001", expired=True)
-        result = cleanup_expired_otp_requests()
-        assert result["deleted"] == 1
-        assert OTPRequest.objects.count() == 0
-
-    def test_keeps_unexpired_records(self):
-        _make_otp("+233500001002", expired=False)
-        result = cleanup_expired_otp_requests()
-        assert result["deleted"] == 0
-        assert OTPRequest.objects.count() == 1
-
-    def test_deletes_only_expired(self):
-        _make_otp("+233500001003", expired=True)
-        _make_otp("+233500001004", expired=False)
-        result = cleanup_expired_otp_requests()
-        assert result["deleted"] == 1
-        assert OTPRequest.objects.count() == 1
-
-    def test_returns_zero_when_nothing_to_delete(self):
-        result = cleanup_expired_otp_requests()
-        assert result == {"deleted": 0}
 
 
 @pytest.mark.django_db

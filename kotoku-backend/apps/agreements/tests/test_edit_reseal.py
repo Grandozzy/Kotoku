@@ -173,7 +173,7 @@ class TestAgreementRevision:
 
 
 class TestResealConsentFlow:
-    @patch("apps.consent.services.send_sms_message.delay", return_value=None)
+    @patch("apps.consent.services.send_arkesel_otp.delay", return_value=None)
     def test_active_can_transition_to_pending_consent(self, mock_delay, db):
         agreement = _make_sealed_agreement()
         agreement.status = AgreementStatus.ACTIVE
