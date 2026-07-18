@@ -158,10 +158,6 @@ CELERY_BEAT_SCHEDULE = {
         "task": "apps.agreements.tasks.cleanup_stale_drafts",
         "schedule": 86400,
     },
-    "cleanup-expired-otp-requests": {
-        "task": "apps.auth.tasks.cleanup_expired_otp_requests",
-        "schedule": 3600,   # hourly
-    },
     "cleanup-expired-device-sessions": {
         "task": "apps.auth.tasks.cleanup_expired_device_sessions",
         "schedule": 86400,  # daily

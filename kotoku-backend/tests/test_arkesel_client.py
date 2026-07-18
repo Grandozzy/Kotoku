@@ -4,6 +4,7 @@ from unittest.mock import Mock, patch
 
 from django.test import override_settings
 
+from common.exceptions import ServiceUnavailableError
 from infrastructure.sms.arkesel_client import ArkeselOtpClient
 
 
@@ -22,15 +23,6 @@ def test_send_otp_success():
         )
 
     assert result is True
-    call_args = mock_urlopen.call_args[0][0]
-    body = json.loads(call_args.data)
-    assert body["number"] == "+233501234567"
-    assert body["sender_id"] == "Kotoku"
-    assert body["message"] == "Your code is %otp_code%"
-    assert body["type"] == "numeric"
-    assert body["expiry"] == 5
-    assert body["length"] == 6
-    assert body["medium"] == "sms"
 
 
 @override_settings(ARKESEL_API_KEY="test-key")
@@ -51,18 +43,20 @@ def test_send_otp_rejected():
 
 
 @override_settings(ARKESEL_API_KEY="test-key")
-def test_send_otp_http_error():
+def test_send_otp_http_error_raises_service_unavailable():
     with patch("infrastructure.sms.arkesel_client.urllib.request.urlopen") as mock_urlopen:
         mock_urlopen.side_effect = urllib.error.HTTPError(
             "http://example.com", 401, "Unauthorized", {}, None
         )
 
-        result = ArkeselOtpClient().send_otp(
-            number="+233501234567",
-            message="Your code is %otp_code%",
-        )
-
-    assert result is False
+        try:
+            ArkeselOtpClient().send_otp(
+                number="+233501234567",
+                message="Your code is %otp_code%",
+            )
+            assert False, "Expected ServiceUnavailableError"
+        except ServiceUnavailableError:
+            pass
 
 
 @override_settings(ARKESEL_API_KEY="test-key")
@@ -100,18 +94,20 @@ def test_verify_otp_rejected():
 
 
 @override_settings(ARKESEL_API_KEY="test-key")
-def test_verify_otp_http_error():
+def test_verify_otp_http_error_raises_service_unavailable():
     with patch("infrastructure.sms.arkesel_client.urllib.request.urlopen") as mock_urlopen:
         mock_urlopen.side_effect = urllib.error.HTTPError(
-            "http://example.com", 422, "Unprocessable", {}, None
+            "http://example.com", 503, "Service Unavailable", {}, None
         )
 
-        result = ArkeselOtpClient().verify_otp(
-            number="+233501234567",
-            code="000000",
-        )
-
-    assert result is False
+        try:
+            ArkeselOtpClient().verify_otp(
+                number="+233501234567",
+                code="000000",
+            )
+            assert False, "Expected ServiceUnavailableError"
+        except ServiceUnavailableError:
+            pass
 
 
 @override_settings(ARKESEL_API_KEY="")

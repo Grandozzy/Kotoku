@@ -12,10 +12,6 @@ def _default_session_id() -> str:
     return f"sess_{uuid.uuid4().hex[:16]}"
 
 
-def _default_otp_id() -> str:
-    return f"otp_{uuid.uuid4().hex[:16]}"
-
-
 class UserManager(BaseUserManager):
     def create_user(self, phone: str, password: str | None = None, **extra_fields):
         if not phone:
@@ -146,48 +142,6 @@ class UserPin(models.Model):
     @property
     def is_locked(self) -> bool:
         return bool(self.locked_until and timezone.now() < self.locked_until)
-
-
-# ── OTP requests ──────────────────────────────────────────────────────────────
-
-class OTPRequest(models.Model):
-    PURPOSE_LOGIN = "login"
-    PURPOSE_SEAL = "seal"
-    PURPOSE_REOPEN = "reopen"
-    PURPOSE_CHOICES = [
-        (PURPOSE_LOGIN, "Login"),
-        (PURPOSE_SEAL, "Seal agreement"),
-        (PURPOSE_REOPEN, "Reopen agreement"),
-    ]
-
-    id = models.CharField(
-        primary_key=True,
-        max_length=50,
-        default=_default_otp_id,
-    )
-    phone = models.CharField(max_length=20)
-    otp_hash = models.CharField(max_length=256)   # hashed, never plain
-    purpose = models.CharField(max_length=20, choices=PURPOSE_CHOICES, default=PURPOSE_LOGIN)
-    agreement_id = models.CharField(max_length=50, blank=True)  # only for seal/reopen
-    created_at = models.DateTimeField(auto_now_add=True)
-    expires_at = models.DateTimeField()
-    is_used = models.BooleanField(default=False)
-    used_at = models.DateTimeField(null=True, blank=True)
-    attempt_count = models.IntegerField(default=0)
-
-    class Meta:
-        db_table = "otp_requests"
-        indexes = [
-            models.Index(fields=["phone", "purpose", "is_used"]),
-            models.Index(fields=["expires_at"]),
-        ]
-
-    def __str__(self) -> str:
-        return f"OTP({self.phone} / {self.purpose})"
-
-    @property
-    def is_expired(self) -> bool:
-        return timezone.now() > self.expires_at
 
 
 class AdminMfaCode(models.Model):

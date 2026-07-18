@@ -5,7 +5,13 @@ import urllib.request
 
 from django.conf import settings
 
+from common.exceptions import ServiceUnavailableError
+
 logger = logging.getLogger(__name__)
+
+# Arkesel OTP API response codes.
+CODE_SEND_OK = "1000"      # OTP sent successfully.
+CODE_VERIFY_OK = "1100"    # OTP verified successfully.
 
 
 class ArkeselOtpClient:
@@ -33,6 +39,65 @@ class ArkeselOtpClient:
             "Accept": "application/json",
         }
 
+    def _request(
+        self,
+        endpoint: str,
+        payload: dict,
+        success_code: str,
+        log_context: dict,
+        operation: str,
+    ) -> bool:
+        """POST to Arkesel and return True if response code matches success_code.
+
+        Raises ServiceUnavailableError for HTTP errors and connection failures
+        so callers can distinguish infrastructure faults from rejected codes.
+        """
+        if not self.api_key:
+            raise RuntimeError(
+                "ARKESEL_API_KEY is not configured. Set ARKESEL_API_KEY in your environment."
+            )
+
+        data = json.dumps(payload).encode()
+        url = f"{self.base_url}/{endpoint}"
+        req = urllib.request.Request(
+            url,
+            data=data,
+            headers=self._headers(),
+            method="POST",
+        )
+
+        try:
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                result = json.loads(resp.read().decode())
+                response_code = result.get("code", "")
+                if response_code == success_code:
+                    logger.info(
+                        "Arkesel %s succeeded", operation,
+                        extra={"otp": {**log_context, "response": result}},
+                    )
+                    return True
+                logger.info(
+                    "Arkesel %s rejected", operation,
+                    extra={"otp": {**log_context, "response": result}},
+                )
+                return False
+        except urllib.error.HTTPError as e:
+            error_body = e.read().decode()
+            logger.exception(
+                "Arkesel %s HTTP error", operation,
+                extra={
+                    "otp": {**log_context, "http_status": e.code, "error_body": error_body}
+                },
+            )
+            raise ServiceUnavailableError(
+                "OTP service is temporarily unavailable. Please try again."
+            ) from e
+        except Exception as e:
+            logger.exception("Arkesel %s error", operation, extra={"otp": log_context})
+            raise ServiceUnavailableError(
+                "OTP service is temporarily unavailable. Please try again."
+            ) from e
+
     def send_otp(
         self,
         *,
@@ -43,11 +108,6 @@ class ArkeselOtpClient:
         medium: str = "sms",
     ) -> bool:
         """Send an OTP via Arkesel. Arkesel generates, stores, and delivers the code."""
-        if not self.api_key:
-            raise RuntimeError(
-                "ARKESEL_API_KEY is not configured. Set ARKESEL_API_KEY in your environment."
-            )
-
         log_context = {
             "provider": "arkesel",
             "sender_id": self.sender_id or "<default>",
@@ -56,102 +116,35 @@ class ArkeselOtpClient:
             "expiry": expiry,
             "length": length,
         }
-
-        payload = json.dumps({
-            "number": number,
-            "message": message,
-            "sender_id": self.sender_id,
-            "type": "numeric",
-            "expiry": expiry,
-            "length": length,
-            "medium": medium,
-        }).encode()
-
-        url = f"{self.base_url}/send"
-        req = urllib.request.Request(
-            url,
-            data=payload,
-            headers=self._headers(),
-            method="POST",
+        return self._request(
+            endpoint="send",
+            payload={
+                "number": number,
+                "message": message,
+                "sender_id": self.sender_id,
+                "type": "numeric",
+                "expiry": expiry,
+                "length": length,
+                "medium": medium,
+            },
+            success_code=CODE_SEND_OK,
+            log_context=log_context,
+            operation="send_otp",
         )
-
-        try:
-            with urllib.request.urlopen(req, timeout=15) as resp:
-                result = json.loads(resp.read().decode())
-                code = result.get("code", "")
-                if code == "1000":
-                    logger.info(
-                        "OTP accepted by Arkesel",
-                        extra={"otp": {**log_context, "response": result}},
-                    )
-                    return True
-                logger.warning(
-                    "OTP rejected by Arkesel",
-                    extra={"otp": {**log_context, "response": result}},
-                )
-                return False
-        except urllib.error.HTTPError as e:
-            error_body = e.read().decode()
-            logger.exception(
-                "Arkesel OTP send HTTP error",
-                extra={
-                    "otp": {**log_context, "http_status": e.code, "error_body": error_body}
-                },
-            )
-            return False
-        except Exception:
-            logger.exception("Arkesel OTP send error", extra={"otp": log_context})
-            return False
 
     def verify_otp(self, *, number: str, code: str) -> bool:
         """Verify an OTP code against Arkesel's server-side storage."""
-        if not self.api_key:
-            raise RuntimeError(
-                "ARKESEL_API_KEY is not configured. Set ARKESEL_API_KEY in your environment."
-            )
-
         log_context = {
             "provider": "arkesel",
             "number_masked": self._mask_phone(number),
         }
-
-        payload = json.dumps({
-            "code": code,
-            "number": number,
-        }).encode()
-
-        url = f"{self.base_url}/verify"
-        req = urllib.request.Request(
-            url,
-            data=payload,
-            headers=self._headers(),
-            method="POST",
+        return self._request(
+            endpoint="verify",
+            payload={
+                "code": code,
+                "number": number,
+            },
+            success_code=CODE_VERIFY_OK,
+            log_context=log_context,
+            operation="verify_otp",
         )
-
-        try:
-            with urllib.request.urlopen(req, timeout=15) as resp:
-                result = json.loads(resp.read().decode())
-                response_code = result.get("code", "")
-                if response_code == "1100":
-                    logger.info(
-                        "OTP verified by Arkesel",
-                        extra={"otp": log_context},
-                    )
-                    return True
-                logger.info(
-                    "OTP verification rejected by Arkesel",
-                    extra={"otp": {**log_context, "response": result}},
-                )
-                return False
-        except urllib.error.HTTPError as e:
-            error_body = e.read().decode()
-            logger.exception(
-                "Arkesel OTP verify HTTP error",
-                extra={
-                    "otp": {**log_context, "http_status": e.code, "error_body": error_body}
-                },
-            )
-            return False
-        except Exception:
-            logger.exception("Arkesel OTP verify error", extra={"otp": log_context})
-            return False
