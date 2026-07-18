@@ -1,33 +1,24 @@
 import logging
-import re
 import secrets
 from datetime import timedelta
 
 import argon2
 from django.contrib.auth.hashers import check_password, make_password
-from django.core.cache import cache
 from django.db import transaction
 from django.utils import timezone
 from rest_framework_simplejwt.tokens import AccessToken
 
-from apps.accounts.models import Account, DeviceSession, OTPRequest, User, UserPin
+from apps.accounts.models import Account, DeviceSession, User, UserPin
 from apps.audit.services import AuditService
-from apps.notifications.tasks import send_sms_message
+from apps.notifications.tasks import send_arkesel_otp
 from common.exceptions import DomainError
 from common.phone_numbers import normalize_phone_to_e164
+from infrastructure.sms.arkesel_client import ArkeselOtpClient
 
 logger = logging.getLogger(__name__)
 
-_OTP_LENGTH = 4
-_OTP_TTL_SECONDS = 300              # 5 minutes
-_OTP_RATE_TTL_SECONDS = 60          # 1 minute between sends
-_OTP_MAX_ATTEMPTS = 5               # per OTP record
-_OTP_RATE_LIMIT_PER_HOUR = 5
-_OTP_LOCKOUT_SECONDS = 900          # 15 minutes
-
-_OTP_RATE_KEY = "auth_otp_sent:{phone}"
-_OTP_HOURLY_KEY = "auth_otp_hour:{phone}"
-_OTP_LOCK_KEY = "auth_otp_lock:{phone}"
+# OTP is now managed by Arkesel OTP API — generation, storage, expiry,
+# rate limiting, and brute-force protection are handled server-side.
 
 _PIN_LOCK_AFTER = 5                 # failed attempts before 15-min lock
 _PIN_FORCE_OTP_AFTER = 10           # total failures before forcing OTP re-auth
@@ -51,7 +42,6 @@ _SEQUENTIAL_PINS = {
 }
 
 _ph = argon2.PasswordHasher()
-_OTP_BODY_RE = re.compile(r"(\d{4})")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -160,34 +150,10 @@ class AuthService:
     @staticmethod
     def send_otp(*, phone: str) -> None:
         phone = normalize_phone_to_e164(phone)
-        rate_key = _OTP_RATE_KEY.format(phone=phone)
-        hourly_key = _OTP_HOURLY_KEY.format(phone=phone)
-        lock_key = _OTP_LOCK_KEY.format(phone=phone)
 
-        if cache.get(lock_key):
-            raise DomainError("Too many failed OTP attempts. Try again later.")
-        if cache.get(rate_key):
-            raise DomainError("Please wait before requesting another OTP.")
-
-        hourly_count = cache.get(hourly_key, 0)
-        if hourly_count >= _OTP_RATE_LIMIT_PER_HOUR:
-            raise DomainError("Too many OTP requests. Try again later.")
-
-        otp_code = "".join(secrets.choice("0123456789") for _ in range(_OTP_LENGTH))
-        cache.set(rate_key, True, timeout=_OTP_RATE_TTL_SECONDS)
-        cache.set(hourly_key, hourly_count + 1, timeout=3600)
-
-        # Keep a DB audit record (hashed — never store raw OTP in DB).
-        OTPRequest.objects.create(
-            phone=phone,
-            otp_hash=make_password(otp_code),
-            purpose=OTPRequest.PURPOSE_LOGIN,
-            expires_at=timezone.now() + timedelta(seconds=_OTP_TTL_SECONDS),
-        )
-
-        send_sms_message.delay(
-            to=phone,
-            body=f"Your Kotoku verification code is {otp_code}. Valid for 5 minutes.",
+        send_arkesel_otp.delay(
+            number=phone,
+            message="Your Kotoku verification code is %otp_code%. Valid for 5 minutes.",
         )
 
         AuditService.record_event(
@@ -207,91 +173,61 @@ class AuthService:
         device_name: str = "",
     ) -> dict:
         phone = normalize_phone_to_e164(phone)
-        lock_key = _OTP_LOCK_KEY.format(phone=phone)
-        if cache.get(lock_key):
-            raise DomainError("Too many failed OTP attempts. Try again later.")
 
-        error_message = ""
+        client = ArkeselOtpClient()
+        if not client.verify_otp(number=phone, code=otp_code):
+            raise DomainError("Invalid or expired OTP code.")
+
         user = None
         account = None
         session = None
         raw_token = ""
 
         with transaction.atomic():
-            record = (
-                OTPRequest.objects.select_for_update()
-                .filter(
+            user, created = User.objects.get_or_create(phone=phone)
+            if created:
+                account = Account.objects.create(
+                    user=user,
+                    email=f"{phone}@kotoku.app",
                     phone=phone,
-                    purpose=OTPRequest.PURPOSE_LOGIN,
-                    is_used=False,
-                    expires_at__gte=timezone.now(),
                 )
-                .order_by("-created_at")
-                .first()
-            )
-            if record is None:
-                error_message = "OTP has expired or was not sent. Please request a new one."
-            elif record.attempt_count >= _OTP_MAX_ATTEMPTS:
-                cache.set(lock_key, True, timeout=_OTP_LOCKOUT_SECONDS)
-                error_message = "Too many failed OTP attempts. Try again later."
-            elif not check_password(otp_code, record.otp_hash):
-                record.attempt_count += 1
-                record.save(update_fields=["attempt_count"])
-                if record.attempt_count >= _OTP_MAX_ATTEMPTS:
-                    cache.set(lock_key, True, timeout=_OTP_LOCKOUT_SECONDS)
-                error_message = "Invalid OTP code."
             else:
-                cache.delete(lock_key)
-                record.is_used = True
-                record.used_at = timezone.now()
-                record.save(update_fields=["is_used", "used_at"])
-
-                user, created = User.objects.get_or_create(phone=phone)
-                if created:
+                try:
+                    account = user.account
+                except Account.DoesNotExist:
                     account = Account.objects.create(
                         user=user,
                         email=f"{phone}@kotoku.app",
                         phone=phone,
                     )
                 else:
-                    try:
-                        account = user.account
-                    except Account.DoesNotExist:
-                        account = Account.objects.create(
-                            user=user,
-                            email=f"{phone}@kotoku.app",
-                            phone=phone,
-                        )
-                    else:
-                        if account.phone != user.phone:
-                            account.phone = user.phone
-                            account.save(update_fields=["phone", "updated_at"])
+                    if account.phone != user.phone:
+                        account.phone = user.phone
+                        account.save(update_fields=["phone", "updated_at"])
 
-                # New device login revokes all other sessions.
-                revoked = _revoke_all_sessions(user, reason=DeviceSession.REVOKE_NEW_DEVICE)
-                if revoked > 0:
-                    logger.info(
-                        "Revoked %d sessions for %s on new-device OTP login",
-                        revoked,
-                        phone,
-                    )
-
-                session, raw_token = _create_session(
-                    user=user,
-                    client_type=client_type,
-                    device_fingerprint=device_fingerprint,
-                    device_name=device_name,
+            # New device login revokes all other sessions.
+            revoked = _revoke_all_sessions(user, reason=DeviceSession.REVOKE_NEW_DEVICE)
+            if revoked > 0:
+                logger.info(
+                    "Revoked %d sessions for %s on new-device OTP login",
+                    revoked,
+                    phone,
                 )
 
-                AuditService.record_event(
-                    event_type="auth.otp_verified",
-                    entity_type="user",
-                    entity_id=str(user.pk),
-                    metadata={"new_user": created, "session_id": session.id},
-                )
+            session, raw_token = _create_session(
+                user=user,
+                client_type=client_type,
+                device_fingerprint=device_fingerprint,
+                device_name=device_name,
+            )
 
-        if error_message:
-            raise DomainError(error_message)
+            AuditService.record_event(
+                event_type="auth.otp_verified",
+                entity_type="user",
+                entity_id=str(user.pk),
+                metadata={"new_user": created, "session_id": session.id},
+            )
+
         result = _build_token_response(user, session, raw_token)
         result["user"] = user
         result["account"] = account
@@ -299,7 +235,12 @@ class AuthService:
 
 
 def extract_otp_from_message(body: str) -> str | None:
-    match = _OTP_BODY_RE.search(body)
+    """Extract a 4-digit OTP from a message body.
+
+    Kept for backward compatibility — OTP is now managed by Arkesel.
+    """
+    import re
+    match = re.search(r"(\d{4})", body)
     if not match:
         return None
     return match.group(1)

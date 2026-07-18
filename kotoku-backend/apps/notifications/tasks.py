@@ -7,6 +7,7 @@ from apps.audit.services import AuditService
 from apps.notifications.models import Notification
 from apps.notifications.providers.email_provider import EmailNotificationProvider
 from apps.notifications.providers.sms_provider import SmsNotificationProvider
+from infrastructure.sms.arkesel_client import ArkeselOtpClient
 
 logger = logging.getLogger(__name__)
 
@@ -68,3 +69,16 @@ def send_sms_message(*, to: str, body: str) -> None:
     success = provider.send(to=to, body=body)
     if not success:
         raise RuntimeError(f"SMS delivery failed for {to}")
+
+
+@shared_task(
+    autoretry_for=(Exception,),
+    retry_backoff=True,
+    retry_kwargs={"max_retries": 3},
+)
+def send_arkesel_otp(*, number: str, message: str, expiry: int = 5, length: int = 6) -> None:
+    """Send OTP via Arkesel OTP API. Arkesel generates and delivers the code."""
+    client = ArkeselOtpClient()
+    success = client.send_otp(number=number, message=message, expiry=expiry, length=length)
+    if not success:
+        raise RuntimeError(f"Arkesel OTP send failed for {number}")

@@ -59,7 +59,13 @@ def _config_check_result():
 
     sms_missing = []
     if getattr(settings, "SMS_BACKEND", "") != "stub":
-        sms_missing = _missing(getattr(settings, "REQUIRED_SMS_SETTING_NAMES", ()))
+        backend = getattr(settings, "SMS_BACKEND", "arkesel")
+        if backend == "arkesel":
+            sms_missing = _missing(getattr(settings, "REQUIRED_ARKESEL_SETTING_NAMES", ()))
+        elif backend == "infobip":
+            sms_missing = _missing(getattr(settings, "REQUIRED_INFOBIP_SETTING_NAMES", ()))
+        else:
+            sms_missing = _missing(getattr(settings, "REQUIRED_SMS_SETTING_NAMES", ()))
 
     plan_code_missing = []
     for plan_id, env_name in getattr(settings, "PAYSTACK_PLAN_CODE_ENV_MAP", {}).items():
