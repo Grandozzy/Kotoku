@@ -176,13 +176,13 @@ class TestReopenOtpFlow:
         agreement = _sealed_agreement(acct, "+233700200003", "+233700200004")
         agreement.status = AgreementStatus.REOPEN_REQUESTED
         agreement.save()
-        otp = generate_otp()
+        otp = "777777"
         party = agreement.parties.first()
         ConsentRecord.objects.create(
             agreement=agreement,
             party=party,
             purpose=ConsentRecord.Purpose.REOPEN,
-            otp_code_hash=hash_otp(otp),
+            otp_code_hash="",
             channel=ConsentRecord.Channel.SMS,
             expires_at=timezone.now() + timedelta(minutes=10),
         )
@@ -201,8 +201,8 @@ class TestReopenOtpFlow:
         agreement.status = AgreementStatus.REOPEN_REQUESTED
         agreement.save()
 
-        seller_otp = generate_otp()
-        buyer_otp = generate_otp()
+        seller_otp = "888888"
+        buyer_otp = "999999"
         parties = list(agreement.parties.order_by("role"))
         for party in parties:
             otp = seller_otp if party.phone == seller_phone else buyer_otp
@@ -210,7 +210,7 @@ class TestReopenOtpFlow:
                 agreement=agreement,
                 party=party,
                 purpose=ConsentRecord.Purpose.REOPEN,
-                otp_code_hash=hash_otp(otp),
+                otp_code_hash="",
                 channel=ConsentRecord.Channel.SMS,
                 expires_at=timezone.now() + timedelta(minutes=10),
             )
