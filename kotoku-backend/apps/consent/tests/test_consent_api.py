@@ -19,6 +19,7 @@ from apps.agreements.models import Agreement
 from apps.consent.models import ConsentRecord
 from apps.consent.services import ConsentService, hash_otp
 from apps.evidence.models import EvidenceItem
+from apps.identity.models import PartyIdentityVerification
 from apps.parties.models import Party
 from apps.parties.services import PartyService
 from apps.vault.models import VaultEntry
@@ -45,7 +46,11 @@ def _make_client(phone):
 
 
 def _draft_agreement(account):
-    return Agreement.objects.create(title="Consent Test", created_by=account)
+    return Agreement.objects.create(
+        title="Consent Test",
+        created_by=account,
+        scenario_template="used_vehicle_sale",
+    )
 
 
 def _set_two_parties(agreement, initiator_phone, second_phone):
@@ -82,6 +87,59 @@ def _add_confirmed_evidence(agreement):
         original_name="front-photo.jpg",
         upload_status=EvidenceItem.UploadStatus.CONFIRMED,
         storage_url="https://storage.kotoku/fake/photo.jpg",
+    )
+
+
+def _add_vehicle_photos(agreement, uploaded_by):
+    for evidence_type in (
+        "vehicle_photo_front",
+        "vehicle_photo_side",
+        "vehicle_photo_interior",
+    ):
+        EvidenceItem.objects.create(
+            agreement=agreement,
+            uploaded_by=uploaded_by,
+            file_type=EvidenceItem.FileType.PHOTO,
+            evidence_type=evidence_type,
+            mime_type="image/jpeg",
+            size_bytes=2048,
+            original_name=f"{evidence_type}.jpg",
+            upload_status=EvidenceItem.UploadStatus.CONFIRMED,
+            storage_url=f"https://storage.kotoku/fake/{evidence_type}.jpg",
+            file_hash=f"hash-{evidence_type}",
+        )
+
+
+def _add_verified_identity_bundle(agreement, party):
+    for evidence_type in (
+        f"{party.role}_ghana_card_front",
+        f"{party.role}_ghana_card_back",
+        f"{party.role}_selfie",
+    ):
+        EvidenceItem.objects.create(
+            agreement=agreement,
+            uploaded_by=party,
+            file_type=EvidenceItem.FileType.PHOTO,
+            evidence_type=evidence_type,
+            mime_type="image/jpeg",
+            size_bytes=2048,
+            original_name=f"{evidence_type}.jpg",
+            upload_status=EvidenceItem.UploadStatus.CONFIRMED,
+            storage_url=f"https://storage.kotoku/fake/{evidence_type}.jpg",
+            file_hash=f"hash-{evidence_type}",
+        )
+    PartyIdentityVerification.objects.update_or_create(
+        party=party,
+        defaults={
+            "status": PartyIdentityVerification.Status.VERIFIED,
+            "entered_pin": party.id_number or "",
+            "entered_full_name": party.display_name,
+            "ocr_pin": party.id_number or "",
+            "ocr_full_name": party.display_name.upper(),
+            "detail": "Verified",
+            "face_match_score": 99.0,
+            "failure_codes": [],
+        },
     )
 
 
@@ -294,10 +352,10 @@ class TestConfirmConsentApi:
 
     def test_valid_otp_returns_200(self, mock_delay):
         client, acct, agreement = self._setup("+233500200001", "+233500200002")
-        self._force_otp(agreement, acct.phone, "11111111")
+        self._force_otp(agreement, acct.phone, "111111")
         resp = client.post(
             _CONFIRM_PATH.format(id=agreement.pk),
-            {"party_phone": acct.phone, "otp_code": "11111111"},
+            {"party_phone": acct.phone, "otp_code": "111111"},
             format="json",
         )
         assert resp.status_code == 200
@@ -306,10 +364,10 @@ class TestConfirmConsentApi:
     def test_valid_otp_accepts_authenticated_phone_format_difference(self, mock_delay):
         client, acct, agreement = self._setup("0500200101", "+233500200102")
         canonical_phone = "+233500200101"
-        self._force_otp(agreement, canonical_phone, "11111111")
+        self._force_otp(agreement, canonical_phone, "111111")
         resp = client.post(
             _CONFIRM_PATH.format(id=agreement.pk),
-            {"party_phone": canonical_phone, "otp_code": "11111111"},
+            {"party_phone": canonical_phone, "otp_code": "111111"},
             format="json",
         )
         assert resp.status_code == 200
@@ -319,7 +377,7 @@ class TestConfirmConsentApi:
         client, acct, agreement = self._setup("+233500200003", "+233500200004")
         resp = client.post(
             _CONFIRM_PATH.format(id=agreement.pk),
-            {"party_phone": acct.phone, "otp_code": "00000000"},
+            {"party_phone": acct.phone, "otp_code": "000000"},
             format="json",
         )
         assert resp.status_code == 400
@@ -328,7 +386,7 @@ class TestConfirmConsentApi:
         client, acct, agreement = self._setup("+233500200005", "+233500200006")
         resp = client.post(
             _CONFIRM_PATH.format(id=agreement.pk),
-            {"party_phone": "+233999999999", "otp_code": "12345678"},
+            {"party_phone": "+233999999999", "otp_code": "123456"},
             format="json",
         )
         assert resp.status_code == 403
@@ -336,10 +394,10 @@ class TestConfirmConsentApi:
     def test_cannot_confirm_another_party_phone(self, mock_delay):
         second_phone = "+233500200099"
         client, acct, agreement = self._setup("+233500200098", second_phone)
-        self._force_otp(agreement, second_phone, "22222222")
+        self._force_otp(agreement, second_phone, "222222")
         resp = client.post(
             _CONFIRM_PATH.format(id=agreement.pk),
-            {"party_phone": second_phone, "otp_code": "22222222"},
+            {"party_phone": second_phone, "otp_code": "222222"},
             format="json",
         )
         assert resp.status_code == 403
@@ -352,7 +410,7 @@ class TestConfirmConsentApi:
         client, acct, agreement = self._setup("+233500200007", "+233500200008")
         resp = client.post(
             _CONFIRM_PATH.format(id=agreement.pk),
-            {"party_phone": "not-a-phone", "otp_code": "12345678"},
+            {"party_phone": "not-a-phone", "otp_code": "123456"},
             format="json",
         )
         assert resp.status_code == 400
@@ -362,12 +420,12 @@ class TestConfirmConsentApi:
         for _ in range(3):
             client.post(
                 _CONFIRM_PATH.format(id=agreement.pk),
-                {"party_phone": acct.phone, "otp_code": "00000000"},
+                {"party_phone": acct.phone, "otp_code": "000000"},
                 format="json",
             )
         resp = client.post(
             _CONFIRM_PATH.format(id=agreement.pk),
-            {"party_phone": acct.phone, "otp_code": "00000000"},
+            {"party_phone": acct.phone, "otp_code": "000000"},
             format="json",
         )
         assert resp.status_code == 400
@@ -378,7 +436,7 @@ class TestConfirmConsentApi:
         agreement = _draft_agreement(acct)
         resp = APIClient().post(
             _CONFIRM_PATH.format(id=agreement.pk),
-            {"party_phone": acct.phone, "otp_code": "12345678"},
+            {"party_phone": acct.phone, "otp_code": "123456"},
             format="json",
         )
         assert resp.status_code == 401
@@ -389,7 +447,7 @@ class TestConfirmConsentApi:
         agreement = _draft_agreement(other_acct)
         resp = client.post(
             _CONFIRM_PATH.format(id=agreement.pk),
-            {"party_phone": other_acct.phone, "otp_code": "12345678"},
+            {"party_phone": other_acct.phone, "otp_code": "123456"},
             format="json",
         )
         assert resp.status_code == 404
@@ -491,11 +549,11 @@ class TestPublicConsentLinkApi:
         agreement, party, token = self._setup("+233500350003", "+233500350004")
         record = ConsentRecord.objects.get(agreement=agreement, party=party)
         ConsentRecord.objects.filter(pk=record.pk).update(
-            otp_code_hash=hash_otp("12345678")
+            otp_code_hash=hash_otp("123456")
         )
         resp = APIClient().post(
             _PUBLIC_CONSENT_CONFIRM_PATH.format(token=token),
-            {"otp_code": "12345678"},
+            {"otp_code": "123456"},
             format="json",
         )
         assert resp.status_code == 200
@@ -517,7 +575,10 @@ class TestSealApi:
         client, acct = _make_client(initiator_phone)
         agreement = _draft_agreement(acct)
         _set_two_parties(agreement, acct.phone, second_phone)
-        _add_confirmed_evidence(agreement)
+        parties = list(agreement.parties.order_by("id"))
+        for party in parties:
+            _add_verified_identity_bundle(agreement, party)
+        _add_vehicle_photos(agreement, parties[0])
         # Request OTPs
         client.post(_REQUEST_OTP_PATH.format(id=agreement.pk))
         # Grant all consent records directly

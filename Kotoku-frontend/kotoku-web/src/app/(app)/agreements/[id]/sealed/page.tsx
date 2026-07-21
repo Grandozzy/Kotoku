@@ -225,10 +225,10 @@ export default function SealedPage() {
                     <input
                       type="text"
                       inputMode="numeric"
-                      maxLength={4}
+                      maxLength={6}
                       placeholder="OTP"
                       value={reopenOtp}
-                      onChange={(e) => setReopenOtp(e.target.value.replace(/\D/g, ""))}
+                      onChange={(e) => setReopenOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
                       className="rounded-lg border border-neutral-200 px-3 py-2 text-sm font-mono tracking-widest text-center focus:outline-none focus:ring-2 focus:ring-amber-400"
                     />
                   </div>
@@ -237,7 +237,7 @@ export default function SealedPage() {
                     disabled={
                       confirmReopenMutation.isPending ||
                       !authenticatedPhone ||
-                      reopenOtp.length < 4
+                      reopenOtp.length < 6
                     }
                     className="px-4 py-2 rounded-full bg-amber-600 text-white text-sm font-medium disabled:opacity-50 w-fit"
                   >

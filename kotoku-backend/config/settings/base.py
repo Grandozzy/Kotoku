@@ -207,6 +207,12 @@ INFOBIP_WHATSAPP_TEMPLATE_NAME = os.getenv("INFOBIP_WHATSAPP_TEMPLATE_NAME", "")
 INFOBIP_SMS_TIMEOUT_SECONDS = int(os.getenv("INFOBIP_SMS_TIMEOUT_SECONDS", "30"))
 INFOBIP_WEBHOOK_SECRET = os.getenv("INFOBIP_WEBHOOK_SECRET", "")
 
+# --- Meta WhatsApp Cloud API (OTP fallback when SMS fails) ---
+META_WHATSAPP_PHONE_NUMBER_ID = os.getenv("META_WHATSAPP_PHONE_NUMBER_ID", "")
+META_WHATSAPP_ACCESS_TOKEN = os.getenv("META_WHATSAPP_ACCESS_TOKEN", "")
+META_WHATSAPP_TEMPLATE_NAME = os.getenv("META_WHATSAPP_TEMPLATE_NAME", "")
+META_WHATSAPP_TEMPLATE_LANG = os.getenv("META_WHATSAPP_TEMPLATE_LANG", "en_US")
+
 # --- Africa's Talking (cold standby — set SMS_BACKEND=africastalking to re-enable) ---
 _SMS_USERNAME = os.getenv("SMS_USERNAME", "sandbox")
 _SMS_MODE_URL = (
@@ -219,6 +225,11 @@ SMS_API_KEY = os.getenv("SMS_API_KEY", "")
 SMS_USERNAME = _SMS_USERNAME
 SMS_SENDER_ID = os.getenv("SMS_SENDER_ID", "")
 SMS_BACKEND = os.getenv("SMS_BACKEND", "africastalking")
+
+# --- Arkesel OTP API (auth + consent OTP delivery and verification) ---
+ARKESEL_API_KEY = os.getenv("ARKESEL_API_KEY", "").strip()
+ARKESEL_SMS_URL = os.getenv("ARKESEL_SMS_URL", "https://sms.arkesel.com/api/v2/sms/send").strip()
+ARKESEL_SENDER_ID = os.getenv("ARKESEL_SENDER_ID", "").strip()
 
 PAYSTACK_SECRET_KEY = os.getenv("PAYSTACK_SECRET_KEY", "")
 PAYSTACK_PUBLIC_KEY = os.getenv("PAYSTACK_PUBLIC_KEY", "")
@@ -256,6 +267,7 @@ REQUIRED_STORAGE_SETTING_NAMES = (
     "AWS_S3_REGION_NAME",
 )
 REQUIRED_SMS_SETTING_NAMES = ("SMS_API_KEY",)  # Africa's Talking standby
+REQUIRED_ARKESEL_SETTING_NAMES = ("ARKESEL_API_KEY",)
 REQUIRED_INFOBIP_SETTING_NAMES = ("INFOBIP_API_KEY", "INFOBIP_BASE_URL")
 REQUIRED_PAYMENT_SETTING_NAMES = (
     "PAYSTACK_SECRET_KEY",

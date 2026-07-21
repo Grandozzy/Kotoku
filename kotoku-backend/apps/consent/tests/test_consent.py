@@ -77,11 +77,11 @@ def _agreement_with_parties():
 class TestGenerateOtp:
     def test_returns_numeric_string(self):
         otp = generate_otp()
-        assert len(otp) == 4
+        assert len(otp) == 6
         assert otp.isdigit()
 
     def test_respects_length(self):
-        assert len(generate_otp(4)) == 4
+        assert len(generate_otp(6)) == 6
 
 
 class TestHashOtp:
@@ -214,7 +214,7 @@ class TestVerifyOtp:
         records = ConsentService.request_consent(agreement_id=agreement.pk)
         with pytest.raises(DomainError, match="Invalid or expired"):
             ConsentService.verify_otp(
-                consent_record_id=records[0].pk, otp_code="00000000"
+                consent_record_id=records[0].pk, otp_code="000000"
             )
 
     def test_raises_on_expired_otp(self, db):
@@ -238,12 +238,12 @@ class TestVerifyOtp:
         )
         with pytest.raises(DomainError, match="Invalid or expired"):
             ConsentService.verify_otp(
-                consent_record_id=record.pk, otp_code="44444444"
+                consent_record_id=record.pk, otp_code="444444"
             )
 
     def test_raises_on_nonexistent_record(self, db):
         with pytest.raises(DomainError, match="Invalid or expired"):
-            ConsentService.verify_otp(consent_record_id=99999, otp_code="12345678")
+            ConsentService.verify_otp(consent_record_id=99999, otp_code="123456")
 
     def test_transitions_agreement_to_active_when_all_consented(self, db):
         agreement = _agreement_with_parties()

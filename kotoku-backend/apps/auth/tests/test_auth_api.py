@@ -158,7 +158,7 @@ class TestVerifyOtpApi(TestCase):
             self.client.post("/api/auth/send-otp/", {"phone": "+233501234567"}, format="json")
         response = self.client.post(
             "/api/auth/verify-otp/",
-            {"phone": "+233501234567", "otp_code": "00000000"},
+            {"phone": "+233501234567", "otp_code": "000000"},
             format="json",
         )
         assert response.status_code == 400
@@ -183,7 +183,7 @@ class TestVerifyOtpApi(TestCase):
         )
         response = self.client.post(
             "/api/auth/verify-otp/",
-            {"phone": "+233501234567", "otp_code": "00000000"},
+            {"phone": "+233501234567", "otp_code": "000000"},
             format="json",
         )
         assert response.status_code == 400

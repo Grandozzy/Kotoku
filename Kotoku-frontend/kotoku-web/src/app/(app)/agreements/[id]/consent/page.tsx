@@ -247,10 +247,10 @@ export default function ConsentPage() {
               <input
                 type="text"
                 inputMode="numeric"
-                maxLength={4}
-                placeholder="1234"
+                maxLength={6}
+                placeholder="123456"
                 value={otp}
-                onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
+                onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
                 className="mt-1 w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm font-mono tracking-widest text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
@@ -263,7 +263,7 @@ export default function ConsentPage() {
                 !authenticatedPhone ||
                 !ownRecord ||
                 ownRecord.granted ||
-                otp.length < 4
+                otp.length < 6
               }
               className="px-5 py-2.5 rounded-full bg-neutral-900 text-white text-sm font-medium disabled:opacity-50 hover:bg-neutral-700 transition-colors"
             >

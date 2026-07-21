@@ -218,7 +218,7 @@ class ReopenOtpRequestView(APIView):
 class ReopenOtpConfirmView(APIView):
     """POST /agreements/{id}/reopen-consent/confirm/
 
-    Body: { "phone": "+233...", "otp_code": "12345678" }
+    Body: { "phone": "+233...", "otp_code": "123456" }
 
     A party confirms their reopen OTP. When the last party confirms, the
     agreement automatically transitions REOPEN_REQUESTED → ACTIVE.

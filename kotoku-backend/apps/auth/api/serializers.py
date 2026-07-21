@@ -11,7 +11,12 @@ class SendOtpSerializer(serializers.Serializer):
 
 class VerifyOtpSerializer(serializers.Serializer):
     phone = serializers.RegexField(_E164_PATTERN, max_length=20)
-    otp_code = serializers.CharField(min_length=4, max_length=4)
+    otp_code = serializers.CharField(min_length=6, max_length=6)
+
+    def validate_otp_code(self, value: str) -> str:
+        if not re.fullmatch(r"\d{6}", value):
+            raise serializers.ValidationError("OTP code must be exactly 6 digits.")
+        return value
 
 
 class RefreshTokenSerializer(serializers.Serializer):

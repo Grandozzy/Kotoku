@@ -25,7 +25,7 @@ class TestAuthService(TestCase):
         with patch("apps.auth.services.send_sms_message.delay", return_value=None) as mocked_delay:
             AuthService.send_otp(phone="+233501234567")
         otp = self._sent_otp(mocked_delay)
-        assert len(otp) == 4
+        assert len(otp) == 6
         hourly_count = cache.get("auth_otp_hour:+233501234567")
         assert hourly_count == 1
 
@@ -53,7 +53,7 @@ class TestAuthService(TestCase):
         with patch("apps.auth.services.send_sms_message.delay", return_value=None):
             AuthService.send_otp(phone="+233501234567")
         with self.assertRaises(DomainError):
-            AuthService.verify_otp(phone="+233501234567", otp_code="00000000")
+            AuthService.verify_otp(phone="+233501234567", otp_code="000000")
 
     def test_verify_otp_expired_raises(self):
         with patch("apps.auth.services.send_sms_message.delay", return_value=None):
@@ -62,7 +62,7 @@ class TestAuthService(TestCase):
 
         OTPRequest.objects.update(expires_at=timezone.now() - timedelta(minutes=1))
         with self.assertRaises(DomainError):
-            AuthService.verify_otp(phone="+233501234567", otp_code="1234")
+            AuthService.verify_otp(phone="+233501234567", otp_code="123456")
 
     def test_verify_otp_returns_existing_user(self):
         user = User.objects.create_user(phone="+233501234567")
@@ -93,13 +93,13 @@ class TestAuthService(TestCase):
             AuthService.send_otp(phone="+233501234567")
         for _ in range(5):
             with self.assertRaises(DomainError):
-                AuthService.verify_otp(phone="+233501234567", otp_code="00000000")
+                AuthService.verify_otp(phone="+233501234567", otp_code="000000")
         from apps.accounts.models import OTPRequest
 
         record = OTPRequest.objects.get(phone="+233501234567", purpose="login", is_used=False)
         assert record.attempt_count == 5
         with self.assertRaises(DomainError):
-            AuthService.verify_otp(phone="+233501234567", otp_code="00000000")
+            AuthService.verify_otp(phone="+233501234567", otp_code="000000")
 
     def test_pin_verify_forces_otp_on_unknown_device(self):
         user = User.objects.create_user(phone="+233501234567")

@@ -1,5 +1,6 @@
 from django.conf import settings
 
+from infrastructure.sms.arkesel_gateway import ArkeselSmsGateway
 from infrastructure.sms.console_gateway import ConsoleSmsGateway
 from infrastructure.sms.gateway import SmsGateway
 
@@ -8,6 +9,8 @@ def get_sms_gateway():
     backend = getattr(settings, "SMS_BACKEND", "infobip")
     if backend == "console":
         return ConsoleSmsGateway()
+    if backend == "arkesel":
+        return ArkeselSmsGateway()
     if backend == "africastalking":
         return SmsGateway()
     # Default: infobip (primary) — imported lazily so AT/console paths stay fast

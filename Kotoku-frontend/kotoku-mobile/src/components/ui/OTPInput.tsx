@@ -25,7 +25,7 @@ const normalizeOtpValue = (text: string, length: number) =>
   text.replace(/\D/g, "").slice(0, length);
 
 export const OTPInput: React.FC<OTPInputProps> = ({
-  length = 4,
+  length = 6,
   value,
   onChange,
   error,

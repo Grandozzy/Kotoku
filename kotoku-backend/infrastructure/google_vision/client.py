@@ -5,8 +5,6 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 from django.conf import settings
-from google.auth.transport.requests import Request as GoogleAuthRequest
-from google.oauth2 import service_account
 
 from common.exceptions import ServiceUnavailableError
 
@@ -18,6 +16,15 @@ _VISION_ANNOTATE_URL = "https://vision.googleapis.com/v1/images:annotate"
 
 class GoogleVisionClient:
     def __init__(self) -> None:
+        try:
+            from google.auth.transport.requests import Request as GoogleAuthRequest
+            from google.oauth2 import service_account
+        except ImportError as exc:
+            logger.exception("[IDENTITY] google_vision_dependency_missing")
+            raise ServiceUnavailableError(
+                "Identity verification is temporarily unavailable. Please try again later."
+            ) from exc
+
         raw_credentials = getattr(settings, "GOOGLE_VISION_SERVICE_ACCOUNT_JSON", "")
         if not raw_credentials:
             raise ServiceUnavailableError(
@@ -31,6 +38,7 @@ class GoogleVisionClient:
                 "Identity verification is temporarily unavailable. Please try again later."
             ) from exc
 
+        self._google_auth_request = GoogleAuthRequest
         self._credentials = service_account.Credentials.from_service_account_info(
             info,
             scopes=[_VISION_SCOPE],
@@ -39,7 +47,7 @@ class GoogleVisionClient:
 
     def extract_document_text(self, image_bytes: bytes) -> str:
         credentials = self._credentials.with_scopes([_VISION_SCOPE])
-        credentials.refresh(GoogleAuthRequest())
+        credentials.refresh(self._google_auth_request())
 
         payload: dict[str, object] = {
             "requests": [

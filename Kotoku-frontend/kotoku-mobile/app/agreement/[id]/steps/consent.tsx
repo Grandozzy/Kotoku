@@ -553,6 +553,7 @@ function ConsentPartyBlock({
       {!confirmed && (
         <>
           <OTPInput
+            length={6}
             value={code}
             onChange={onCodeChange}
             error={error}
@@ -563,7 +564,7 @@ function ConsentPartyBlock({
             variant="primary"
             size="md"
             fullWidth
-            disabled={code.length < 8 || disabled}
+            disabled={code.length < 6 || disabled}
             loading={loading}
             onPress={onConfirm}
           />

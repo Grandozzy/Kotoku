@@ -59,14 +59,14 @@ export function ConsentConfirmForm({
         inputMode="numeric"
         autoComplete="one-time-code"
         value={otpCode}
-        onChange={(event) => setOtpCode(event.target.value.replace(/\D/g, "").slice(0, 4))}
+        onChange={(event) => setOtpCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
         className="mt-3 w-full rounded-xl border border-neutral-300 px-3 py-3 text-center text-xl tracking-[0.5em] outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 sm:px-4 sm:text-2xl sm:tracking-[0.6em]"
-        placeholder="••••"
+        placeholder="••••••"
       />
       {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
       <button
         type="submit"
-        disabled={otpCode.length < 4 || submitting}
+        disabled={otpCode.length < 6 || submitting}
         className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full bg-neutral-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-neutral-700 disabled:cursor-not-allowed disabled:opacity-50"
       >
         {submitting && <Loader2 size={16} className="animate-spin" />}
