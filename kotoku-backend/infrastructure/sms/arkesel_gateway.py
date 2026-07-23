@@ -55,6 +55,7 @@ class ArkeselSmsGateway:
                 "Content-Type": "application/json",
                 "Accept": "application/json",
                 "api-key": self.api_key,
+                "User-Agent": "KotokuApp/1.0 (+https://kotoku-app.com)",
             },
             method="POST",
         )
