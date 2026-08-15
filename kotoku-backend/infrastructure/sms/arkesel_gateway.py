@@ -77,8 +77,10 @@ class ArkeselSmsGateway:
                 return False
         except urllib.error.HTTPError as e:
             error_body = e.read().decode()
-            logger.exception(
-                "Arkesel SMS gateway HTTP error",
+            logger.error(
+                "Arkesel SMS gateway HTTP error http_status=%s error_body=%s",
+                e.code,
+                error_body,
                 extra={
                     "sms": {
                         **log_context,

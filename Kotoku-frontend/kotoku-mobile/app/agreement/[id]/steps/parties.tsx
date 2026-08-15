@@ -161,19 +161,27 @@ export default function PartiesStep() {
   }, [reset, savedParties, setPartyA, setPartyB]);
 
   useEffect(() => {
-    const needsRefresh = savedParties.some((party) =>
-      party.ghanaCardFrontUploaded &&
-      party.ghanaCardBackUploaded &&
-      party.identitySelfieUploaded &&
-      (party.identityVerificationStatus === "pending" ||
-        party.identityVerificationStatus === "processing"),
-    );
+    const needsRefresh = savedParties.some((party) => {
+      const frontType = identityEvidenceType(party.role, "front");
+      const backType = identityEvidenceType(party.role, "back");
+      const selfieType = identityEvidenceType(party.role, "selfie");
+      const frontDone = party.ghanaCardFrontUploaded || items[frontType]?.uploadStatus === "uploaded";
+      const backDone = party.ghanaCardBackUploaded || items[backType]?.uploadStatus === "uploaded";
+      const selfieDone = party.identitySelfieUploaded || items[selfieType]?.uploadStatus === "uploaded";
+      return (
+        frontDone &&
+        backDone &&
+        selfieDone &&
+        (party.identityVerificationStatus === "pending" ||
+          party.identityVerificationStatus === "processing")
+      );
+    });
     if (!needsRefresh) return;
     const timer = setInterval(() => {
       void queryClient.invalidateQueries({ queryKey: ["agreement", agreementId] });
     }, 2500);
     return () => clearInterval(timer);
-  }, [agreementId, queryClient, savedParties]);
+  }, [agreementId, queryClient, savedParties, items]);
 
   if (!template || isLoading) {
     return <ScreenLoader />;
