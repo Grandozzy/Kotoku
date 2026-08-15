@@ -14,6 +14,20 @@ from common.exceptions import DomainError
 from common.phone_numbers import normalize_phone_for_compare, normalize_phone_to_e164
 
 
+def _party_has_identity_uploads(party) -> bool:
+    from apps.evidence.models import EvidenceItem
+    patterns = [
+        f"{party.role}_ghana_card_front",
+        f"{party.role}_ghana_card_back",
+        f"{party.role}_selfie",
+    ]
+    return EvidenceItem.objects.filter(
+        agreement=party.agreement,
+        evidence_type__in=patterns,
+        upload_status=EvidenceItem.UploadStatus.CONFIRMED,
+    ).exists()
+
+
 def _require_identity_fields(party_data: dict, *, role: str) -> None:
     id_type = party_data.get("id_type")
     id_number = party_data.get("id_number")
@@ -117,7 +131,8 @@ class PartyService:
             if not party.id or not is_identity_required(party.role):
                 continue
             IdentityService.reset_party_verification(party=party)
-            IdentityService.queue_party_verification(party_id=party.pk)
+            if _party_has_identity_uploads(party):
+                IdentityService.queue_party_verification(party_id=party.pk)
 
         AuditService.record_event(
             event_type="agreement.parties_set",
@@ -211,7 +226,8 @@ class PartyService:
                 party.save(update_fields=update_fields)
                 if is_identity_required(party.role) and identity_changed:
                     IdentityService.reset_party_verification(party=party)
-                    IdentityService.queue_party_verification(party_id=party.pk)
+                    if _party_has_identity_uploads(party):
+                        IdentityService.queue_party_verification(party_id=party.pk)
             updated.append(party)
 
         AuditService.record_event(
