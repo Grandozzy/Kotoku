@@ -175,13 +175,15 @@ class TestPartiesPostApi:
         )
         assert resp.status_code == 404
 
-    def test_invalid_phone_format_returns_400(self):
+    def test_local_phone_format_is_normalized(self):
         client, acct = _make_client("+233501111010")
         agreement = _agreement(acct)
         body = _valid_body(acct.phone)
-        body["parties"][0]["phone"] = "0501234567"  # missing +country code
+        body["parties"][0]["phone"] = "0501234567"
         resp = client.post(_URL.format(id=agreement.pk), body, format="json")
-        assert resp.status_code == 400
+        assert resp.status_code == 200
+        seller = next(p for p in resp.json()["data"]["parties"] if p["role"] == "seller")
+        assert seller["phone"] == "+233501234567"
 
     def test_other_id_type_returns_400(self):
         client, acct = _make_client("+233501111012")

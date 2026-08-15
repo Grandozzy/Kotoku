@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { listEvidence } from "@/api/evidence";
 import { getEvidenceFileDescriptor } from "@/features/evidence/evidenceFile";
 import { uploadEvidenceItem } from "@/features/evidence/evidenceUploadService";
-import { getApiErrorMessage } from "@/lib/errorHandler";
+import { getApiErrorCode, getApiErrorMessage } from "@/lib/errorHandler";
 import { feedbackSuccess, feedbackWarning } from "@/lib/feedback";
 import type { UploadStatus } from "@/types/evidence";
 
@@ -48,6 +48,30 @@ interface UseEvidenceUploadReturn {
 interface PickImageOptions {
   source?: "library" | "camera";
   cameraType?: "front" | "back";
+}
+
+function describeUploadError(error: unknown, fallback: string): string {
+  const code = getApiErrorCode(error);
+  if (code === "evidence_upload_not_pending") {
+    return "The upload session expired or was replaced. Choose the file again and retry.";
+  }
+  if (code === "evidence_mime_mismatch") {
+    return "The uploaded file type did not match the original request. Choose the image again.";
+  }
+  if (code === "evidence_checksum_mismatch") {
+    return "The uploaded file changed before confirmation. Choose the image again.";
+  }
+  if (code === "evidence_file_size_mismatch") {
+    return "The uploaded file size changed before confirmation. Choose the image again.";
+  }
+  if (code === "identity_role_mismatch") {
+    return "This upload slot does not match the selected party. Refresh the draft and try again.";
+  }
+  const message = getApiErrorMessage(error, fallback);
+  if (message.includes("could not be verified in storage")) {
+    return "The file reached storage but could not be confirmed yet. Retry in a moment.";
+  }
+  return message;
 }
 
 export function useEvidenceUpload(
@@ -102,7 +126,7 @@ export function useEvidenceUpload(
       feedbackSuccess();
     } catch (err) {
       const prefix = `[step:${step}]`;
-      const msg = getApiErrorMessage(err, `${prefix} Failed to upload photo.`);
+      const msg = describeUploadError(err, `${prefix} Failed to upload photo.`);
       const retryable = !isNonRetryableEvidenceError(msg);
       if (__DEV__) {
         console.error(`[EVIDENCE-${agreementId}] ${prefix}`, err);
@@ -215,7 +239,7 @@ export function useEvidenceUpload(
       await uploadItem(nextItem);
     } catch (err) {
       const prefix = `[step:${step}]`;
-      const msg = getApiErrorMessage(err, `${prefix} Failed to upload photo.`);
+      const msg = describeUploadError(err, `${prefix} Failed to upload photo.`);
       const retryable = !isNonRetryableEvidenceError(msg);
       if (__DEV__) {
         console.error(`[EVIDENCE-${agreementId}] ${prefix}`, err);

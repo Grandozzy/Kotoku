@@ -1,3 +1,8 @@
+import re
+
+_E164_PATTERN = re.compile(r"^\+[1-9]\d{7,14}$")
+
+
 def normalize_phone_for_compare(phone: str | None) -> str:
     digits = "".join(ch for ch in str(phone or "") if ch.isdigit())
     if digits.startswith("0") and len(digits) == 10:
@@ -13,6 +18,10 @@ def normalize_phone_to_e164(phone: str | None) -> str:
     if raw.startswith("+") and digits:
         return f"+{digits}"
     return raw
+
+
+def is_valid_phone_input(phone: str | None) -> bool:
+    return bool(_E164_PATTERN.fullmatch(normalize_phone_to_e164(phone)))
 
 
 def same_phone(left: str | None, right: str | None) -> bool:

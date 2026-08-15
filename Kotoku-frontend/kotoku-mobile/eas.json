@@ -40,7 +40,11 @@
   },
   "submit": {
     "production": {
-      "ios": {},
+      "ios": {
+        "appleId": "asamoah.oscar@gmail.com",
+        "ascAppId": "6801067950",
+        "appleTeamId": "52VV2A3N7V"
+      },
       "android": {
         "serviceAccountKeyPath": "./google-play-service-account.json",
         "track": "internal"

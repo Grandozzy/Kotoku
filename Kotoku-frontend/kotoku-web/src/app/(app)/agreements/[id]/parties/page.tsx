@@ -11,6 +11,7 @@ import { uploadEvidenceFile, type UploadPhase } from "@/components/evidence/evid
 import { SCENARIO_MAP, ROLE_LABEL, ID_TYPE_LABEL } from "@/constants/scenarios";
 import { getApiErrorMessage } from "@/lib/errorHandler";
 import {
+  buildIdentityStatusMessage,
   GHANA_CARD_PIN_REGEX,
   formatGhanaCardPin,
   identityEvidenceType,
@@ -502,12 +503,13 @@ export default function PartiesPage() {
                   className={`mt-1 text-xs ${
                     party.identity_verification_status === "verified"
                       ? "text-emerald-700"
-                      : party.identity_verification_status === "failed"
+                      : party.identity_verification_status === "failed" ||
+                          party.identity_verification_status === "manual_review_required"
                         ? "text-red-600"
                         : "text-neutral-500"
                   }`}
                 >
-                  {party.identity_verification_detail}
+                  {buildIdentityStatusMessage(party)}
                 </p>
                 <div className="mt-3 grid gap-3 md:grid-cols-3">
                   <IdentityUploadButton

@@ -2,16 +2,22 @@ from rest_framework import serializers
 
 from apps.parties.identity import build_party_identity_states
 from apps.parties.models import Party
-
-_E164 = r"^\+[1-9]\d{7,14}$"
+from common.phone_numbers import is_valid_phone_input, normalize_phone_to_e164
 
 
 class PartyInputSerializer(serializers.Serializer):
     role = serializers.ChoiceField(choices=Party.Role.choices)
     full_name = serializers.CharField(max_length=255)
-    phone = serializers.RegexField(_E164, max_length=20)
+    phone = serializers.CharField(max_length=20)
     id_type = serializers.ChoiceField(choices=Party.IdType.choices)
     id_number = serializers.CharField(max_length=128, allow_blank=False, trim_whitespace=True)
+
+    def validate_phone(self, value: str) -> str:
+        if not is_valid_phone_input(value):
+            raise serializers.ValidationError(
+                "Enter a valid phone number (e.g. +233501234567 or 0501234567)."
+            )
+        return normalize_phone_to_e164(value)
 
 
 class PartiesSetSerializer(serializers.Serializer):
@@ -23,7 +29,7 @@ class PartyPatchSerializer(serializers.Serializer):
 
     role = serializers.ChoiceField(choices=Party.Role.choices)
     full_name = serializers.CharField(max_length=255, required=False)
-    phone = serializers.RegexField(_E164, max_length=20, required=False)
+    phone = serializers.CharField(max_length=20, required=False)
     id_type = serializers.ChoiceField(choices=Party.IdType.choices, required=False)
     id_number = serializers.CharField(
         max_length=128,
@@ -31,6 +37,13 @@ class PartyPatchSerializer(serializers.Serializer):
         allow_blank=False,
         trim_whitespace=True,
     )
+
+    def validate_phone(self, value: str) -> str:
+        if not is_valid_phone_input(value):
+            raise serializers.ValidationError(
+                "Enter a valid phone number (e.g. +233501234567 or 0501234567)."
+            )
+        return normalize_phone_to_e164(value)
 
 
 class PartiesPatchSerializer(serializers.Serializer):

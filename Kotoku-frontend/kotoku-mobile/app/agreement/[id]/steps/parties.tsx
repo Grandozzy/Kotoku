@@ -13,6 +13,7 @@ import { UploadSourceSheet } from "@/components/evidence/UploadSourceSheet";
 import { Button, NoticeCard, ScreenLoader, TextInput } from "@/components/ui";
 import { useAgreementStore } from "@/features/agreements/agreementStore";
 import {
+  buildIdentityStatusMessage,
   GHANA_CARD_PIN_REGEX,
   formatGhanaCardPin,
   identityEvidenceType,
@@ -342,12 +343,13 @@ export default function PartiesStep() {
                       className={`text-xs ${
                         party.identityVerificationStatus === "verified"
                           ? "text-semantic-success"
-                          : party.identityVerificationStatus === "failed"
+                          : party.identityVerificationStatus === "failed" ||
+                              party.identityVerificationStatus === "manual_review_required"
                             ? "text-semantic-error"
-                            : "text-ink-muted"
+                          : "text-ink-muted"
                       }`}
                     >
-                      {party.identityVerificationDetail}
+                      {buildIdentityStatusMessage(party)}
                     </Text>
                   </View>
                   <View className="flex-row gap-sm">

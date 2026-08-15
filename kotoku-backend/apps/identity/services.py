@@ -1,6 +1,6 @@
+import logging
 import re
 from dataclasses import dataclass
-import logging
 
 from django.db import transaction
 from django.utils import timezone
@@ -107,7 +107,11 @@ class IdentityService:
         return verification
 
     @staticmethod
-    def reset_party_verification(*, party, detail: str = "Awaiting Ghana Card verification.") -> None:
+    def reset_party_verification(
+        *,
+        party,
+        detail: str = "Awaiting Ghana Card verification.",
+    ) -> None:
         verification = IdentityService.ensure_party_verification(party=party)
         verification.status = PartyIdentityVerification.Status.PENDING
         verification.entered_pin = normalize_ghana_card_pin(party.id_number or "")
@@ -148,6 +152,7 @@ class IdentityService:
         from apps.identity.tasks import verify_party_identity
 
         def enqueue() -> None:
+            logger.info("[IDENTITY] queue_party_verification party_id=%s", party_id)
             try:
                 verify_party_identity.delay(party_id)
             except Exception:
@@ -189,8 +194,20 @@ class IdentityService:
         selfie = role_items.get("selfie")
 
         if not front or not back or not selfie:
+            logger.info(
+                "[IDENTITY] verification waiting_for_uploads party_id=%s role=%s "
+                "front=%s back=%s selfie=%s",
+                party_id,
+                party.role,
+                bool(front),
+                bool(back),
+                bool(selfie),
+            )
             verification.status = PartyIdentityVerification.Status.PENDING
-            verification.detail = "Upload the Ghana Card front, back, and a selfie photo to start verification."
+            verification.detail = (
+                "Upload the Ghana Card front, back, and a selfie photo "
+                "to start verification."
+            )
             verification.failure_codes = []
             verification.front_evidence_id = front.pk if front else None
             verification.back_evidence_id = back.pk if back else None
@@ -251,9 +268,17 @@ class IdentityService:
         except ServiceUnavailableError:
             if not soft_fail_unavailable:
                 raise
+            logger.warning(
+                "[IDENTITY] verification temporarily unavailable party_id=%s role=%s",
+                party_id,
+                party.role,
+            )
             outcome = IdentityVerificationOutcome(
                 status=PartyIdentityVerification.Status.PENDING,
-                detail="Identity verification is temporarily unavailable. We will retry automatically.",
+                detail=(
+                    "Identity verification is temporarily unavailable. "
+                    "We will retry automatically."
+                ),
                 failure_codes=["verification_unavailable"],
                 ocr_pin="",
                 ocr_full_name="",
@@ -268,7 +293,10 @@ class IdentityService:
             logger.exception("[IDENTITY] verification_unexpected_failure party_id=%s", party_id)
             outcome = IdentityVerificationOutcome(
                 status=PartyIdentityVerification.Status.FAILED,
-                detail="Identity verification failed unexpectedly. Please retry the Ghana Card upload.",
+                detail=(
+                    "Identity verification failed unexpectedly. "
+                    "Please retry the Ghana Card upload."
+                ),
                 failure_codes=["verification_unexpected_failure"],
                 ocr_pin="",
                 ocr_full_name="",
@@ -312,6 +340,13 @@ class IdentityService:
                 "verified_at",
                 "updated_at",
             ]
+        )
+        logger.info(
+            "[IDENTITY] verification completed party_id=%s role=%s status=%s failure_codes=%s",
+            party_id,
+            party.role,
+            outcome.status,
+            outcome.failure_codes,
         )
         return verification
 
@@ -366,6 +401,15 @@ class IdentityService:
 
         if failure_codes:
             manual_review_only = failure_codes == ["face_match_manual_review"]
+            logger.warning(
+                "[IDENTITY] verification failed role=%s entered_pin=%s "
+                "ocr_pin=%s failure_codes=%s face_match_score=%s",
+                party.role,
+                entered_pin,
+                ocr_pin,
+                failure_codes,
+                face_match_score,
+            )
             return IdentityVerificationOutcome(
                 status=(
                     PartyIdentityVerification.Status.MANUAL_REVIEW_REQUIRED
@@ -375,7 +419,10 @@ class IdentityService:
                 detail=(
                     "Identity verification needs manual review."
                     if manual_review_only
-                    else "Ghana Card verification failed. Upload a clearer card image and selfie that match the entered details."
+                    else (
+                        "Ghana Card verification failed. Upload a clearer "
+                        "card image and selfie that match the entered details."
+                    )
                 ),
                 failure_codes=failure_codes,
                 ocr_pin=ocr_pin,

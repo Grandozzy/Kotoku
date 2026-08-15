@@ -16,6 +16,14 @@ export function isCapReachedError(error: unknown): boolean {
   return false;
 }
 
+export function getApiErrorCode(error: unknown): string | null {
+  if (error instanceof AxiosError) {
+    const code = error.response?.data?.code;
+    return typeof code === "string" ? code : null;
+  }
+  return null;
+}
+
 export function getApiErrorMessage(
   error: unknown,
   fallback = "Something went wrong. Please try again.",

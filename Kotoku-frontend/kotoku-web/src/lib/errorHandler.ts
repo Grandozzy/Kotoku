@@ -20,3 +20,11 @@ export function getApiErrorMessage(
   if (error instanceof Error && error.message) return error.message;
   return fallback;
 }
+
+export function getApiErrorCode(error: unknown): string | null {
+  const candidate = error as {
+    response?: { data?: Record<string, unknown> };
+  } | null;
+  const code = candidate?.response?.data?.code;
+  return typeof code === "string" ? code : null;
+}
