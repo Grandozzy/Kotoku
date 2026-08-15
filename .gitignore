@@ -101,3 +101,9 @@ vercel.json
 
 # Root workspace package.json (not part of any tracked package)
 /package.json
+
+# Secrets and credentials (never commit)
+google-play-service-account.json
+kotoku-backend/kotoku-505419-89db90321a87.json
+kotoku-backend/twilio_2FA_recovery_code.txt
+*.docx
