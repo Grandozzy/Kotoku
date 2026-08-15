@@ -32,6 +32,10 @@ urlpatterns = [
         include("apps.evidence.api.urls"),
     ),
     path(
+        "<int:agreement_id>/identity/",
+        include("apps.identity.api.urls"),
+    ),
+    path(
         "<int:agreement_id>/consent/",
         include("apps.consent.api.urls"),
     ),

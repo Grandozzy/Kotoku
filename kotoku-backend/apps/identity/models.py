@@ -63,6 +63,11 @@ class PartyIdentityVerification(models.Model):
     failure_codes = models.JSONField(default=list, blank=True)
     detail = models.TextField(blank=True)
     verified_at = models.DateTimeField(null=True, blank=True)
+    # Face Liveness fields (populated by the liveness session API flow)
+    liveness_session_id = models.CharField(max_length=256, blank=True)
+    liveness_status = models.CharField(max_length=16, blank=True)  # "", "pending", "passed", "failed"
+    liveness_confidence = models.FloatField(null=True, blank=True)
+    liveness_reference_s3_key = models.CharField(max_length=512, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

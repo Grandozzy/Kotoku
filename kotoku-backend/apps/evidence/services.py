@@ -99,6 +99,32 @@ def _is_identity_evidence(evidence_type: str) -> bool:
     )
 
 
+def _maybe_queue_legacy_verification(*, party, agreement) -> None:
+    """Queue card verification only when all three legacy uploads (front, back, selfie) are confirmed.
+
+    This is the legacy (non-liveness) trigger path. The new liveness flow is triggered
+    separately via the liveness-result API endpoint once liveness passes.
+    """
+    required = [
+        f"{party.role}_ghana_card_front",
+        f"{party.role}_ghana_card_back",
+        f"{party.role}_selfie",
+    ]
+    confirmed_types = set(
+        EvidenceItem.objects.filter(
+            agreement=agreement,
+            evidence_type__in=required,
+            upload_status=EvidenceItem.UploadStatus.CONFIRMED,
+        ).values_list("evidence_type", flat=True)
+    )
+    if all(t in confirmed_types for t in required):
+        IdentityService.reset_party_verification(
+            party=party,
+            detail="Ghana Card and selfie received. Verifying identity.",
+        )
+        IdentityService.queue_party_verification(party_id=party.pk)
+
+
 class EvidenceService:
     # ------------------------------------------------------------------ #
     # Legacy path: file streams through Django (kept for internal use).   #
@@ -412,11 +438,7 @@ class EvidenceService:
         if _is_identity_evidence(evidence_type):
             party = item.agreement.parties.filter(role=evidence_type.split("_", 1)[0]).first()
             if party is not None:
-                IdentityService.reset_party_verification(
-                    party=party,
-                    detail="Ghana Card upload received. Verification queued.",
-                )
-                IdentityService.queue_party_verification(party_id=party.pk)
+                _maybe_queue_legacy_verification(party=party, agreement=item.agreement)
 
         AuditService.record_event(
             event_type="evidence.confirmed",

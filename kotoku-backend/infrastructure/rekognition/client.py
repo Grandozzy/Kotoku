@@ -54,3 +54,38 @@ class RekognitionClient:
             "face_matches_count": len(matches),
             "unmatched_faces_count": len(response.get("UnmatchedFaces", [])),
         }
+
+    def create_face_liveness_session(self) -> str:
+        try:
+            response = _get_client().create_face_liveness_session()
+        except (BotoCoreError, ClientError) as exc:
+            logger.warning(
+                "[IDENTITY] rekognition_create_liveness_session_error type=%s",
+                exc.__class__.__name__,
+            )
+            raise ServiceUnavailableError(
+                "Face liveness service is temporarily unavailable. Please try again."
+            ) from exc
+        return response["SessionId"]
+
+    def get_face_liveness_session_results(self, session_id: str) -> dict:
+        try:
+            response = _get_client().get_face_liveness_session_results(SessionId=session_id)
+        except (BotoCoreError, ClientError) as exc:
+            logger.warning(
+                "[IDENTITY] rekognition_get_liveness_results_error type=%s session_id=%s",
+                exc.__class__.__name__,
+                session_id,
+            )
+            raise ServiceUnavailableError(
+                "Face liveness service is temporarily unavailable. Please try again."
+            ) from exc
+        status = response.get("Status", "FAILED")
+        confidence = float(response.get("Confidence", 0.0))
+        ref_image = response.get("ReferenceImage", {})
+        ref_bytes = ref_image.get("Bytes", b"") or b""
+        return {
+            "status": status,        # "SUCCEEDED" | "FAILED" | "EXPIRED"
+            "confidence": confidence,
+            "reference_image_bytes": ref_bytes,
+        }

@@ -193,25 +193,39 @@ class IdentityService:
         back = role_items.get("back")
         selfie = role_items.get("selfie")
 
-        if not front or not back or not selfie:
+        # Liveness flow: use the reference image from the liveness session as the face source.
+        # Legacy flow: fall back to the selfie evidence item.
+        liveness_passed = (
+            verification.liveness_status == "passed"
+            and bool(verification.liveness_reference_s3_key)
+        )
+        face_source_key = (
+            verification.liveness_reference_s3_key
+            if liveness_passed
+            else (selfie.file_key if selfie else "")
+        )
+        face_source_id = None if liveness_passed else (selfie.pk if selfie else None)
+
+        if not front or not back or not face_source_key:
             logger.info(
                 "[IDENTITY] verification waiting_for_uploads party_id=%s role=%s "
-                "front=%s back=%s selfie=%s",
+                "front=%s back=%s face_source=%s liveness_passed=%s",
                 party_id,
                 party.role,
                 bool(front),
                 bool(back),
-                bool(selfie),
+                bool(face_source_key),
+                liveness_passed,
             )
             verification.status = PartyIdentityVerification.Status.PENDING
             verification.detail = (
-                "Upload the Ghana Card front, back, and a selfie photo "
-                "to start verification."
+                "Upload the Ghana Card front and back, then complete the face "
+                "liveness check to start verification."
             )
             verification.failure_codes = []
             verification.front_evidence_id = front.pk if front else None
             verification.back_evidence_id = back.pk if back else None
-            verification.selfie_evidence_id = selfie.pk if selfie else None
+            verification.selfie_evidence_id = face_source_id
             verification.face_match_score = None
             verification.verified_at = None
             verification.save(
@@ -234,7 +248,7 @@ class IdentityService:
         verification.entered_full_name = party.display_name
         verification.front_evidence_id = front.pk
         verification.back_evidence_id = back.pk
-        verification.selfie_evidence_id = selfie.pk
+        verification.selfie_evidence_id = face_source_id
         verification.detail = "Verifying Ghana Card details."
         verification.failure_codes = []
         verification.face_match_score = None
@@ -260,10 +274,10 @@ class IdentityService:
                 party=party,
                 front_key=front.file_key,
                 back_key=back.file_key,
-                selfie_key=selfie.file_key,
+                face_key=face_source_key,
                 front_evidence_id=front.pk,
                 back_evidence_id=back.pk,
-                selfie_evidence_id=selfie.pk,
+                selfie_evidence_id=face_source_id,
             )
         except ServiceUnavailableError:
             if not soft_fail_unavailable:
@@ -356,20 +370,20 @@ class IdentityService:
         party,
         front_key: str,
         back_key: str,
-        selfie_key: str,
+        face_key: str,
         front_evidence_id: int,
         back_evidence_id: int,
-        selfie_evidence_id: int,
+        selfie_evidence_id: int | None,
     ) -> IdentityVerificationOutcome:
-        if not front_key or not back_key or not selfie_key:
-            raise DomainError("Ghana Card images and selfie are required before verification.")
+        if not front_key or not back_key or not face_key:
+            raise DomainError("Ghana Card images and face source are required before verification.")
 
         storage = S3StorageClient()
         vision = GoogleVisionClient()
         rekognition = RekognitionClient()
         front_bytes = storage.get_object_bytes(front_key)
         back_bytes = storage.get_object_bytes(back_key)
-        selfie_bytes = storage.get_object_bytes(selfie_key)
+        selfie_bytes = storage.get_object_bytes(face_key)
         front_text = vision.extract_document_text(front_bytes)
         back_text = vision.extract_document_text(back_bytes)
         ocr_pin = _extract_ocr_pin(f"{front_text}\n{back_text}")
@@ -437,7 +451,7 @@ class IdentityService:
 
         return IdentityVerificationOutcome(
             status=PartyIdentityVerification.Status.VERIFIED,
-            detail="Ghana Card and selfie verified.",
+            detail="Ghana Card and face verified.",
             failure_codes=[],
             ocr_pin=ocr_pin,
             ocr_full_name=ocr_name,
@@ -448,3 +462,100 @@ class IdentityService:
             selfie_evidence_id=selfie_evidence_id,
             face_match_score=face_match_score,
         )
+
+    @staticmethod
+    def create_liveness_session(*, party) -> str:
+        """Create a Rekognition Face Liveness session for this party and persist the session ID."""
+        rekognition = RekognitionClient()
+        session_id = rekognition.create_face_liveness_session()
+        verification = IdentityService.ensure_party_verification(party=party)
+        verification.liveness_session_id = session_id
+        verification.liveness_status = "pending"
+        verification.liveness_confidence = None
+        verification.liveness_reference_s3_key = ""
+        verification.save(
+            update_fields=[
+                "liveness_session_id",
+                "liveness_status",
+                "liveness_confidence",
+                "liveness_reference_s3_key",
+                "updated_at",
+            ]
+        )
+        logger.info(
+            "[IDENTITY] liveness_session_created party_id=%s role=%s session_id=%s",
+            party.pk,
+            party.role,
+            session_id,
+        )
+        return session_id
+
+    @staticmethod
+    def process_liveness_result(*, party) -> dict:
+        """Fetch liveness result from AWS, persist it, and queue card verification if passed."""
+        verification = IdentityService.ensure_party_verification(party=party)
+        if not verification.liveness_session_id:
+            raise DomainError("No liveness session found for this party. Start a session first.")
+
+        rekognition = RekognitionClient()
+        result = rekognition.get_face_liveness_session_results(verification.liveness_session_id)
+
+        aws_status = result["status"]
+        confidence = result["confidence"]
+        passed = aws_status == "SUCCEEDED" and confidence >= 90.0
+        liveness_status = "passed" if passed else "failed"
+
+        ref_s3_key = ""
+        if passed and result["reference_image_bytes"]:
+            storage = S3StorageClient()
+            ref_s3_key = (
+                f"agreements/{party.agreement_id}/identity"
+                f"/{party.role}_liveness_reference.jpg"
+            )
+            storage.upload(
+                ref_s3_key,
+                result["reference_image_bytes"],
+                content_type="image/jpeg",
+            )
+
+        verification.liveness_status = liveness_status
+        verification.liveness_confidence = confidence
+        verification.liveness_reference_s3_key = ref_s3_key
+        verification.save(
+            update_fields=[
+                "liveness_status",
+                "liveness_confidence",
+                "liveness_reference_s3_key",
+                "updated_at",
+            ]
+        )
+        logger.info(
+            "[IDENTITY] liveness_result_processed party_id=%s role=%s "
+            "aws_status=%s confidence=%.2f passed=%s",
+            party.pk,
+            party.role,
+            aws_status,
+            confidence,
+            passed,
+        )
+
+        if passed:
+            from apps.evidence.models import EvidenceItem
+
+            cards_confirmed = EvidenceItem.objects.filter(
+                agreement=party.agreement,
+                evidence_type__in=[
+                    f"{party.role}_ghana_card_front",
+                    f"{party.role}_ghana_card_back",
+                ],
+                upload_status=EvidenceItem.UploadStatus.CONFIRMED,
+            ).count() == 2
+
+            if cards_confirmed:
+                IdentityService.reset_party_verification(
+                    party=party,
+                    detail="Liveness check passed. Verifying Ghana Card details.",
+                )
+                IdentityService.queue_party_verification(party_id=party.pk)
+
+        return {"status": liveness_status, "confidence": confidence}
