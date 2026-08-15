@@ -22,12 +22,12 @@ function PaymentCallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const invalidatePlan = useInvalidatePlan();
-  const [attemptedDeepLink, setAttemptedDeepLink] = useState(false);
 
   const source = searchParams.get("source");
   const reference = searchParams.get("reference");
   const planId = searchParams.get("plan_id");
   const paymentState = searchParams.get("payment_state");
+  const [attemptedDeepLink, setAttemptedDeepLink] = useState(source === "mobile");
   const [status, setStatus] = useState<CheckoutStatusResponse | null>(null);
   const [loading, setLoading] = useState(source !== "mobile");
   const [error, setError] = useState<string | null>(null);
@@ -48,7 +48,6 @@ function PaymentCallbackContent() {
     invalidatePlan();
 
     if (source === "mobile") {
-      setAttemptedDeepLink(true);
       window.location.replace(mobileTarget);
       return;
     }

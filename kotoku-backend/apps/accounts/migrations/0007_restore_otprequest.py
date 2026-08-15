@@ -1,6 +1,24 @@
-from django.db import migrations, models
+from django.db import migrations
 
-import apps.accounts.models
+
+def _restore_otprequest_if_missing(apps, schema_editor):
+    connection = schema_editor.connection
+    existing_tables = set(connection.introspection.table_names())
+    if "otp_requests" in existing_tables:
+        return
+
+    OTPRequest = apps.get_model("accounts", "OTPRequest")
+    schema_editor.create_model(OTPRequest)
+
+
+def _drop_otprequest_if_present(apps, schema_editor):
+    connection = schema_editor.connection
+    existing_tables = set(connection.introspection.table_names())
+    if "otp_requests" not in existing_tables:
+        return
+
+    OTPRequest = apps.get_model("accounts", "OTPRequest")
+    schema_editor.delete_model(OTPRequest)
 
 
 class Migration(migrations.Migration):
@@ -19,51 +37,13 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.CreateModel(
-            name="OTPRequest",
-            fields=[
-                (
-                    "id",
-                    models.CharField(
-                        default=apps.accounts.models._default_otp_id,
-                        max_length=50,
-                        primary_key=True,
-                        serialize=False,
-                    ),
+        migrations.SeparateDatabaseAndState(
+            database_operations=[
+                migrations.RunPython(
+                    _restore_otprequest_if_missing,
+                    _drop_otprequest_if_present,
                 ),
-                ("phone", models.CharField(max_length=20)),
-                ("otp_hash", models.CharField(max_length=256)),
-                (
-                    "purpose",
-                    models.CharField(
-                        choices=[
-                            ("login", "Login"),
-                            ("seal", "Seal agreement"),
-                            ("reopen", "Reopen agreement"),
-                        ],
-                        default="login",
-                        max_length=20,
-                    ),
-                ),
-                ("agreement_id", models.CharField(blank=True, max_length=50)),
-                ("created_at", models.DateTimeField(auto_now_add=True)),
-                ("expires_at", models.DateTimeField()),
-                ("is_used", models.BooleanField(default=False)),
-                ("used_at", models.DateTimeField(blank=True, null=True)),
-                ("attempt_count", models.IntegerField(default=0)),
             ],
-            options={
-                "db_table": "otp_requests",
-                "indexes": [
-                    models.Index(
-                        fields=["phone", "purpose", "is_used"],
-                        name="otp_request_phone_19a050_idx",
-                    ),
-                    models.Index(
-                        fields=["expires_at"],
-                        name="otp_request_expires_21a7df_idx",
-                    ),
-                ],
-            },
+            state_operations=[],
         ),
     ]

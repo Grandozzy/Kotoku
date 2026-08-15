@@ -179,11 +179,11 @@ class TestPartiesPostApi:
         client, acct = _make_client("+233501111010")
         agreement = _agreement(acct)
         body = _valid_body(acct.phone)
-        body["parties"][0]["phone"] = "0501234567"
+        body["parties"][0]["phone"] = "0501111010"
         resp = client.post(_URL.format(id=agreement.pk), body, format="json")
         assert resp.status_code == 200
         seller = next(p for p in resp.json()["data"]["parties"] if p["role"] == "seller")
-        assert seller["phone"] == "+233501234567"
+        assert seller["phone"] == acct.phone
 
     def test_other_id_type_returns_400(self):
         client, acct = _make_client("+233501111012")

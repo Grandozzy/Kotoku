@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, Check, Loader2, Upload, UserRound } from "lucide-react";
@@ -9,7 +9,7 @@ import { agreementsApi } from "@/api/agreements";
 import { partiesApi } from "@/api/parties";
 import { uploadEvidenceFile, type UploadPhase } from "@/components/evidence/evidenceUploadService";
 import { SCENARIO_MAP, ROLE_LABEL, ID_TYPE_LABEL } from "@/constants/scenarios";
-import { getApiErrorMessage } from "@/lib/errorHandler";
+import { getApiErrorCode, getApiErrorMessage } from "@/lib/errorHandler";
 import {
   buildIdentityStatusMessage,
   GHANA_CARD_PIN_REGEX,
@@ -19,7 +19,7 @@ import {
   normalizeGhanaCardPin,
 } from "@/lib/partyIdentity";
 import type { Party } from "@/types/agreement";
-import type { IdType, PartyInput, PartyRole } from "@/types/party";
+import type { PartyInput, PartyRole } from "@/types/party";
 
 const ROLES: PartyRole[] = ["buyer", "seller", "landlord", "tenant", "witness"];
 
@@ -40,6 +40,30 @@ interface PartyFieldErrors {
 interface UploadState {
   phase: UploadPhase | "done" | "error";
   error?: string;
+}
+
+function describeIdentityUploadError(error: unknown): string {
+  const code = getApiErrorCode(error);
+  if (code === "evidence_upload_not_pending") {
+    return "The upload session expired or was replaced. Choose the file again and retry.";
+  }
+  if (code === "evidence_mime_mismatch") {
+    return "The uploaded file type did not match the original request. Choose the image again.";
+  }
+  if (code === "evidence_checksum_mismatch") {
+    return "The uploaded file changed before confirmation. Choose the image again.";
+  }
+  if (code === "evidence_file_size_mismatch") {
+    return "The uploaded file size changed before confirmation. Choose the image again.";
+  }
+  if (code === "identity_role_mismatch") {
+    return "This upload slot no longer matches the selected party. Refresh and try again.";
+  }
+  const message = getApiErrorMessage(error, "Could not upload Ghana Card image.");
+  if (message.includes("could not be verified in storage")) {
+    return "The file reached storage but could not be confirmed yet. Retry in a moment.";
+  }
+  return message;
 }
 
 function validateParty(party: PartyInput): PartyFieldErrors {
@@ -316,7 +340,7 @@ export default function PartiesPage() {
   const allowedRoles: PartyRole[] = scenario ? (scenario.roles as PartyRole[]).concat(["witness"]) : ROLES;
   const usedRoles = new Set<PartyRole>(parties.map((party) => party.role));
   const isDirty = draftParties !== null;
-  const savedParties = agreement?.parties ?? [];
+  const savedParties = useMemo(() => agreement?.parties ?? [], [agreement?.parties]);
   const allPartiesComplete = parties.length >= 2 && parties.every(isPartyComplete);
   const identityComplete =
     savedParties.length >= 2 &&
@@ -375,7 +399,7 @@ export default function PartiesPage() {
         ...prev,
         [stateKey]: {
           phase: "error",
-          error: getApiErrorMessage(error, "Could not upload Ghana Card image."),
+          error: describeIdentityUploadError(error),
         },
       }));
     }
