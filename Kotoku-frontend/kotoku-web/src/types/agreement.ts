@@ -28,6 +28,7 @@ export interface Party {
     | "manual_review_required";
   identity_verification_detail: string;
   identity_verification_failure_codes: string[];
+  liveness_status: "" | "pending" | "passed" | "failed";
 }
 
 export interface EvidenceItem {

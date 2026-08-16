@@ -434,8 +434,8 @@ class IdentityService:
                     "Identity verification needs manual review."
                     if manual_review_only
                     else (
-                        "Ghana Card verification failed. Upload a clearer "
-                        "card image and selfie that match the entered details."
+                        "Ghana Card verification failed. Upload clearer "
+                        "card images and retry the face check."
                     )
                 ),
                 failure_codes=failure_codes,
