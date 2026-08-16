@@ -61,6 +61,7 @@ class PartyOutputSerializer(serializers.ModelSerializer):
     identity_verification_status = serializers.SerializerMethodField()
     identity_verification_detail = serializers.SerializerMethodField()
     identity_verification_failure_codes = serializers.SerializerMethodField()
+    liveness_status = serializers.SerializerMethodField()
 
     def _identity_state(self, obj):
         states = self.context.get("party_identity_states", {})
@@ -102,6 +103,10 @@ class PartyOutputSerializer(serializers.ModelSerializer):
         state = self._identity_state(obj)
         return list(state.verification_failure_codes) if state else []
 
+    def get_liveness_status(self, obj) -> str:
+        state = self._identity_state(obj)
+        return state.liveness_status if state else ""
+
     @staticmethod
     def context_for_parties(parties) -> dict:
         parties = list(parties)
@@ -132,6 +137,7 @@ class PartyOutputSerializer(serializers.ModelSerializer):
             "identity_verification_status",
             "identity_verification_detail",
             "identity_verification_failure_codes",
+            "liveness_status",
             "created_at",
             "updated_at",
         )

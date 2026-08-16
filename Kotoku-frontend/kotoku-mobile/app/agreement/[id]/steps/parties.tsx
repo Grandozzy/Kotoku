@@ -2,12 +2,21 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Controller, useForm } from "react-hook-form";
-import { useEffect, useMemo, useState } from "react";
-import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from "react-native";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { z } from "zod";
-import { ShieldCheck, Users2 } from "lucide-react-native";
+import { CheckCircle2, ScanFace, ShieldCheck, Users2, XCircle } from "lucide-react-native";
+import { FaceLivenessDetector } from "@aws-amplify/ui-react-native";
 
-import { setParties } from "@/api/agreements";
+import { createLivenessSession, setParties, submitLivenessResult } from "@/api/agreements";
 import { PhotoSlot } from "@/components/evidence/PhotoSlot";
 import { UploadSourceSheet } from "@/components/evidence/UploadSourceSheet";
 import { Button, NoticeCard, ScreenLoader, TextInput } from "@/components/ui";
@@ -91,6 +100,11 @@ interface UploadSheetState {
   libraryLabel?: string;
 }
 
+interface LivenessSession {
+  role: string;
+  sessionId: string;
+}
+
 export default function PartiesStep() {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -107,6 +121,10 @@ export default function PartiesStep() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [uploadSheet, setUploadSheet] = useState<UploadSheetState | null>(null);
+  const [livenessSession, setLivenessSession] = useState<LivenessSession | null>(null);
+  const [livenessLoading, setLivenessLoading] = useState<string | null>(null); // role being loaded
+  const [livenessError, setLivenessError] = useState<string | null>(null);
+  const processingResult = useRef(false);
 
   const roles = template?.partyRoles ?? ["Seller", "Buyer"];
   const roleKeys = useMemo(
@@ -160,18 +178,21 @@ export default function PartiesStep() {
     });
   }, [reset, savedParties, setPartyA, setPartyB]);
 
+  // Poll while any party is processing or has cards uploaded but pending liveness result
   useEffect(() => {
     const needsRefresh = savedParties.some((party) => {
       const frontType = identityEvidenceType(party.role, "front");
       const backType = identityEvidenceType(party.role, "back");
-      const selfieType = identityEvidenceType(party.role, "selfie");
       const frontDone = party.ghanaCardFrontUploaded || items[frontType]?.uploadStatus === "uploaded";
       const backDone = party.ghanaCardBackUploaded || items[backType]?.uploadStatus === "uploaded";
-      const selfieDone = party.identitySelfieUploaded || items[selfieType]?.uploadStatus === "uploaded";
+      const livenessOrSelfieDone =
+        party.livenessStatus === "passed" ||
+        party.identitySelfieUploaded ||
+        items[identityEvidenceType(party.role, "selfie")]?.uploadStatus === "uploaded";
       return (
         frontDone &&
         backDone &&
-        selfieDone &&
+        livenessOrSelfieDone &&
         (party.identityVerificationStatus === "pending" ||
           party.identityVerificationStatus === "processing")
       );
@@ -277,6 +298,40 @@ export default function PartiesStep() {
     });
   };
 
+  const handleStartLiveness = async (role: string) => {
+    setLivenessError(null);
+    setLivenessLoading(role);
+    try {
+      const { session_id } = await createLivenessSession(agreementId, role);
+      setLivenessSession({ role, sessionId: session_id });
+    } catch {
+      setLivenessError("Could not start face check. Please try again.");
+    } finally {
+      setLivenessLoading(null);
+    }
+  };
+
+  const handleLivenessComplete = async () => {
+    if (!livenessSession || processingResult.current) return;
+    processingResult.current = true;
+    const { role } = livenessSession;
+    setLivenessSession(null);
+    try {
+      await submitLivenessResult(agreementId, role);
+      await queryClient.invalidateQueries({ queryKey: ["agreement", agreementId] });
+    } catch {
+      setLivenessError("Face check result could not be retrieved. Please try again.");
+    } finally {
+      processingResult.current = false;
+    }
+  };
+
+  const handleLivenessError = (err: { state: string; error: unknown }) => {
+    setLivenessSession(null);
+    processingResult.current = false;
+    setLivenessError(`Face check failed (${err.state}). Please try again.`);
+  };
+
   return (
     <KeyboardAvoidingView
       style={{ flex: 1 }}
@@ -299,7 +354,7 @@ export default function PartiesStep() {
               </Text>
               <Text className="text-xl font-semibold text-white">Set up both parties</Text>
               <Text className="text-sm leading-relaxed text-white/75">
-                Each party needs a phone number, Ghana Card PIN, confirmed Ghana Card images, and a selfie photo before you can continue.
+                Each party needs a phone number, Ghana Card PIN, confirmed Ghana Card images, and a face liveness check before you can continue.
               </Text>
             </View>
           </View>
@@ -326,9 +381,9 @@ export default function PartiesStep() {
                 <ShieldCheck size={20} color="#2563EB" strokeWidth={1.8} />
               </View>
               <View className="flex-1 gap-xs">
-                <Text className="text-base font-semibold text-ink-primary">Ghana Card uploads</Text>
+                <Text className="text-base font-semibold text-ink-primary">Ghana Card verification</Text>
                 <Text className="text-sm text-ink-secondary leading-relaxed">
-                  Upload the front and back of each Ghana Card, then capture a selfie photo. This step only completes after the backend confirms the files in storage and verifies the match.
+                  Upload the front and back of each Ghana Card, then complete the face liveness check. Verification runs automatically once all steps are done.
                 </Text>
               </View>
             </View>
@@ -336,17 +391,17 @@ export default function PartiesStep() {
             {savedParties.map((party) => {
               const frontEvidenceType = identityEvidenceType(party.role, "front");
               const backEvidenceType = identityEvidenceType(party.role, "back");
-              const selfieEvidenceType = identityEvidenceType(party.role, "selfie");
               const frontItem = items[frontEvidenceType];
               const backItem = items[backEvidenceType];
-              const selfieItem = items[selfieEvidenceType];
+              const livenessStarting = livenessLoading === party.role;
+              const livenessPassed = party.livenessStatus === "passed";
+              const livenessFailed = party.livenessStatus === "failed";
+
               return (
                 <View key={party.id} className="gap-sm rounded-2xl border border-border-subtle bg-surface-subtle p-md">
                   <View className="gap-xs">
                     <Text className="text-sm font-semibold text-ink-primary">{party.displayName}</Text>
-                    <Text className="text-xs text-ink-muted">
-                      {party.idNumber}
-                    </Text>
+                    <Text className="text-xs text-ink-muted">{party.idNumber}</Text>
                     <Text
                       className={`text-xs ${
                         party.identityVerificationStatus === "verified"
@@ -360,6 +415,8 @@ export default function PartiesStep() {
                       {buildIdentityStatusMessage(party)}
                     </Text>
                   </View>
+
+                  {/* Ghana Card images */}
                   <View className="flex-row gap-sm">
                     <View style={{ flex: 1 }}>
                       <PhotoSlot
@@ -412,36 +469,55 @@ export default function PartiesStep() {
                       />
                     </View>
                   </View>
-                  <View>
-                    <PhotoSlot
-                      label="Selfie photo"
-                      required
-                      localUri={selfieItem?.localUri || party.identitySelfieViewUrl || undefined}
-                      status={selfieItem?.uploadStatus || (party.identitySelfieUploaded ? "uploaded" : "pending")}
-                      error={selfieItem?.error}
-                      failedActionLabel={selfieItem?.retryable === false ? "Retake" : "Retry"}
-                      onPress={() => {
-                        if (selfieItem?.uploadStatus === "failed" && selfieItem.retryable !== false) {
-                          void retryUpload(selfieEvidenceType);
-                          return;
-                        }
-                        setUploadSheet({
-                          slotId: selfieEvidenceType,
-                          evidenceType: selfieEvidenceType,
-                          title: "Selfie photo",
-                          body: "Capture or choose a clear selfie photo for face comparison against the Ghana Card portrait.",
-                          guidance:
-                            "Look straight at the camera, use good lighting, and keep hats, heavy shadows, and blur out of the frame.",
-                          cameraType: "front",
-                          cameraLabel: "Take selfie",
-                        });
-                      }}
-                    />
-                  </View>
+
+                  {/* Face liveness check */}
+                  <TouchableOpacity
+                    disabled={livenessStarting || livenessPassed}
+                    onPress={() => void handleStartLiveness(party.role)}
+                    className={`flex-row items-center gap-sm rounded-xl border p-md ${
+                      livenessPassed
+                        ? "border-semantic-success/30 bg-semantic-success/10"
+                        : livenessFailed
+                          ? "border-semantic-error/30 bg-semantic-error/10"
+                          : "border-border-subtle bg-surface-card"
+                    }`}
+                  >
+                    <View className="h-10 w-10 items-center justify-center rounded-xl bg-brand-primary/10">
+                      {livenessPassed ? (
+                        <CheckCircle2 size={20} color="#16a34a" strokeWidth={1.8} />
+                      ) : livenessFailed ? (
+                        <XCircle size={20} color="#dc2626" strokeWidth={1.8} />
+                      ) : (
+                        <ScanFace size={20} color="#2563EB" strokeWidth={1.8} />
+                      )}
+                    </View>
+                    <View className="flex-1">
+                      <Text className="text-sm font-semibold text-ink-primary">
+                        {livenessPassed
+                          ? "Face check passed"
+                          : livenessFailed
+                            ? "Face check failed — tap to retry"
+                            : livenessStarting
+                              ? "Starting face check…"
+                              : "Start face check"}
+                      </Text>
+                      {!livenessPassed && (
+                        <Text className="text-xs text-ink-muted">
+                          {livenessStarting
+                            ? "Preparing camera…"
+                            : "Follow the on-screen prompts to confirm your identity"}
+                        </Text>
+                      )}
+                    </View>
+                  </TouchableOpacity>
                 </View>
               );
             })}
           </View>
+        )}
+
+        {livenessError && (
+          <NoticeCard variant="error" title="Face check error" body={livenessError} compact />
         )}
 
         {saveError && <NoticeCard variant="error" title="Could not save parties" body={saveError} compact />}
@@ -450,7 +526,7 @@ export default function PartiesStep() {
 
         {!identityComplete && savedParties.length === roleKeys.length && !formState.isDirty && (
           <Text className="text-xs text-ink-muted text-center">
-            Finish the Ghana Card uploads, capture a selfie photo for each party, and wait for backend verification to continue.
+            Finish the Ghana Card uploads, complete the face check for each party, and wait for backend verification to continue.
           </Text>
         )}
 
@@ -469,6 +545,7 @@ export default function PartiesStep() {
           </View>
         </View>
       </ScrollView>
+
       <UploadSourceSheet
         visible={Boolean(uploadSheet)}
         onClose={() => setUploadSheet(null)}
@@ -484,6 +561,23 @@ export default function PartiesStep() {
           void handleSourcePick("library");
         }}
       />
+
+      {/* Full-screen liveness detector modal */}
+      <Modal
+        visible={Boolean(livenessSession)}
+        animationType="slide"
+        presentationStyle="fullScreen"
+        onRequestClose={() => setLivenessSession(null)}
+      >
+        {livenessSession && (
+          <FaceLivenessDetector
+            sessionId={livenessSession.sessionId}
+            region="eu-west-1"
+            onAnalysisComplete={() => void handleLivenessComplete()}
+            onError={handleLivenessError}
+          />
+        )}
+      </Modal>
     </KeyboardAvoidingView>
   );
 }

@@ -1,5 +1,5 @@
 import { apiClient } from "@/api/client";
-import type { Agreement } from "@/types/agreement";
+import type { Agreement, Party } from "@/types/agreement";
 import type { ApiResponse } from "@/types/api";
 import type { ScenarioId } from "@/constants/scenarios";
 import type { IdType } from "@/features/agreements/agreementStore";
@@ -33,6 +33,7 @@ interface RawAgreement {
       | "manual_review_required";
     identity_verification_detail: string;
     identity_verification_failure_codes: string[];
+    liveness_status?: string;
   }[];
 }
 
@@ -62,6 +63,7 @@ function mapAgreement(raw: RawAgreement): Agreement {
       identityVerificationStatus: p.identity_verification_status,
       identityVerificationDetail: p.identity_verification_detail,
       identityVerificationFailureCodes: p.identity_verification_failure_codes ?? [],
+      livenessStatus: (p.liveness_status ?? "") as Party["livenessStatus"],
     })),
   };
 }
@@ -116,6 +118,26 @@ export async function sealAgreement(id: number): Promise<Agreement> {
     `/agreements/${id}/seal/`,
   );
   return mapAgreement(res.data.data.agreement);
+}
+
+export async function createLivenessSession(
+  agreementId: number,
+  role: string,
+): Promise<{ session_id: string; region: string }> {
+  const res = await apiClient.post<ApiResponse<{ session_id: string; region: string }>>(
+    `/agreements/${agreementId}/identity/${role}/liveness-session/`,
+  );
+  return res.data.data;
+}
+
+export async function submitLivenessResult(
+  agreementId: number,
+  role: string,
+): Promise<{ status: "passed" | "failed"; confidence: number }> {
+  const res = await apiClient.post<
+    ApiResponse<{ status: "passed" | "failed"; confidence: number }>
+  >(`/agreements/${agreementId}/identity/${role}/liveness-result/`);
+  return res.data.data;
 }
 
 export async function listAgreements(params?: {

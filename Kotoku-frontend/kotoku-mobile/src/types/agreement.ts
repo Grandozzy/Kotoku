@@ -37,6 +37,7 @@ export interface Party {
     | "manual_review_required";
   identityVerificationDetail: string;
   identityVerificationFailureCodes: string[];
+  livenessStatus: "" | "pending" | "passed" | "failed";
 }
 
 export interface Agreement {

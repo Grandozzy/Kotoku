@@ -130,6 +130,7 @@ class PartyIdentityState:
     verification_status: str
     verification_detail: str
     verification_failure_codes: list[str]
+    liveness_status: str  # "", "pending", "passed", "failed"
 
 
 def build_party_identity_states(
@@ -146,7 +147,7 @@ def build_party_identity_states(
     verification_map = {
         record.party_id: record
         for record in PartyIdentityVerification.objects.filter(
-            party_id__in=[party.id for party in parties if party.id]
+            party_id__in=[p.id for p in parties if p.id]
         )
     }
 
@@ -191,5 +192,6 @@ def build_party_identity_states(
                 else "Awaiting Ghana Card verification."
             ),
             verification_failure_codes=list(verification.failure_codes if verification else []),
+            liveness_status=verification.liveness_status if verification else "",
         )
     return states

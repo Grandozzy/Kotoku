@@ -7,9 +7,9 @@ const IDENTITY_FAILURE_MESSAGES: Record<string, string> = {
   ocr_pin_missing: "We could not read the Ghana Card PIN from the card image. Retake the photo with sharper focus and less glare.",
   ocr_pin_mismatch: "The Ghana Card PIN on the image does not match the PIN entered for this party.",
   ocr_name_mismatch: "The name read from the Ghana Card does not match the party name entered.",
-  selfie_face_missing: "No face was detected in the selfie. Retake the selfie with the full face visible.",
-  face_match_failed: "The selfie does not appear to match the Ghana Card portrait. Retake both images in better lighting.",
-  face_match_manual_review: "The selfie and card portrait are close, but need manual review.",
+  selfie_face_missing: "No face was detected. Try the face check again in better lighting.",
+  face_match_failed: "The face check did not match the Ghana Card portrait. Try again in better lighting.",
+  face_match_manual_review: "The face and card portrait are close, but need manual review.",
   verification_unavailable: "Identity verification is temporarily unavailable. Kotoku will retry automatically.",
   verification_unexpected_failure: "Identity verification failed unexpectedly. Retry the uploads for this party.",
 };
@@ -33,11 +33,12 @@ export function identityEvidenceType(role: Party["role"], side: "front" | "back"
 
 export function isPartyIdentityComplete(party: Party): boolean {
   if (party.role === "witness") return true;
+  const livenessOrSelfie = party.livenessStatus === "passed" || party.identitySelfieUploaded;
   return (
     GHANA_CARD_PIN_REGEX.test(normalizeGhanaCardPin(party.idNumber)) &&
     party.ghanaCardFrontUploaded &&
     party.ghanaCardBackUploaded &&
-    party.identitySelfieUploaded &&
+    livenessOrSelfie &&
     party.identityVerificationStatus === "verified"
   );
 }
@@ -58,10 +59,13 @@ export function buildIdentityStatusMessage(party: Party): string {
     return detail;
   }
   if (party.identityVerificationStatus === "processing") {
-    return "We are checking the Ghana Card details and selfie match now.";
+    return "Verifying Ghana Card details now.";
   }
-  if (party.identityVerificationStatus === "pending") {
-    return "Finish the uploads and wait for the backend verification result.";
+  if (party.livenessStatus === "failed") {
+    return "Face check failed. Try again.";
+  }
+  if (party.livenessStatus === "passed") {
+    return "Face check passed. Upload the Ghana Card images to complete verification.";
   }
   return "Awaiting Ghana Card verification.";
 }
