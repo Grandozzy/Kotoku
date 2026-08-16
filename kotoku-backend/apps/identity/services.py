@@ -539,19 +539,22 @@ class IdentityService:
             passed,
         )
 
-        if passed:
+        if passed and verification.status != PartyIdentityVerification.Status.VERIFIED:
             from apps.evidence.models import EvidenceItem
 
-            cards_confirmed = EvidenceItem.objects.filter(
-                agreement=party.agreement,
-                evidence_type__in=[
-                    f"{party.role}_ghana_card_front",
-                    f"{party.role}_ghana_card_back",
-                ],
-                upload_status=EvidenceItem.UploadStatus.CONFIRMED,
-            ).count() == 2
+            card_types = {
+                f"{party.role}_ghana_card_front",
+                f"{party.role}_ghana_card_back",
+            }
+            confirmed_types = set(
+                EvidenceItem.objects.filter(
+                    agreement=party.agreement,
+                    evidence_type__in=card_types,
+                    upload_status=EvidenceItem.UploadStatus.CONFIRMED,
+                ).values_list("evidence_type", flat=True)
+            )
 
-            if cards_confirmed:
+            if card_types.issubset(confirmed_types):
                 IdentityService.reset_party_verification(
                     party=party,
                     detail="Liveness check passed. Verifying Ghana Card details.",

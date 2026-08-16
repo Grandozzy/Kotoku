@@ -99,25 +99,51 @@ def _is_identity_evidence(evidence_type: str) -> bool:
     )
 
 
-def _maybe_queue_legacy_verification(*, party, agreement) -> None:
-    """Queue card verification only when all three legacy uploads (front, back, selfie) are confirmed.
+def _maybe_queue_verification_after_upload(*, party, agreement) -> None:
+    """Queue card verification when all required evidence is present. Handles two flows:
 
-    This is the legacy (non-liveness) trigger path. The new liveness flow is triggered
-    separately via the liveness-result API endpoint once liveness passes.
+    Liveness flow (new): front + back confirmed AND liveness already passed.
+    Legacy flow (old builds): front + back + selfie all confirmed.
+
+    Skips queueing if verification is already VERIFIED to avoid unnecessary re-runs.
+    Uses set comparison on evidence_type so re-uploaded slots (multiple confirmed rows
+    for the same type) do not inflate the count.
     """
-    required = [
+    from apps.identity.models import PartyIdentityVerification
+
+    # Don't re-run if already verified.
+    try:
+        existing = PartyIdentityVerification.objects.get(party=party)
+        if existing.status == PartyIdentityVerification.Status.VERIFIED:
+            return
+        liveness_passed = (
+            existing.liveness_status == "passed"
+            and bool(existing.liveness_reference_s3_key)
+        )
+    except PartyIdentityVerification.DoesNotExist:
+        liveness_passed = False
+
+    card_types = {
         f"{party.role}_ghana_card_front",
         f"{party.role}_ghana_card_back",
-        f"{party.role}_selfie",
-    ]
+    }
+    selfie_type = f"{party.role}_selfie"
     confirmed_types = set(
         EvidenceItem.objects.filter(
             agreement=agreement,
-            evidence_type__in=required,
+            evidence_type__in=card_types | {selfie_type},
             upload_status=EvidenceItem.UploadStatus.CONFIRMED,
         ).values_list("evidence_type", flat=True)
     )
-    if all(t in confirmed_types for t in required):
+    cards_ready = card_types.issubset(confirmed_types)
+
+    if cards_ready and liveness_passed:
+        IdentityService.reset_party_verification(
+            party=party,
+            detail="All documents confirmed. Verifying identity.",
+        )
+        IdentityService.queue_party_verification(party_id=party.pk)
+    elif cards_ready and selfie_type in confirmed_types:
         IdentityService.reset_party_verification(
             party=party,
             detail="Ghana Card and selfie received. Verifying identity.",
@@ -438,7 +464,7 @@ class EvidenceService:
         if _is_identity_evidence(evidence_type):
             party = item.agreement.parties.filter(role=evidence_type.split("_", 1)[0]).first()
             if party is not None:
-                _maybe_queue_legacy_verification(party=party, agreement=item.agreement)
+                _maybe_queue_verification_after_upload(party=party, agreement=item.agreement)
 
         AuditService.record_event(
             event_type="evidence.confirmed",
