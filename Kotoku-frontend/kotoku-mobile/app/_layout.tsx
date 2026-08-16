@@ -1,5 +1,4 @@
 import "@/lib/global.css";
-import "@/lib/amplify";
 
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import {

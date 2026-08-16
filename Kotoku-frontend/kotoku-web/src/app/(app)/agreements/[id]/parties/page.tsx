@@ -348,7 +348,7 @@ export default function PartiesPage() {
 
   useEffect(() => {
     const needsRefresh = savedParties.some((party) => {
-      const livenessOrSelfie = party.liveness_status === "passed" || party.identity_selfie_uploaded;
+      const livenessOrSelfie = party.identity_selfie_uploaded || party.liveness_status === "passed";
       return (
         party.ghana_card_front_uploaded &&
         party.ghana_card_back_uploaded &&
@@ -430,7 +430,7 @@ export default function PartiesPage() {
       </div>
 
       <p className="text-sm text-neutral-500">
-        Add at least 2 parties. Each non-witness party must have a full name, phone number, Ghana Card PIN, confirmed front/back Ghana Card uploads, and a face liveness check (completed on mobile) before you can proceed.
+        Add at least 2 parties. Each non-witness party must have a full name, phone number, Ghana Card PIN, confirmed front/back Ghana Card uploads, and a selfie before you can proceed.
       </p>
 
       {parties.length === 0 && !addingNew && (
@@ -515,7 +515,7 @@ export default function PartiesPage() {
           <div>
             <p className="text-sm font-semibold text-neutral-900">Ghana Card verification</p>
             <p className="mt-1 text-xs text-neutral-500">
-              Upload front and back Ghana Card images for each non-witness party. The face liveness check is completed by each party on the Kotoku mobile app. Verification runs automatically once all steps are done.
+              Upload front and back Ghana Card images and a selfie for each non-witness party. Verification runs automatically once all steps are done.
             </p>
           </div>
           {savedParties
@@ -551,21 +551,13 @@ export default function PartiesPage() {
                     status={uploadStates[`${party.role}:back`]}
                     onSelect={(file) => void handleIdentityUpload(party, "back", file)}
                   />
-                  <div className={`flex items-center justify-between rounded-xl border px-3 py-3 text-sm ${party.liveness_status === "passed" ? "border-emerald-200 bg-emerald-50" : party.liveness_status === "failed" ? "border-red-200 bg-red-50" : "border-neutral-200 bg-neutral-50"}`}>
-                    <div className="flex flex-col gap-1">
-                      <span className="font-medium text-neutral-800">Face liveness</span>
-                      <span className={`text-xs ${party.liveness_status === "passed" ? "text-emerald-700" : party.liveness_status === "failed" ? "text-red-600" : "text-neutral-500"}`}>
-                        {party.liveness_status === "passed"
-                          ? "Passed"
-                          : party.liveness_status === "failed"
-                          ? "Failed — retry on mobile"
-                          : "Pending — complete on mobile"}
-                      </span>
-                    </div>
-                    {party.liveness_status === "passed" && (
-                      <Check size={16} className="text-emerald-600 shrink-0" strokeWidth={2.5} />
-                    )}
-                  </div>
+                  <IdentityUploadButton
+                    label="Selfie"
+                    viewUrl={party.identity_selfie_view_url}
+                    status={uploadStates[`${party.role}:selfie`]}
+                    captureMode="user"
+                    onSelect={(file) => void handleIdentityUpload(party, "selfie", file)}
+                  />
                 </div>
               </div>
             ))}

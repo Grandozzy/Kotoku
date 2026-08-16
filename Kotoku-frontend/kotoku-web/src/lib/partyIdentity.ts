@@ -57,11 +57,5 @@ export function buildIdentityStatusMessage(party: Party): string {
   if (party.identity_verification_status === "processing") {
     return "Verifying Ghana Card details now.";
   }
-  if (party.liveness_status === "failed") {
-    return "Face check failed. The party must retry on mobile.";
-  }
-  if (party.liveness_status === "passed") {
-    return "Face check passed. Upload the Ghana Card images to complete verification.";
-  }
   return "Awaiting Ghana Card verification.";
 }

@@ -49,13 +49,7 @@
         }
       ],
       "expo-sqlite",
-      "expo-build-properties",
-      [
-        "react-native-vision-camera",
-        {
-          "cameraPermissionText": "Kotoku needs camera access to verify your identity."
-        }
-      ]
+      "expo-build-properties"
     ],
     "experiments": {
       "typedRoutes": true
