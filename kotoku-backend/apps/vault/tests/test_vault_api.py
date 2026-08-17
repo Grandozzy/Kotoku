@@ -23,6 +23,7 @@ from apps.parties.services import PartyService
 from apps.vault.api.audit import build_audit_timeline
 from apps.vault.models import VaultEntry
 from apps.vault.services import VaultService
+from tests.utils import stamp_all_parties_verified
 
 _LIST_PATH = "/api/vault/"
 _DETAIL_PATH = "/api/vault/{id}/"
@@ -60,6 +61,7 @@ def _sealed_agreement_with_vault(account, initiator_phone, second_phone):
              "id_type": "ghana_card", "id_number": "GHA-200000002-0"},
         ],
     )
+    stamp_all_parties_verified(agreement)
     EvidenceItem.objects.create(
         agreement=agreement,
         file_type=EvidenceItem.FileType.PHOTO,
@@ -238,7 +240,11 @@ class TestPublicSealedReceipt:
         assert data["agreement"]["seal_hash"] == agreement.seal_hash
         assert data["party"]["id"] == party.pk
         assert len(data["parties"]) == 2
-        assert len(data["evidence"]) == 1
+        evidence_types = [e["evidence_type"] for e in data["evidence"]]
+        assert "vehicle_photo_front" in evidence_types
+        assert all(
+            "ghana_card" not in et and "selfie" not in et for et in evidence_types
+        )
         assert "pdf_url" not in data["vault_entry"]
 
     def test_invalid_receipt_token_returns_400(self):

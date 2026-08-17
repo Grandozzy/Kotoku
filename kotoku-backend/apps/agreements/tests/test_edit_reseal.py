@@ -11,6 +11,7 @@ from apps.evidence.models import EvidenceItem
 from apps.identity.models import IdentityRecord
 from apps.parties.models import Party
 from common.exceptions import DomainError
+from tests.utils import stamp_all_parties_verified
 
 _seq = 0
 
@@ -36,22 +37,27 @@ def _make_sealed_agreement():
         title="Test Agreement",
         created_by=account,
         description="Original description",
+        scenario_template="used_vehicle_sale",
     )
     id1 = _identity(account, "ref-a")
     id2 = IdentityRecord.objects.create(
-        account=account, reference="ref-b", verification_type="phone"
+        account=account, reference="ref-b", verification_type="ghana_card"
     )
     party_a = Party.objects.create(
-        agreement=agreement, identity=id1, role="buyer", display_name="Buyer"
+        agreement=agreement, identity=id1, role="buyer", display_name="Buyer",
+        id_type="ghana_card", id_number="GHA-111111111-1",
     )
     Party.objects.create(
-        agreement=agreement, identity=id2, role="seller", display_name="Seller"
+        agreement=agreement, identity=id2, role="seller", display_name="Seller",
+        id_type="ghana_card", id_number="GHA-222222222-2",
     )
+    stamp_all_parties_verified(agreement)
     EvidenceItem.objects.create(
         agreement=agreement,
         uploaded_by=party_a,
         file_type=EvidenceItem.FileType.PHOTO,
         file_hash="abc123",
+        evidence_type="vehicle_photo_front",
         upload_status=EvidenceItem.UploadStatus.CONFIRMED,
     )
     agreement.status = AgreementStatus.SEALED

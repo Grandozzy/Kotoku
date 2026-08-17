@@ -33,6 +33,7 @@ from apps.parties.models import Party
 from apps.parties.services import PartyService
 from apps.vault.models import VaultEntry
 from apps.vault.services import VaultService
+from tests.utils import stamp_all_parties_verified
 from common.exceptions import DomainError
 
 _seq = 0
@@ -84,6 +85,7 @@ def _sealed_agreement(account: Account, initiator_phone: str, second_phone: str)
             },
         ],
     )
+    stamp_all_parties_verified(agreement)
     EvidenceItem.objects.create(
         agreement=agreement,
         file_type=EvidenceItem.FileType.PHOTO,

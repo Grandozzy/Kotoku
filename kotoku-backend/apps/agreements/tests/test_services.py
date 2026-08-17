@@ -191,7 +191,9 @@ class TestSealAgreement:
 
     def test_transitions_to_sealed(self, db):
         account = _account("f@t.com")
-        agreement = AgreementService.create_draft(title="T", created_by=account)
+        agreement = AgreementService.create_draft(
+            title="T", created_by=account, scenario_template="used_vehicle_sale",
+        )
         agreement.status = AgreementStatus.ACTIVE
         agreement.save()
         id1 = _identity(account)
@@ -204,39 +206,61 @@ class TestSealAgreement:
             id_type="ghana_card",
             id_number="GHA-111111111-1",
         )
-        EvidenceItem.objects.create(
+        id2 = _identity(account, "ref-seller-transitions")
+        seller = Party.objects.create(
             agreement=agreement,
-            uploaded_by=party,
-            file_type=EvidenceItem.FileType.PHOTO,
-            file_hash="abc123",
-            evidence_type="vehicle_photo_front",
-            mime_type="image/jpeg",
+            identity=id2,
+            role=Party.Role.SELLER,
+            display_name="S",
+            phone="+233500000001",
+            id_type="ghana_card",
+            id_number="GHA-999999999-9",
         )
+        for vp in ("vehicle_photo_front", "vehicle_photo_side", "vehicle_photo_rear"):
+            EvidenceItem.objects.create(
+                agreement=agreement, uploaded_by=party,
+                file_type=EvidenceItem.FileType.PHOTO, evidence_type=vp,
+                mime_type="image/jpeg", upload_status=EvidenceItem.UploadStatus.CONFIRMED,
+            )
         self._verified_identity_bundle(agreement, party)
+        self._verified_identity_bundle(agreement, seller)
         sealed = AgreementService.seal_agreement(agreement_id=agreement.pk)
         assert sealed.status == AgreementStatus.SEALED
         assert sealed.sealed_at is not None
 
     def test_seal_hash_stored_on_seal(self, db):
         account = _account("seal_hash1@t.com")
-        agreement = AgreementService.create_draft(title="Hash Test", created_by=account)
+        agreement = AgreementService.create_draft(
+            title="Hash Test", created_by=account, scenario_template="used_vehicle_sale",
+        )
         agreement.status = AgreementStatus.ACTIVE
         agreement.save()
         id1 = _identity(account)
-        party = Party.objects.create(
+        buyer = Party.objects.create(
             agreement=agreement,
             identity=id1,
             role=Party.Role.BUYER,
             display_name="B",
             id_type="ghana_card",
-            id_number="GHA-001",
+            id_number="GHA-001000000-1",
         )
-        EvidenceItem.objects.create(
+        id2 = _identity(account, "ref-seller-hash")
+        seller = Party.objects.create(
             agreement=agreement,
-            uploaded_by=party,
-            file_type=EvidenceItem.FileType.PHOTO,
-            file_hash="def456",
+            identity=id2,
+            role=Party.Role.SELLER,
+            display_name="S",
+            id_type="ghana_card",
+            id_number="GHA-002000000-2",
         )
+        for vp in ("vehicle_photo_front", "vehicle_photo_side", "vehicle_photo_rear"):
+            EvidenceItem.objects.create(
+                agreement=agreement, uploaded_by=buyer,
+                file_type=EvidenceItem.FileType.PHOTO, evidence_type=vp,
+                upload_status=EvidenceItem.UploadStatus.CONFIRMED,
+            )
+        self._verified_identity_bundle(agreement, buyer)
+        self._verified_identity_bundle(agreement, seller)
         sealed = AgreementService.seal_agreement(agreement_id=agreement.pk)
         assert sealed.seal_hash != ""
         assert len(sealed.seal_hash) == 64  # SHA-256 hex digest
@@ -307,7 +331,9 @@ class TestSealAgreement:
         self, db, monkeypatch, django_capture_on_commit_callbacks
     ):
         account = _account("seal_receipt@test.com")
-        agreement = AgreementService.create_draft(title="Receipt", created_by=account)
+        agreement = AgreementService.create_draft(
+            title="Receipt", created_by=account, scenario_template="used_vehicle_sale",
+        )
         agreement.status = AgreementStatus.ACTIVE
         agreement.save()
         identity = _identity(account)
@@ -317,32 +343,38 @@ class TestSealAgreement:
             role=Party.Role.SELLER,
             display_name="Seller",
             phone=account.phone,
+            id_type="ghana_card",
+            id_number="GHA-111111111-1",
         )
         buyer_identity = IdentityRecord.objects.create(
             account=account,
             reference="ref-buyer",
             verification_type="phone",
         )
-        Party.objects.create(
+        buyer = Party.objects.create(
             agreement=agreement,
             identity=buyer_identity,
             role=Party.Role.BUYER,
             display_name="Buyer",
             phone="+233244000111",
+            id_type="ghana_card",
+            id_number="GHA-222222222-2",
         )
-        EvidenceItem.objects.create(
-            agreement=agreement,
-            uploaded_by=seller,
-            file_type=EvidenceItem.FileType.PHOTO,
-            evidence_type="vehicle_photo_front",
-            file_hash="receipt-1",
-        )
+        self._verified_identity_bundle(agreement, seller)
+        self._verified_identity_bundle(agreement, buyer)
+        for vp in ("vehicle_photo_front", "vehicle_photo_side", "vehicle_photo_rear"):
+            EvidenceItem.objects.create(
+                agreement=agreement, uploaded_by=seller,
+                file_type=EvidenceItem.FileType.PHOTO, evidence_type=vp,
+                file_hash=f"receipt-vp-{vp}", upload_status=EvidenceItem.UploadStatus.CONFIRMED,
+            )
         EvidenceItem.objects.create(
             agreement=agreement,
             uploaded_by=seller,
             file_type=EvidenceItem.FileType.DOCUMENT,
             evidence_type="seller_id_photo",
             file_hash="receipt-2",
+            upload_status=EvidenceItem.UploadStatus.CONFIRMED,
         )
 
         push_calls: list[tuple[str, str, dict]] = []
@@ -376,7 +408,9 @@ class TestSealAgreement:
         self, db, monkeypatch, django_capture_on_commit_callbacks
     ):
         account = _account("seal_receipt_long@test.com")
-        agreement = AgreementService.create_draft(title="Receipt", created_by=account)
+        agreement = AgreementService.create_draft(
+            title="Receipt", created_by=account, scenario_template="used_vehicle_sale",
+        )
         agreement.status = AgreementStatus.ACTIVE
         agreement.save()
         identity = _identity(account)
@@ -386,13 +420,19 @@ class TestSealAgreement:
             role=Party.Role.SELLER,
             display_name="Seller",
             phone=account.phone,
+            id_type="ghana_card",
+            id_number="GHA-333333333-3",
         )
-        Party.objects.create(
+        buyer = Party.objects.create(
             agreement=agreement,
             role=Party.Role.BUYER,
             display_name="Buyer",
             phone="+233244000222",
+            id_type="ghana_card",
+            id_number="GHA-444444444-4",
         )
+        self._verified_identity_bundle(agreement, party)
+        self._verified_identity_bundle(agreement, buyer)
         evidence_types = [
             "vehicle_photo_front",
             "vehicle_photo_side",
@@ -408,6 +448,7 @@ class TestSealAgreement:
                 file_type=EvidenceItem.FileType.PHOTO,
                 evidence_type=evidence_type,
                 file_hash=f"receipt-long-{idx}",
+                upload_status=EvidenceItem.UploadStatus.CONFIRMED,
             )
 
         sms_calls: list[tuple[str, str]] = []
@@ -433,7 +474,9 @@ class TestSealAgreement:
 
     def test_seal_notifications_wait_for_transaction_commit(self, db, monkeypatch):
         account = _account("seal_commit@test.com")
-        agreement = AgreementService.create_draft(title="Commit Guard", created_by=account)
+        agreement = AgreementService.create_draft(
+            title="Commit Guard", created_by=account, scenario_template="used_vehicle_sale",
+        )
         agreement.status = AgreementStatus.ACTIVE
         agreement.save()
         identity = _identity(account)
@@ -443,14 +486,27 @@ class TestSealAgreement:
             role=Party.Role.SELLER,
             display_name="Seller",
             phone=account.phone,
+            id_type="ghana_card",
+            id_number="GHA-555555555-5",
         )
-        EvidenceItem.objects.create(
+        id2 = _identity(account, "ref-buyer-commit")
+        buyer = Party.objects.create(
             agreement=agreement,
-            uploaded_by=party,
-            file_type=EvidenceItem.FileType.PHOTO,
-            evidence_type="vehicle_photo_front",
-            file_hash="commit-guard",
+            identity=id2,
+            role=Party.Role.BUYER,
+            display_name="Buyer",
+            phone="+233500000002",
+            id_type="ghana_card",
+            id_number="GHA-666666666-6",
         )
+        self._verified_identity_bundle(agreement, party)
+        self._verified_identity_bundle(agreement, buyer)
+        for vp in ("vehicle_photo_front", "vehicle_photo_side", "vehicle_photo_rear"):
+            EvidenceItem.objects.create(
+                agreement=agreement, uploaded_by=party,
+                file_type=EvidenceItem.FileType.PHOTO, evidence_type=vp,
+                upload_status=EvidenceItem.UploadStatus.CONFIRMED,
+            )
 
         push_calls: list[tuple] = []
         sms_calls: list[tuple] = []
@@ -521,7 +577,9 @@ class TestSealAgreement:
     @override_settings(BILLING_ENFORCEMENT_FAIL_OPEN=True)
     def test_fail_open_override_allows_seal_when_billing_check_errors(self, db, monkeypatch):
         account = _account("seal_billing_override@test.com")
-        agreement = AgreementService.create_draft(title="T", created_by=account)
+        agreement = AgreementService.create_draft(
+            title="T", created_by=account, scenario_template="used_vehicle_sale",
+        )
         agreement.status = AgreementStatus.ACTIVE
         agreement.save()
         identity = _identity(account)
@@ -530,13 +588,26 @@ class TestSealAgreement:
             identity=identity,
             role=Party.Role.BUYER,
             display_name="Billing Override Party",
+            id_type="ghana_card",
+            id_number="GHA-777777777-7",
         )
-        EvidenceItem.objects.create(
+        id2 = _identity(account, "ref-seller-override")
+        seller = Party.objects.create(
             agreement=agreement,
-            uploaded_by=party,
-            file_type=EvidenceItem.FileType.PHOTO,
-            file_hash="billing-override",
+            identity=id2,
+            role=Party.Role.SELLER,
+            display_name="Seller Override",
+            id_type="ghana_card",
+            id_number="GHA-888888888-8",
         )
+        self._verified_identity_bundle(agreement, party)
+        self._verified_identity_bundle(agreement, seller)
+        for vp in ("vehicle_photo_front", "vehicle_photo_side", "vehicle_photo_rear"):
+            EvidenceItem.objects.create(
+                agreement=agreement, uploaded_by=party,
+                file_type=EvidenceItem.FileType.PHOTO, evidence_type=vp,
+                upload_status=EvidenceItem.UploadStatus.CONFIRMED,
+            )
 
         def _boom(_account):
             raise RuntimeError("billing unavailable")

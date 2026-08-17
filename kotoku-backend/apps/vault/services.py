@@ -119,6 +119,8 @@ class VaultService:
         ):
             raise DomainError("This sealed receipt is not available.")
 
+        from apps.parties.identity import parse_identity_evidence_type  # noqa: PLC0415
+
         parties = list(Party.objects.filter(agreement=agreement).order_by("id"))
         evidence = [
             _public_evidence_payload(item)
@@ -128,6 +130,7 @@ class VaultService:
             )
             .select_related("uploaded_by")
             .order_by("-created_at")
+            if parse_identity_evidence_type(item.evidence_type) is None
         ]
 
         return {

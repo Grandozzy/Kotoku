@@ -21,6 +21,7 @@ from apps.consent.models import ConsentRecord
 from apps.evidence.models import EvidenceItem
 from apps.parties.services import PartyService
 from apps.vault.services import VaultService
+from tests.utils import stamp_all_parties_verified
 
 _REOPEN_REQUEST = "/api/agreements/{id}/reopen-request/"
 _REOPEN_OTP_REQ = "/api/agreements/{id}/reopen-consent/request-otp/"
@@ -57,6 +58,7 @@ def _sealed_agreement(account, seller_phone, buyer_phone):
              "id_type": "ghana_card", "id_number": "GHA-400000004-0"},
         ],
     )
+    stamp_all_parties_verified(agr)
     EvidenceItem.objects.create(
         agreement=agr,
         file_type=EvidenceItem.FileType.PHOTO,

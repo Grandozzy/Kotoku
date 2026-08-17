@@ -8,6 +8,7 @@ Uses the console SMS backend to capture OTPs programmatically.
 """
 import re
 from datetime import timedelta
+from hashlib import sha256
 from unittest.mock import patch
 
 import pytest
@@ -26,6 +27,7 @@ from apps.evidence.models import EvidenceItem
 from apps.parties.services import PartyService
 from apps.vault.models import VaultEntry
 from apps.vault.services import VaultService
+from tests.utils import stamp_all_parties_verified
 
 _AGREEMENTS_PATH = "/api/agreements/"
 _REQUEST_OTP_PATH = "/api/agreements/{id}/consent/request-otp/"
@@ -96,6 +98,8 @@ class TestFullSealFlow:
                  "id_type": "ghana_card", "id_number": "GHA-220000002-2"},
             ],
         )
+        from apps.agreements.models import Agreement as _A
+        stamp_all_parties_verified(_A.objects.get(pk=agreement_id))
 
         EvidenceItem.objects.create(
             agreement_id=agreement_id,
@@ -147,9 +151,19 @@ class TestFullSealFlow:
 
         fake_pdf = b"%PDF-fake-seal-flow"
         fake_url = "https://storage.kotoku/exports/seal-flow-test.pdf"
+        fake_sha256 = sha256(fake_pdf).hexdigest()
 
         with patch("apps.vault.pdf.render_vault_pdf", return_value=fake_pdf), \
-             patch("infrastructure.storage.s3.S3StorageClient.upload", return_value=fake_url):
+             patch("infrastructure.storage.s3.S3StorageClient.upload", return_value=fake_url), \
+             patch(
+                 "infrastructure.storage.s3.S3StorageClient.head_object",
+                 return_value={
+                     "content_length": len(fake_pdf),
+                     "content_type": "application/pdf",
+                     "etag": "fake-etag",
+                     "metadata": {"sha256": fake_sha256},
+                 },
+             ):
             resp = client.post(_VAULT_EXPORT.format(id=agreement_id))
 
         assert resp.status_code == 202
@@ -197,6 +211,7 @@ class TestFullSealFlow:
                  "id_type": "ghana_card", "id_number": "GHA-440000004-4"},
             ],
         )
+        stamp_all_parties_verified(agr)
         EvidenceItem.objects.create(
             agreement=agr,
             file_type=EvidenceItem.FileType.PHOTO,
@@ -236,6 +251,7 @@ class TestFullSealFlow:
                  "id_type": "ghana_card", "id_number": "GHA-660000006-6"},
             ],
         )
+        stamp_all_parties_verified(agr)
         EvidenceItem.objects.create(
             agreement=agr,
             file_type=EvidenceItem.FileType.PHOTO,
@@ -259,9 +275,19 @@ class TestFullSealFlow:
         from apps.vault.tasks import generate_pdf_export
         fake_pdf = b"%PDF-celery-test"
         fake_url = "https://storage.kotoku/exports/celery-test.pdf"
+        fake_sha256 = sha256(fake_pdf).hexdigest()
 
         with patch("apps.vault.pdf.render_vault_pdf", return_value=fake_pdf), \
-             patch("infrastructure.storage.s3.S3StorageClient.upload", return_value=fake_url):
+             patch("infrastructure.storage.s3.S3StorageClient.upload", return_value=fake_url), \
+             patch(
+                 "infrastructure.storage.s3.S3StorageClient.head_object",
+                 return_value={
+                     "content_length": len(fake_pdf),
+                     "content_type": "application/pdf",
+                     "etag": "fake-etag",
+                     "metadata": {"sha256": fake_sha256},
+                 },
+             ):
             generate_pdf_export(entry.pk)
 
         entry.refresh_from_db()

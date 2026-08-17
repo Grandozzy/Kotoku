@@ -79,11 +79,16 @@ def _build_snapshot(agreement) -> dict:
 
 
 def _build_seal_receipt_sms(agreement, party: Party) -> str:
-    evidence_labels = list(
+    from apps.parties.identity import parse_identity_evidence_type  # noqa: PLC0415
+
+    all_labels = (
         agreement.evidence_items.filter(upload_status="confirmed")
         .order_by("evidence_type", "file_key")
         .values_list("evidence_type", flat=True)
     )
+    evidence_labels = [
+        et for et in all_labels if parse_identity_evidence_type(et) is None
+    ]
     shown = evidence_labels[:_RECEIPT_MAX_EVIDENCE_ITEMS]
     if not shown:
         files_summary = "none"

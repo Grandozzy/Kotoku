@@ -20,6 +20,7 @@ from apps.evidence.models import EvidenceItem
 from apps.parties.models import Party
 from apps.parties.services import PartyService
 from apps.vault.services import VaultService
+from tests.utils import stamp_all_parties_verified
 
 _DISPUTES_PATH = "/api/agreements/{id}/disputes/"
 
@@ -54,6 +55,7 @@ def _sealed_agreement(account, seller_phone, buyer_phone):
              "id_type": "ghana_card", "id_number": "GHA-600000006-0"},
         ],
     )
+    stamp_all_parties_verified(agr)
     EvidenceItem.objects.create(
         agreement=agr,
         file_type=EvidenceItem.FileType.PHOTO,
