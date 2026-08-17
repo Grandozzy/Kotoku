@@ -16,4 +16,7 @@ export const partiesApi = {
     api
       .patch<{ parties: Party[] }>(`/api/agreements/${agreementId}/parties/`, { parties })
       .then((r) => r.parties),
+
+  sendInvite: (agreementId: number, role: string) =>
+    api.post<void>(`/api/agreements/${agreementId}/parties/invite/${role}/`),
 };

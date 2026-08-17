@@ -23,7 +23,16 @@ def _get_party_or_404(agreement_id: int, role: str, account):
             account_phone=account.phone,
         )
     except Agreement.DoesNotExist:
-        raise Http404
+        # DRAFT agreements are invisible to participants via the normal selector.
+        # Invited participants who have claimed their invite may still access them.
+        try:
+            from apps.parties.invite_service import PartyInviteService
+
+            agreement = PartyInviteService.get_agreement_for_claimed_invite(
+                agreement_id, account_phone=account.phone
+            )
+        except Agreement.DoesNotExist:
+            raise Http404
 
     party = agreement.parties.filter(role=role).first()
     if party is None or not is_identity_required(party.role):

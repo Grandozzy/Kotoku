@@ -5,6 +5,7 @@ from django.urls import include, path
 
 from apps.accounts.api.views import MeView
 from apps.consent.api.views import PublicConsentLinkConfirmView, PublicConsentLinkView
+from apps.parties.api.urls import invite_urlpatterns
 from apps.vault.api.views import PublicSealedReceiptView
 
 
@@ -29,6 +30,7 @@ urlpatterns = [
     path("api/accounts/", include("apps.accounts.api.urls")),
     path("api/auth/", include("apps.auth.api.urls")),
     path("api/agreements/", include("apps.agreements.api.urls")),
+    path("api/invites/", include((invite_urlpatterns, "invites"))),
     path("api/health/", include("apps.health.api.urls")),
     path("api/templates/", include("apps.templates.api.urls")),
     path("api/vault/", include("apps.vault.api.urls")),

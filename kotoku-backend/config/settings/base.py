@@ -254,6 +254,7 @@ PAYSTACK_PLAN_CODES: dict[str, str] = {
     for plan_id, env_name in PAYSTACK_PLAN_CODE_ENV_MAP.items()
 }
 PAYSTACK_CALLBACK_URL = os.getenv("PAYSTACK_CALLBACK_URL", "")
+PARTY_INVITE_DEEP_LINK_BASE = os.getenv("PARTY_INVITE_DEEP_LINK_BASE", "kotoku://invite/")
 
 GOOGLE_VISION_PROJECT_ID = os.getenv("GOOGLE_VISION_PROJECT_ID", "").strip()
 GOOGLE_VISION_LOCATION = os.getenv("GOOGLE_VISION_LOCATION", "eu").strip() or "eu"

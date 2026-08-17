@@ -1,4 +1,5 @@
 import logging
+import re
 
 from django.http import Http404
 from rest_framework.permissions import IsAuthenticated
@@ -14,35 +15,76 @@ from apps.evidence.api.serializers import (
 )
 from apps.evidence.selectors import EvidenceSelector
 from apps.evidence.services import EvidenceService
+from common.phone_numbers import normalize_phone_for_compare
 from common.responses import ok
 
 logger = logging.getLogger("kotoku")
+
+# Matches identity evidence types a non-owner party may upload for their own slot.
+_PARTY_IDENTITY_PATTERN = re.compile(
+    r"^(buyer|seller|landlord|tenant)_ghana_card_(front|back)$"
+)
+
+
+def _get_agreement_for_evidence_upload(
+    agreement_id: int, account, evidence_type: str
+) -> Agreement:
+    """Return the agreement if the account is allowed to upload this evidence type.
+
+    Owners may upload any evidence. Non-owners may upload only their own party's
+    Ghana Card images (front/back) — the explicitly designed participant-upload
+    flow for identity verification (see Section 16 of impl rules).
+    """
+    # Owner path — fast and covers all evidence types.
+    try:
+        return AgreementSelector.get_owned_agreement_detail(
+            agreement_id, account_id=account.pk
+        )
+    except Agreement.DoesNotExist:
+        pass
+
+    # Non-owner: restrict to identity evidence for their own party slot only.
+    if not _PARTY_IDENTITY_PATTERN.match(evidence_type or ""):
+        raise Http404
+
+    role = evidence_type.split("_ghana_card_")[0]
+
+    try:
+        from apps.parties.models import Party
+
+        party = Party.objects.select_related("agreement").get(
+            agreement_id=agreement_id, role=role
+        )
+    except Exception:
+        raise Http404 from None
+
+    if normalize_phone_for_compare(party.phone) != normalize_phone_for_compare(account.phone):
+        raise Http404
+
+    return party.agreement
 
 
 class EvidenceUploadUrlView(APIView):
     """POST /api/agreements/{id}/evidence/upload-url
 
     Issue a presigned PUT URL so the client can upload directly to object storage.
+    Owners may upload any evidence type. Non-owners may upload only their own party's
+    Ghana Card images (front/back) for the identity invite flow.
     """
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
-    def _get_agreement(self, agreement_id: int, account_id: int):
-        try:
-            return AgreementSelector.get_owned_agreement_detail(
-                agreement_id, account_id=account_id
-            )
-        except Agreement.DoesNotExist:
-            raise Http404 from None
-
     def post(self, request, agreement_id: int):
-        self._get_agreement(agreement_id, account_id=request.user.account.pk)
         serializer = UploadUrlRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        evidence_type = serializer.validated_data["evidence_type"]
+
+        _get_agreement_for_evidence_upload(agreement_id, request.user.account, evidence_type)
+
         logger.info(
             "[EVIDENCE] generate_upload_url agreement=%s evidence_type=%s account=%s",
             agreement_id,
-            serializer.validated_data["evidence_type"],
+            evidence_type,
             request.user.account.pk,
         )
         result = EvidenceService.generate_upload_url(
@@ -65,14 +107,6 @@ class EvidenceCollectionView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
-    def _get_agreement(self, agreement_id: int, account_id: int):
-        try:
-            return AgreementSelector.get_owned_agreement_detail(
-                agreement_id, account_id=account_id
-            )
-        except Agreement.DoesNotExist:
-            raise Http404 from None
-
     def _get_visible_agreement(
         self, agreement_id: int, account_id: int, account_phone: str
     ):
@@ -86,13 +120,16 @@ class EvidenceCollectionView(APIView):
             raise Http404 from None
 
     def post(self, request, agreement_id: int):
-        self._get_agreement(agreement_id, account_id=request.user.account.pk)
         serializer = ConfirmUploadSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        evidence_type = serializer.validated_data["evidence_type"]
+
+        _get_agreement_for_evidence_upload(agreement_id, request.user.account, evidence_type)
+
         logger.info(
             "[EVIDENCE] confirm_upload agreement=%s evidence_type=%s",
             agreement_id,
-            serializer.validated_data["evidence_type"],
+            evidence_type,
         )
         item = EvidenceService.confirm_upload(
             agreement_id=agreement_id,

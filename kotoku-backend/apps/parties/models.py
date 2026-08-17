@@ -1,7 +1,12 @@
+import uuid
+
 from django.db import models
+from django.utils import timezone
 
 from apps.agreements.models import Agreement
 from apps.identity.models import IdentityRecord
+
+_INVITE_EXPIRY_DAYS = 7
 
 
 class Party(models.Model):
@@ -48,3 +53,32 @@ class Party(models.Model):
 
     def __str__(self) -> str:
         return f"{self.display_name} ({self.role})"
+
+
+class PartyInvite(models.Model):
+    """One-time token that lets Party B complete their own identity on their device.
+
+    The token is sent via SMS as a deep link. Claiming it requires the authenticated
+    account phone to match the party phone — fail-closed per Section 5 of the rules.
+    """
+
+    party = models.OneToOneField(
+        Party,
+        on_delete=models.CASCADE,
+        related_name="invite",
+    )
+    token = models.UUIDField(unique=True, default=uuid.uuid4, db_index=True)
+    expires_at = models.DateTimeField()
+    accepted_at = models.DateTimeField(null=True, blank=True)
+    sent_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def is_expired(self) -> bool:
+        return timezone.now() >= self.expires_at
+
+    def is_claimed(self) -> bool:
+        return self.accepted_at is not None
+
+    def __str__(self) -> str:
+        return f"invite:{self.party_id}:{self.token}"

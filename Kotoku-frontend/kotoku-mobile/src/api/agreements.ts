@@ -215,3 +215,38 @@ export async function setParties(
 export async function deleteDraft(agreementId: number): Promise<void> {
   await apiClient.delete(`/agreements/${agreementId}/`);
 }
+
+export interface IdentityInviteDetail {
+  agreement_id: number;
+  agreement_title: string;
+  role: string;
+  party_name: string;
+  expires_at: string;
+}
+
+export async function sendPartyIdentityInvite(
+  agreementId: number,
+  role: string,
+): Promise<void> {
+  await apiClient.post<ApiResponse<unknown>>(
+    `/agreements/${agreementId}/parties/invite/${role}/`,
+  );
+}
+
+export async function getIdentityInviteDetail(
+  token: string,
+): Promise<IdentityInviteDetail> {
+  const res = await apiClient.get<ApiResponse<{ invite: IdentityInviteDetail }>>(
+    `/invites/${token}/`,
+  );
+  return res.data.data.invite;
+}
+
+export async function claimIdentityInvite(
+  token: string,
+): Promise<{ agreement_id: number; role: string }> {
+  const res = await apiClient.post<ApiResponse<{ agreement_id: number; role: string }>>(
+    `/invites/${token}/claim/`,
+  );
+  return res.data.data;
+}

@@ -70,6 +70,16 @@ class AgreementDetailView(APIView):
                 agreement_id, account_id=account_id, account_phone=account_phone
             )
         except Agreement.DoesNotExist:
+            pass
+        # DRAFT agreements are invisible to participants via the normal selector.
+        # Invited participants who have claimed their invite may still access them.
+        try:
+            from apps.parties.invite_service import PartyInviteService
+
+            return PartyInviteService.get_agreement_for_claimed_invite(
+                agreement_id, account_phone=account_phone
+            )
+        except Agreement.DoesNotExist:
             raise Http404 from None
 
     def get(self, request, agreement_id: int):

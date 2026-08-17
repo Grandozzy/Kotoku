@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, Check, Loader2, Upload, UserRound } from "lucide-react";
+import { ArrowRight, Check, CheckCircle2, Loader2, Mail, ScanFace, Upload, UserRound } from "lucide-react";
 
 import { agreementsApi } from "@/api/agreements";
 import { partiesApi } from "@/api/parties";
@@ -18,6 +18,7 @@ import {
   isPartyIdentityComplete,
   normalizeGhanaCardPin,
 } from "@/lib/partyIdentity";
+import { useSessionStore } from "@/store/sessionStore";
 import type { Party } from "@/types/agreement";
 import type { PartyInput, PartyRole } from "@/types/party";
 
@@ -77,7 +78,10 @@ function validateParty(party: PartyInput): PartyFieldErrors {
       errors.phone = "Enter a valid phone number (e.g. +233501234567 or 0501234567)";
     }
   }
-  if (party.id_number.trim().length > 0 && !GHANA_CARD_PIN_REGEX.test(normalizeGhanaCardPin(party.id_number))) {
+  if (
+    party.id_number.trim().length > 0 &&
+    !GHANA_CARD_PIN_REGEX.test(normalizeGhanaCardPin(party.id_number))
+  ) {
     errors.id_number = "Use the Ghana Card PIN format GHA-000000000-0";
   }
   return errors;
@@ -92,13 +96,7 @@ function isPartyComplete(party: PartyInput): boolean {
   );
 }
 
-function PartyCard({
-  party,
-  onEdit,
-}: {
-  party: PartyInput;
-  onEdit: () => void;
-}) {
+function PartyCard({ party, onEdit }: { party: PartyInput; onEdit: () => void }) {
   return (
     <div className="flex items-start justify-between rounded-xl border border-neutral-100 bg-white p-4">
       <div className="flex items-start gap-3">
@@ -168,10 +166,16 @@ function PartyForm({
           <select
             value={form.role}
             onChange={(event) => setField("role", event.target.value)}
-            className="mt-1 w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            className="mt-1 w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
-            {ROLES.filter((role) => allowedRoles.includes(role) || role === form.role || role === "witness").map((role) => (
-              <option key={role} value={role} disabled={usedRoles.has(role) && role !== form.role}>
+            {ROLES.filter(
+              (role) => allowedRoles.includes(role) || role === form.role || role === "witness",
+            ).map((role) => (
+              <option
+                key={role}
+                value={role}
+                disabled={usedRoles.has(role) && role !== form.role}
+              >
                 {ROLE_LABEL[role]}
                 {usedRoles.has(role) && role !== form.role ? " (taken)" : ""}
               </option>
@@ -187,9 +191,11 @@ function PartyForm({
             placeholder="As on Ghana Card"
             value={form.full_name}
             onChange={(event) => setField("full_name", event.target.value)}
-            className={`mt-1 w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 ${showError("full_name") ? "border-red-400" : "border-neutral-200"}`}
+            className={`mt-1 w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${showError("full_name") ? "border-red-400" : "border-neutral-200"}`}
           />
-          {showError("full_name") && <p className="mt-1 text-xs text-red-500">{showError("full_name")}</p>}
+          {showError("full_name") && (
+            <p className="mt-1 text-xs text-red-500">{showError("full_name")}</p>
+          )}
         </div>
         <div>
           <label className="text-xs font-medium text-neutral-600">
@@ -200,7 +206,7 @@ function PartyForm({
             placeholder="+233XXXXXXXXX or 0XXXXXXXXX"
             value={form.phone}
             onChange={(event) => setField("phone", event.target.value)}
-            className={`mt-1 w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 ${showError("phone") ? "border-red-400" : "border-neutral-200"}`}
+            className={`mt-1 w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${showError("phone") ? "border-red-400" : "border-neutral-200"}`}
           />
           {showError("phone") ? (
             <p className="mt-1 text-xs text-red-500">{showError("phone")}</p>
@@ -223,9 +229,11 @@ function PartyForm({
             placeholder="e.g. GHA-123456789-0"
             value={form.id_number}
             onChange={(event) => setField("id_number", formatGhanaCardPin(event.target.value))}
-            className={`mt-1 w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 ${showError("id_number") ? "border-red-400" : "border-neutral-200"}`}
+            className={`mt-1 w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${showError("id_number") ? "border-red-400" : "border-neutral-200"}`}
           />
-          {showError("id_number") && <p className="mt-1 text-xs text-red-500">{showError("id_number")}</p>}
+          {showError("id_number") && (
+            <p className="mt-1 text-xs text-red-500">{showError("id_number")}</p>
+          )}
         </div>
       </div>
       <div className="flex flex-col gap-3 sm:flex-row">
@@ -251,26 +259,29 @@ function IdentityUploadButton({
   label,
   viewUrl,
   status,
-  captureMode,
   onSelect,
 }: {
   label: string;
   viewUrl?: string | null;
   status?: UploadState;
-  captureMode?: "user" | "environment";
   onSelect: (file: File) => void;
 }) {
-  const busy = status?.phase === "hashing" || status?.phase === "uploading" || status?.phase === "confirming";
+  const busy =
+    status?.phase === "hashing" ||
+    status?.phase === "uploading" ||
+    status?.phase === "confirming";
   return (
-    <label className={`flex cursor-pointer items-center justify-between rounded-xl border px-3 py-3 text-sm ${viewUrl ? "border-emerald-200 bg-emerald-50" : "border-neutral-200 bg-white"} ${busy ? "opacity-70" : ""}`}>
+    <label
+      className={`flex cursor-pointer items-center justify-between rounded-xl border px-3 py-3 text-sm ${viewUrl ? "border-emerald-200 bg-emerald-50" : "border-neutral-200 bg-white"} ${busy ? "opacity-70" : ""}`}
+    >
       <div className="flex flex-col gap-1">
         <span className="font-medium text-neutral-800">{label}</span>
         <span className="text-xs text-neutral-500">
           {status?.phase === "error"
-            ? status.error ?? "Upload failed"
+            ? (status.error ?? "Upload failed")
             : viewUrl
-            ? "Confirmed"
-            : "Upload required"}
+              ? "Confirmed"
+              : "Upload required"}
         </span>
       </div>
       <div className="flex items-center gap-2 text-xs font-medium text-neutral-700">
@@ -280,7 +291,6 @@ function IdentityUploadButton({
       <input
         type="file"
         accept="image/*"
-        capture={captureMode}
         className="hidden"
         disabled={busy}
         onChange={(event) => {
@@ -293,11 +303,193 @@ function IdentityUploadButton({
   );
 }
 
+function OwnIdentitySection({
+  party,
+  agreementId,
+  uploadStates,
+  onUpload,
+}: {
+  party: Party;
+  agreementId: number;
+  uploadStates: Record<string, UploadState>;
+  onUpload: (party: Party, side: "front" | "back", file: File) => Promise<void>;
+}) {
+  const complete = isPartyIdentityComplete(party);
+
+  return (
+    <div className="rounded-xl border border-neutral-200 bg-white p-4">
+      <div className="flex items-start justify-between">
+        <div>
+          <p className="text-sm font-medium text-neutral-900">{party.display_name}</p>
+          <p className="mt-0.5 text-xs text-neutral-500">
+            {ROLE_LABEL[party.role as PartyRole]} · {party.id_number}
+          </p>
+          <p
+            className={`mt-1 text-xs ${
+              party.identity_verification_status === "verified"
+                ? "text-emerald-700"
+                : party.identity_verification_status === "failed" ||
+                    party.identity_verification_status === "manual_review_required"
+                  ? "text-red-600"
+                  : "text-neutral-500"
+            }`}
+          >
+            {buildIdentityStatusMessage(party)}
+          </p>
+        </div>
+        {complete && <CheckCircle2 size={18} className="shrink-0 text-emerald-600" strokeWidth={2} />}
+      </div>
+      <div className="mt-3 grid gap-3 md:grid-cols-3">
+        <IdentityUploadButton
+          label="Ghana Card front"
+          viewUrl={party.ghana_card_front_view_url}
+          status={uploadStates[`${party.role}:front`]}
+          onSelect={(file) => void onUpload(party, "front", file)}
+        />
+        <IdentityUploadButton
+          label="Ghana Card back"
+          viewUrl={party.ghana_card_back_view_url}
+          status={uploadStates[`${party.role}:back`]}
+          onSelect={(file) => void onUpload(party, "back", file)}
+        />
+        <div
+          className={`flex items-center justify-between rounded-xl border px-3 py-3 text-sm ${party.liveness_status === "passed" ? "border-emerald-200 bg-emerald-50" : party.liveness_status === "failed" ? "border-red-200 bg-red-50" : "border-neutral-200 bg-neutral-50"}`}
+        >
+          <div className="flex items-center gap-2">
+            <ScanFace size={15} className="shrink-0 text-neutral-400" strokeWidth={1.8} />
+            <div className="flex flex-col gap-0.5">
+              <span className="text-xs font-medium text-neutral-800">Face check</span>
+              <span
+                className={`text-xs ${party.liveness_status === "passed" ? "text-emerald-700" : party.liveness_status === "failed" ? "text-red-600" : "text-neutral-500"}`}
+              >
+                {party.liveness_status === "passed"
+                  ? "Passed"
+                  : party.liveness_status === "failed"
+                    ? "Failed — retry on mobile"
+                    : "Pending — complete on mobile"}
+              </span>
+            </div>
+          </div>
+          {party.liveness_status === "passed" && (
+            <Check size={14} className="text-emerald-600 shrink-0" strokeWidth={2.5} />
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CounterpartyInviteSection({
+  party,
+  agreementId,
+  onInviteSent,
+}: {
+  party: Party;
+  agreementId: number;
+  onInviteSent: () => void;
+}) {
+  const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
+  const [inviteSent, setInviteSent] = useState(false);
+  const complete = isPartyIdentityComplete(party);
+
+  async function handleSendInvite() {
+    setSending(true);
+    setSendError(null);
+    try {
+      await partiesApi.sendInvite(agreementId, party.role);
+      setInviteSent(true);
+      onInviteSent();
+    } catch (err) {
+      setSendError(getApiErrorMessage(err, "Could not send invite. Please try again."));
+    } finally {
+      setSending(false);
+    }
+  }
+
+  const isProcessing =
+    party.identity_verification_status === "processing" ||
+    (party.identity_verification_status === "pending" && inviteSent);
+
+  return (
+    <div className="rounded-xl border border-neutral-200 bg-white p-4">
+      <div className="flex items-start justify-between">
+        <div>
+          <p className="text-sm font-medium text-neutral-900">{party.display_name}</p>
+          <p className="mt-0.5 text-xs text-neutral-500">
+            {ROLE_LABEL[party.role as PartyRole]} · {party.id_number}
+          </p>
+          <p
+            className={`mt-1 text-xs ${
+              complete
+                ? "text-emerald-700"
+                : party.identity_verification_status === "failed" ||
+                    party.identity_verification_status === "manual_review_required"
+                  ? "text-red-600"
+                  : "text-neutral-500"
+            }`}
+          >
+            {buildIdentityStatusMessage(party)}
+          </p>
+        </div>
+        {complete && <CheckCircle2 size={18} className="shrink-0 text-emerald-600" strokeWidth={2} />}
+      </div>
+
+      {complete ? (
+        <div className="mt-3 flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2.5">
+          <Check size={14} className="shrink-0 text-emerald-600" strokeWidth={2.5} />
+          <p className="text-xs text-emerald-700">
+            Identity verified. You can proceed once your own verification is also complete.
+          </p>
+        </div>
+      ) : (
+        <div className="mt-3 flex flex-col gap-3">
+          <div className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2.5">
+            <p className="text-xs text-blue-800">
+              <strong>{party.display_name}</strong> needs to complete Ghana Card upload and face
+              check on their own device using the Kotoku mobile app.
+            </p>
+          </div>
+
+          {isProcessing && (
+            <div className="flex items-center gap-2 text-xs text-neutral-500">
+              <Loader2 size={12} className="animate-spin shrink-0" />
+              <span>Waiting for verification to complete…</span>
+            </div>
+          )}
+
+          {sendError && <p className="text-xs text-red-600">{sendError}</p>}
+
+          <button
+            onClick={() => void handleSendInvite()}
+            disabled={sending}
+            className="inline-flex items-center gap-2 self-start rounded-full border border-neutral-200 px-4 py-2 text-sm font-medium transition-colors hover:bg-neutral-50 disabled:opacity-50"
+          >
+            {sending ? (
+              <Loader2 size={13} className="animate-spin" />
+            ) : (
+              <Mail size={13} strokeWidth={1.8} />
+            )}
+            <span>{inviteSent ? "Resend invite SMS" : "Send invite SMS"}</span>
+          </button>
+
+          {inviteSent && !sendError && (
+            <p className="text-xs text-neutral-500">
+              An SMS was sent to {party.phone}. They can open the link on their device to verify.
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function PartiesPage() {
   const { id } = useParams<{ id: string }>();
   const agreementId = Number(id);
   const router = useRouter();
   const queryClient = useQueryClient();
+  const creatorPhone = useSessionStore((s) => s.phone);
 
   const { data: agreement } = useQuery({
     queryKey: ["agreements", agreementId],
@@ -308,6 +500,7 @@ export default function PartiesPage() {
   const [addingNew, setAddingNew] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [uploadStates, setUploadStates] = useState<Record<string, UploadState>>({});
+  const [counterpartyInviteSent, setCounterpartyInviteSent] = useState(false);
 
   const parties: PartyInput[] =
     draftParties ??
@@ -318,6 +511,13 @@ export default function PartiesPage() {
       id_type: "ghana_card",
       id_number: party.id_number ?? "",
     })) ?? []);
+
+  const savedParties = useMemo(() => agreement?.parties ?? [], [agreement?.parties]);
+
+  const myParty = savedParties.find((p) => p.phone === creatorPhone) ?? null;
+  const counterParties = savedParties.filter(
+    (p) => p.phone !== creatorPhone && p.role !== "witness",
+  );
 
   const saveMutation = useMutation({
     mutationFn: () =>
@@ -337,18 +537,23 @@ export default function PartiesPage() {
 
   const isEditable = agreement ? ["draft", "active"].includes(agreement.status) : false;
   const scenario = agreement?.scenario_template ? SCENARIO_MAP[agreement.scenario_template] : null;
-  const allowedRoles: PartyRole[] = scenario ? (scenario.roles as PartyRole[]).concat(["witness"]) : ROLES;
+  const allowedRoles: PartyRole[] = scenario
+    ? (scenario.roles as PartyRole[]).concat(["witness"])
+    : ROLES;
   const usedRoles = new Set<PartyRole>(parties.map((party) => party.role));
   const isDirty = draftParties !== null;
-  const savedParties = useMemo(() => agreement?.parties ?? [], [agreement?.parties]);
   const allPartiesComplete = parties.length >= 2 && parties.every(isPartyComplete);
-  const identityComplete =
-    savedParties.length >= 2 &&
-    savedParties.filter((party) => party.role !== "witness").every(isPartyIdentityComplete);
 
+  const myPartyIdentityComplete = myParty ? isPartyIdentityComplete(myParty) : false;
+  const allCounterpartiesComplete =
+    counterParties.length > 0 && counterParties.every(isPartyIdentityComplete);
+  const identityComplete = myPartyIdentityComplete && allCounterpartiesComplete;
+
+  // Poll while own identity or any counterparty identity is in progress.
   useEffect(() => {
     const needsRefresh = savedParties.some((party) => {
-      const livenessOrSelfie = party.liveness_status === "passed" || party.identity_selfie_uploaded;
+      const livenessOrSelfie =
+        party.liveness_status === "passed" || party.identity_selfie_uploaded;
       return (
         party.ghana_card_front_uploaded &&
         party.ghana_card_back_uploaded &&
@@ -357,12 +562,18 @@ export default function PartiesPage() {
           party.identity_verification_status === "processing")
       );
     });
-    if (!needsRefresh) return;
+
+    // Also poll for counterparty while invite was sent and they are still pending.
+    const counterpartyPending =
+      counterpartyInviteSent &&
+      counterParties.some((p) => p.identity_verification_status === "pending");
+
+    if (!needsRefresh && !counterpartyPending) return;
     const timer = window.setInterval(() => {
       void queryClient.invalidateQueries({ queryKey: ["agreements", agreementId] });
-    }, 2500);
+    }, 5000);
     return () => window.clearInterval(timer);
-  }, [agreementId, queryClient, savedParties]);
+  }, [agreementId, queryClient, savedParties, counterParties, counterpartyInviteSent]);
 
   function addParty(party: PartyInput) {
     setDraftParties([...parties, party]);
@@ -377,14 +588,10 @@ export default function PartiesPage() {
   }
 
   function removeParty(index: number) {
-    setDraftParties(parties.filter((_, itemIndex) => itemIndex !== index));
+    setDraftParties(parties.filter((_, i) => i !== index));
   }
 
-  async function handleIdentityUpload(
-    party: Party,
-    side: "front" | "back" | "selfie",
-    file: File,
-  ) {
+  async function handleIdentityUpload(party: Party, side: "front" | "back", file: File) {
     const stateKey = `${party.role}:${side}`;
     try {
       await uploadEvidenceFile({
@@ -400,10 +607,7 @@ export default function PartiesPage() {
     } catch (error) {
       setUploadStates((prev) => ({
         ...prev,
-        [stateKey]: {
-          phase: "error",
-          error: describeIdentityUploadError(error),
-        },
+        [stateKey]: { phase: "error", error: describeIdentityUploadError(error) },
       }));
     }
   }
@@ -418,19 +622,22 @@ export default function PartiesPage() {
     }
   }
 
+  const showIdentitySection = !isDirty && savedParties.length >= 2;
+
   return (
     <div className="flex flex-col gap-5">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-xl font-bold tracking-tight">Parties</h1>
         {scenario && (
           <p className="text-xs text-neutral-400">
-            Required: {scenario.roles.map((role) => ROLE_LABEL[role]).join(" + ")}
+            Required: {scenario.roles.map((r) => ROLE_LABEL[r]).join(" + ")}
           </p>
         )}
       </div>
 
       <p className="text-sm text-neutral-500">
-        Add at least 2 parties. Each non-witness party must have a full name, phone number, Ghana Card PIN, confirmed front/back Ghana Card uploads, and a face check (completed on mobile) before you can proceed.
+        Add at least 2 parties. Once saved, each non-witness party completes their own identity
+        verification on the Kotoku mobile app — you can send them an SMS invite from this page.
       </p>
 
       {parties.length === 0 && !addingNew && (
@@ -477,7 +684,10 @@ export default function PartiesPage() {
 
       {addingNew && (
         <PartyForm
-          initial={{ ...EMPTY_PARTY, role: allowedRoles.find((role) => !usedRoles.has(role)) ?? "witness" }}
+          initial={{
+            ...EMPTY_PARTY,
+            role: allowedRoles.find((r) => !usedRoles.has(r)) ?? "witness",
+          }}
           allowedRoles={allowedRoles}
           usedRoles={usedRoles}
           onSave={addParty}
@@ -506,69 +716,41 @@ export default function PartiesPage() {
 
       {saveMutation.isError && (
         <p className="text-sm text-red-600">
-          {getApiErrorMessage(saveMutation.error, "Could not save parties. Check phone format and Ghana Card PINs.")}
+          {getApiErrorMessage(
+            saveMutation.error,
+            "Could not save parties. Check phone format and Ghana Card PINs.",
+          )}
         </p>
       )}
 
-      {!isDirty && savedParties.length >= 2 && (
-        <div className="flex flex-col gap-3 rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+      {showIdentitySection && (
+        <div className="flex flex-col gap-4">
           <div>
-            <p className="text-sm font-semibold text-neutral-900">Ghana Card verification</p>
+            <p className="text-sm font-semibold text-neutral-900">Identity verification</p>
             <p className="mt-1 text-xs text-neutral-500">
-              Upload front and back Ghana Card images for each non-witness party. The face check is completed by each party on the Kotoku mobile app. Verification runs automatically once all steps are done.
+              Each non-witness party must upload their Ghana Card and pass a face check on the
+              Kotoku mobile app. Send an invite SMS to counterparties so they can complete this on
+              their own device.
             </p>
           </div>
-          {savedParties
-            .filter((party) => party.role !== "witness")
-            .map((party) => (
-              <div key={party.id} className="rounded-xl border border-neutral-200 bg-white p-4">
-                <p className="text-sm font-medium text-neutral-900">{party.display_name}</p>
-                <p className="mt-1 text-xs text-neutral-500">
-                  {ROLE_LABEL[party.role as PartyRole]} · {party.id_number}
-                </p>
-                <p
-                  className={`mt-1 text-xs ${
-                    party.identity_verification_status === "verified"
-                      ? "text-emerald-700"
-                      : party.identity_verification_status === "failed" ||
-                          party.identity_verification_status === "manual_review_required"
-                        ? "text-red-600"
-                        : "text-neutral-500"
-                  }`}
-                >
-                  {buildIdentityStatusMessage(party)}
-                </p>
-                <div className="mt-3 grid gap-3 md:grid-cols-3">
-                  <IdentityUploadButton
-                    label="Ghana Card front"
-                    viewUrl={party.ghana_card_front_view_url}
-                    status={uploadStates[`${party.role}:front`]}
-                    onSelect={(file) => void handleIdentityUpload(party, "front", file)}
-                  />
-                  <IdentityUploadButton
-                    label="Ghana Card back"
-                    viewUrl={party.ghana_card_back_view_url}
-                    status={uploadStates[`${party.role}:back`]}
-                    onSelect={(file) => void handleIdentityUpload(party, "back", file)}
-                  />
-                  <div className={`flex items-center justify-between rounded-xl border px-3 py-3 text-sm ${party.liveness_status === "passed" ? "border-emerald-200 bg-emerald-50" : party.liveness_status === "failed" ? "border-red-200 bg-red-50" : "border-neutral-200 bg-neutral-50"}`}>
-                    <div className="flex flex-col gap-1">
-                      <span className="font-medium text-neutral-800">Face check</span>
-                      <span className={`text-xs ${party.liveness_status === "passed" ? "text-emerald-700" : party.liveness_status === "failed" ? "text-red-600" : "text-neutral-500"}`}>
-                        {party.liveness_status === "passed"
-                          ? "Passed"
-                          : party.liveness_status === "failed"
-                          ? "Failed — retry on mobile"
-                          : "Pending — complete on mobile"}
-                      </span>
-                    </div>
-                    {party.liveness_status === "passed" && (
-                      <Check size={16} className="text-emerald-600 shrink-0" strokeWidth={2.5} />
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))}
+
+          {myParty && (
+            <OwnIdentitySection
+              party={myParty}
+              agreementId={agreementId}
+              uploadStates={uploadStates}
+              onUpload={handleIdentityUpload}
+            />
+          )}
+
+          {counterParties.map((party) => (
+            <CounterpartyInviteSection
+              key={party.id}
+              party={party}
+              agreementId={agreementId}
+              onInviteSent={() => setCounterpartyInviteSent(true)}
+            />
+          ))}
         </div>
       )}
 
@@ -579,8 +761,8 @@ export default function PartiesPage() {
             {isDirty
               ? `${parties.length} parties ready to save`
               : identityComplete
-              ? `${savedParties.length} parties and identity records confirmed`
-              : `${savedParties.length} parties saved — complete Ghana Card uploads and wait for verification to continue`}
+                ? `All parties saved and identity verified`
+                : `${savedParties.length} parties saved — complete identity verification to continue`}
           </div>
           <button
             onClick={() => void handlePrimaryAction()}
@@ -601,7 +783,8 @@ export default function PartiesPage() {
 
       {parties.length >= 2 && !allPartiesComplete && (
         <p className="text-xs text-amber-600">
-          Some party entries are incomplete. Fill in all required fields and valid Ghana Card PINs for every party before proceeding.
+          Some party entries are incomplete. Fill in all required fields and valid Ghana Card PINs
+          for every party before proceeding.
         </p>
       )}
     </div>

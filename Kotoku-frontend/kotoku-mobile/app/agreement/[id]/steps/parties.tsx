@@ -12,9 +12,22 @@ import {
   View,
 } from "react-native";
 import { z } from "zod";
-import { CheckCircle2, ScanFace, ShieldCheck, Users2, XCircle } from "lucide-react-native";
+import {
+  CheckCircle2,
+  Clock,
+  Mail,
+  ScanFace,
+  ShieldCheck,
+  Users2,
+  XCircle,
+} from "lucide-react-native";
 
-import { createLivenessSession, setParties, submitLivenessResult } from "@/api/agreements";
+import {
+  createLivenessSession,
+  sendPartyIdentityInvite,
+  setParties,
+  submitLivenessResult,
+} from "@/api/agreements";
 import { LivenessWebView } from "@/components/identity/LivenessWebView";
 import { PhotoSlot } from "@/components/evidence/PhotoSlot";
 import { UploadSourceSheet } from "@/components/evidence/UploadSourceSheet";
@@ -118,6 +131,9 @@ export default function PartiesStep() {
   const [livenessSession, setLivenessSession] = useState<{ role: string; sessionId: string; region: string } | null>(null);
   const [livenessLoading, setLivenessLoading] = useState<string | null>(null);
   const [livenessError, setLivenessError] = useState<string | null>(null);
+  const [inviteSending, setInviteSending] = useState(false);
+  const [inviteSent, setInviteSent] = useState(false);
+  const [inviteError, setInviteError] = useState<string | null>(null);
   const processingResult = useRef(false);
 
   const roles = template?.partyRoles ?? ["Seller", "Buyer"];
@@ -132,6 +148,16 @@ export default function PartiesStep() {
       .map((role) => agreement.parties.find((party) => party.role === role))
       .filter((party): party is NonNullable<typeof party> => Boolean(party));
   }, [agreement, roleKeys]);
+
+  // Party A = creator's party (phone matches); Party B = the counterparty.
+  const myParty = useMemo(
+    () => savedParties.find((p) => p.phone === creatorPhone) ?? savedParties[0] ?? null,
+    [savedParties, creatorPhone],
+  );
+  const counterParty = useMemo(
+    () => savedParties.find((p) => p !== myParty) ?? null,
+    [savedParties, myParty],
+  );
 
   const form = useForm<PartiesFormValues>({
     resolver: zodResolver(partiesSchema),
@@ -172,38 +198,49 @@ export default function PartiesStep() {
     });
   }, [reset, savedParties, setPartyA, setPartyB]);
 
-  // Poll while any party is processing or has cards uploaded but pending liveness result
+  // Poll while own party is processing.
   useEffect(() => {
-    const needsRefresh = savedParties.some((party) => {
-      const frontType = identityEvidenceType(party.role, "front");
-      const backType = identityEvidenceType(party.role, "back");
-      const frontDone = party.ghanaCardFrontUploaded || items[frontType]?.uploadStatus === "uploaded";
-      const backDone = party.ghanaCardBackUploaded || items[backType]?.uploadStatus === "uploaded";
-      const livenessOrSelfieDone =
-        party.livenessStatus === "passed" ||
-        party.identitySelfieUploaded;
-      return (
-        frontDone &&
-        backDone &&
-        livenessOrSelfieDone &&
-        (party.identityVerificationStatus === "pending" ||
-          party.identityVerificationStatus === "processing")
-      );
-    });
+    if (!myParty) return;
+    const frontType = identityEvidenceType(myParty.role, "front");
+    const backType = identityEvidenceType(myParty.role, "back");
+    const frontDone = myParty.ghanaCardFrontUploaded || items[frontType]?.uploadStatus === "uploaded";
+    const backDone = myParty.ghanaCardBackUploaded || items[backType]?.uploadStatus === "uploaded";
+    const livenessDone = myParty.livenessStatus === "passed" || myParty.identitySelfieUploaded;
+    const needsRefresh =
+      frontDone &&
+      backDone &&
+      livenessDone &&
+      (myParty.identityVerificationStatus === "pending" ||
+        myParty.identityVerificationStatus === "processing");
     if (!needsRefresh) return;
     const timer = setInterval(() => {
       void queryClient.invalidateQueries({ queryKey: ["agreement", agreementId] });
     }, 2500);
     return () => clearInterval(timer);
-  }, [agreementId, queryClient, savedParties, items]);
+  }, [agreementId, queryClient, myParty, items]);
+
+  // Poll counterparty status so Party A sees when Party B completes.
+  // Only poll in "pending" state once the invite has been sent in this session;
+  // always poll in "processing" (Party B has uploaded and verification is running).
+  useEffect(() => {
+    if (!counterParty) return;
+    const shouldPoll =
+      counterParty.identityVerificationStatus === "processing" ||
+      (counterParty.identityVerificationStatus === "pending" && inviteSent);
+    if (!shouldPoll) return;
+    const timer = setInterval(() => {
+      void queryClient.invalidateQueries({ queryKey: ["agreement", agreementId] });
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [agreementId, queryClient, counterParty, inviteSent]);
 
   if (!template || isLoading) {
     return <ScreenLoader />;
   }
 
-  const identityComplete =
-    savedParties.length === roleKeys.length &&
-    savedParties.every((party) => isPartyIdentityComplete(party));
+  const myIdentityComplete = myParty ? isPartyIdentityComplete(myParty) : false;
+  const counterIdentityComplete = counterParty ? isPartyIdentityComplete(counterParty) : false;
+  const identityComplete = myIdentityComplete && counterIdentityComplete;
 
   const handleSaveParties = async (values: PartiesFormValues) => {
     setSaveError(null);
@@ -325,6 +362,20 @@ export default function PartiesStep() {
     });
   };
 
+  const handleSendInvite = async () => {
+    if (!counterParty) return;
+    setInviteError(null);
+    setInviteSending(true);
+    try {
+      await sendPartyIdentityInvite(agreementId, counterParty.role);
+      setInviteSent(true);
+    } catch (err) {
+      setInviteError(getApiErrorMessage(err, "Could not send the invite. Please try again."));
+    } finally {
+      setInviteSending(false);
+    }
+  };
+
   return (
     <KeyboardAvoidingView
       style={{ flex: 1 }}
@@ -347,7 +398,7 @@ export default function PartiesStep() {
               </Text>
               <Text className="text-xl font-semibold text-white">Set up both parties</Text>
               <Text className="text-sm leading-relaxed text-white/75">
-                Each party needs a phone number, Ghana Card PIN, confirmed Ghana Card images, and a face check before you can continue.
+                Enter both parties' details, then each party completes their own Ghana Card and face check on their own device.
               </Text>
             </View>
           </View>
@@ -367,150 +418,226 @@ export default function PartiesStep() {
           errors={formState.errors.partyB}
         />
 
-        {savedParties.length === roleKeys.length && (
+        {/* Own identity verification — only shown for Party A (the creator) */}
+        {savedParties.length === roleKeys.length && myParty && (
           <View className="gap-md rounded-2xl border border-border-subtle bg-surface-card p-lg">
             <View className="flex-row items-start gap-md">
               <View className="h-10 w-10 items-center justify-center rounded-2xl bg-brand-primary/10">
                 <ShieldCheck size={20} color="#2563EB" strokeWidth={1.8} />
               </View>
               <View className="flex-1 gap-xs">
-                <Text className="text-base font-semibold text-ink-primary">Ghana Card verification</Text>
+                <Text className="text-base font-semibold text-ink-primary">Your Ghana Card verification</Text>
                 <Text className="text-sm text-ink-secondary leading-relaxed">
-                  Upload the front and back of each Ghana Card, then complete the face check. Verification runs automatically once all steps are done.
+                  Upload the front and back of your Ghana Card, then complete the face check.
                 </Text>
               </View>
             </View>
 
-            {savedParties.map((party) => {
-              const frontEvidenceType = identityEvidenceType(party.role, "front");
-              const backEvidenceType = identityEvidenceType(party.role, "back");
-              const frontItem = items[frontEvidenceType];
-              const backItem = items[backEvidenceType];
-              const livenessStarting = livenessLoading === party.role;
-              const livenessPassed = party.livenessStatus === "passed";
-              const livenessFailed = party.livenessStatus === "failed";
+            <View className="gap-sm rounded-2xl border border-border-subtle bg-surface-subtle p-md">
+              <View className="gap-xs">
+                <Text className="text-sm font-semibold text-ink-primary">{myParty.displayName}</Text>
+                <Text className="text-xs text-ink-muted">{myParty.idNumber}</Text>
+                <Text
+                  className={`text-xs ${
+                    myParty.identityVerificationStatus === "verified"
+                      ? "text-semantic-success"
+                      : myParty.identityVerificationStatus === "failed" ||
+                          myParty.identityVerificationStatus === "manual_review_required"
+                        ? "text-semantic-error"
+                      : "text-ink-muted"
+                  }`}
+                >
+                  {buildIdentityStatusMessage(myParty)}
+                </Text>
+              </View>
 
-              return (
-                <View key={party.id} className="gap-sm rounded-2xl border border-border-subtle bg-surface-subtle p-md">
-                  <View className="gap-xs">
-                    <Text className="text-sm font-semibold text-ink-primary">{party.displayName}</Text>
-                    <Text className="text-xs text-ink-muted">{party.idNumber}</Text>
-                    <Text
-                      className={`text-xs ${
-                        party.identityVerificationStatus === "verified"
-                          ? "text-semantic-success"
-                          : party.identityVerificationStatus === "failed" ||
-                              party.identityVerificationStatus === "manual_review_required"
-                            ? "text-semantic-error"
-                          : "text-ink-muted"
-                      }`}
-                    >
-                      {buildIdentityStatusMessage(party)}
-                    </Text>
-                  </View>
-
-                  {/* Ghana Card images */}
-                  <View className="flex-row gap-sm">
-                    <View style={{ flex: 1 }}>
-                      <PhotoSlot
-                        label="Ghana Card front"
-                        required
-                        localUri={frontItem?.localUri || party.ghanaCardFrontViewUrl || undefined}
-                        status={frontItem?.uploadStatus || (party.ghanaCardFrontUploaded ? "uploaded" : "pending")}
-                        error={frontItem?.error}
-                        failedActionLabel={frontItem?.retryable === false ? "Replace" : "Retry"}
-                        onPress={() => {
-                          if (frontItem?.uploadStatus === "failed" && frontItem.retryable !== false) {
-                            void retryUpload(frontEvidenceType);
-                            return;
-                          }
-                          setUploadSheet({
-                            slotId: frontEvidenceType,
-                            evidenceType: frontEvidenceType,
-                            title: "Ghana Card front",
-                            body: "Add a clear image of the front of the Ghana Card for OCR and identity checks.",
-                            guidance:
-                              "Keep all card edges visible, avoid glare, and make sure the PIN and printed details are readable.",
-                            cameraType: "back",
-                          });
-                        }}
-                      />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <PhotoSlot
-                        label="Ghana Card back"
-                        required
-                        localUri={backItem?.localUri || party.ghanaCardBackViewUrl || undefined}
-                        status={backItem?.uploadStatus || (party.ghanaCardBackUploaded ? "uploaded" : "pending")}
-                        error={backItem?.error}
-                        failedActionLabel={backItem?.retryable === false ? "Replace" : "Retry"}
-                        onPress={() => {
-                          if (backItem?.uploadStatus === "failed" && backItem.retryable !== false) {
-                            void retryUpload(backEvidenceType);
-                            return;
-                          }
-                          setUploadSheet({
-                            slotId: backEvidenceType,
-                            evidenceType: backEvidenceType,
-                            title: "Ghana Card back",
-                            body: "Add a clear image of the back of the Ghana Card so the backend can verify the document details.",
-                            guidance:
-                              "Capture the full card on a flat background and avoid blur, shadows, and cropped corners.",
-                            cameraType: "back",
-                          });
-                        }}
-                      />
-                    </View>
-                  </View>
-
-                  {/* Face liveness check */}
-                  <TouchableOpacity
-                    disabled={livenessStarting || livenessPassed}
-                    onPress={() => void handleStartLiveness(party.role)}
-                    className={`flex-row items-center gap-sm rounded-xl border p-md ${
-                      livenessPassed
-                        ? "border-semantic-success/30 bg-semantic-success/10"
-                        : livenessFailed
-                          ? "border-semantic-error/30 bg-semantic-error/10"
-                          : "border-border-subtle bg-surface-card"
-                    }`}
-                  >
-                    <View className="h-10 w-10 items-center justify-center rounded-xl bg-brand-primary/10">
-                      {livenessPassed ? (
-                        <CheckCircle2 size={20} color="#16a34a" strokeWidth={1.8} />
-                      ) : livenessFailed ? (
-                        <XCircle size={20} color="#dc2626" strokeWidth={1.8} />
-                      ) : (
-                        <ScanFace size={20} color="#2563EB" strokeWidth={1.8} />
-                      )}
-                    </View>
-                    <View className="flex-1">
-                      <Text className="text-sm font-semibold text-ink-primary">
-                        {livenessPassed
-                          ? "Face check passed"
-                          : livenessFailed
-                            ? "Face check failed — tap to retry"
-                            : livenessStarting
-                              ? "Starting face check…"
-                              : "Start face check"}
-                      </Text>
-                      {!livenessPassed && (
-                        <Text className="text-xs text-ink-muted">
-                          {livenessStarting
-                            ? "Preparing camera…"
-                            : "Follow the on-screen prompts to confirm identity"}
-                        </Text>
-                      )}
-                    </View>
-                  </TouchableOpacity>
+              <View className="flex-row gap-sm">
+                <View style={{ flex: 1 }}>
+                  <PhotoSlot
+                    label="Ghana Card front"
+                    required
+                    localUri={items[identityEvidenceType(myParty.role, "front")]?.localUri || myParty.ghanaCardFrontViewUrl || undefined}
+                    status={items[identityEvidenceType(myParty.role, "front")]?.uploadStatus || (myParty.ghanaCardFrontUploaded ? "uploaded" : "pending")}
+                    error={items[identityEvidenceType(myParty.role, "front")]?.error}
+                    failedActionLabel={items[identityEvidenceType(myParty.role, "front")]?.retryable === false ? "Replace" : "Retry"}
+                    onPress={() => {
+                      const frontType = identityEvidenceType(myParty.role, "front");
+                      if (items[frontType]?.uploadStatus === "failed" && items[frontType].retryable !== false) {
+                        void retryUpload(frontType);
+                        return;
+                      }
+                      setUploadSheet({
+                        slotId: frontType,
+                        evidenceType: frontType,
+                        title: "Ghana Card front",
+                        body: "Add a clear image of the front of your Ghana Card.",
+                        guidance: "Keep all card edges visible, avoid glare, and make sure the PIN and printed details are readable.",
+                        cameraType: "back",
+                      });
+                    }}
+                  />
                 </View>
-              );
-            })}
+                <View style={{ flex: 1 }}>
+                  <PhotoSlot
+                    label="Ghana Card back"
+                    required
+                    localUri={items[identityEvidenceType(myParty.role, "back")]?.localUri || myParty.ghanaCardBackViewUrl || undefined}
+                    status={items[identityEvidenceType(myParty.role, "back")]?.uploadStatus || (myParty.ghanaCardBackUploaded ? "uploaded" : "pending")}
+                    error={items[identityEvidenceType(myParty.role, "back")]?.error}
+                    failedActionLabel={items[identityEvidenceType(myParty.role, "back")]?.retryable === false ? "Replace" : "Retry"}
+                    onPress={() => {
+                      const backType = identityEvidenceType(myParty.role, "back");
+                      if (items[backType]?.uploadStatus === "failed" && items[backType].retryable !== false) {
+                        void retryUpload(backType);
+                        return;
+                      }
+                      setUploadSheet({
+                        slotId: backType,
+                        evidenceType: backType,
+                        title: "Ghana Card back",
+                        body: "Add a clear image of the back of your Ghana Card.",
+                        guidance: "Capture the full card on a flat background and avoid blur, shadows, and cropped corners.",
+                        cameraType: "back",
+                      });
+                    }}
+                  />
+                </View>
+              </View>
+
+              <TouchableOpacity
+                disabled={livenessLoading === myParty.role || myParty.livenessStatus === "passed"}
+                onPress={() => void handleStartLiveness(myParty.role)}
+                className={`flex-row items-center gap-sm rounded-xl border p-md ${
+                  myParty.livenessStatus === "passed"
+                    ? "border-semantic-success/30 bg-semantic-success/10"
+                    : myParty.livenessStatus === "failed"
+                      ? "border-semantic-error/30 bg-semantic-error/10"
+                      : "border-border-subtle bg-surface-card"
+                }`}
+              >
+                <View className="h-10 w-10 items-center justify-center rounded-xl bg-brand-primary/10">
+                  {myParty.livenessStatus === "passed" ? (
+                    <CheckCircle2 size={20} color="#16a34a" strokeWidth={1.8} />
+                  ) : myParty.livenessStatus === "failed" ? (
+                    <XCircle size={20} color="#dc2626" strokeWidth={1.8} />
+                  ) : (
+                    <ScanFace size={20} color="#2563EB" strokeWidth={1.8} />
+                  )}
+                </View>
+                <View className="flex-1">
+                  <Text className="text-sm font-semibold text-ink-primary">
+                    {myParty.livenessStatus === "passed"
+                      ? "Face check passed"
+                      : myParty.livenessStatus === "failed"
+                        ? "Face check failed — tap to retry"
+                        : livenessLoading === myParty.role
+                          ? "Starting face check…"
+                          : "Start face check"}
+                  </Text>
+                  {myParty.livenessStatus !== "passed" && (
+                    <Text className="text-xs text-ink-muted">
+                      {livenessLoading === myParty.role
+                        ? "Preparing camera…"
+                        : "Follow the on-screen prompts to confirm your identity"}
+                    </Text>
+                  )}
+                </View>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
+        {/* Counterparty identity — invite to verify on their own device */}
+        {savedParties.length === roleKeys.length && counterParty && (
+          <View className="gap-md rounded-2xl border border-border-subtle bg-surface-card p-lg">
+            <View className="flex-row items-start gap-md">
+              <View className="h-10 w-10 items-center justify-center rounded-2xl bg-brand-primary/10">
+                <Mail size={20} color="#2563EB" strokeWidth={1.8} />
+              </View>
+              <View className="flex-1 gap-xs">
+                <Text className="text-base font-semibold text-ink-primary">
+                  {counterParty.displayName}'s verification
+                </Text>
+                <Text className="text-sm text-ink-secondary leading-relaxed">
+                  {counterIdentityComplete
+                    ? `${counterParty.displayName} has completed their identity verification.`
+                    : `Send ${counterParty.displayName} an invite so they can verify their own Ghana Card and face on their device.`}
+                </Text>
+              </View>
+            </View>
+
+            <View className="rounded-2xl border border-border-subtle bg-surface-subtle p-md gap-xs">
+              <Text className="text-sm font-semibold text-ink-primary">{counterParty.displayName}</Text>
+              <Text className="text-xs text-ink-muted">{counterParty.idNumber}</Text>
+              <Text
+                className={`text-xs ${
+                  counterParty.identityVerificationStatus === "verified"
+                    ? "text-semantic-success"
+                    : counterParty.identityVerificationStatus === "failed" ||
+                        counterParty.identityVerificationStatus === "manual_review_required"
+                      ? "text-semantic-error"
+                    : "text-ink-muted"
+                }`}
+              >
+                {counterIdentityComplete
+                  ? "Identity verified"
+                  : buildIdentityStatusMessage(counterParty)}
+              </Text>
+            </View>
+
+            {!counterIdentityComplete && (
+              <TouchableOpacity
+                disabled={inviteSending}
+                onPress={() => void handleSendInvite()}
+                className={`flex-row items-center gap-sm rounded-xl border p-md ${
+                  inviteSent
+                    ? "border-semantic-success/30 bg-semantic-success/10"
+                    : "border-border-subtle bg-surface-card"
+                }`}
+              >
+                <View className="h-10 w-10 items-center justify-center rounded-xl bg-brand-primary/10">
+                  {inviteSent ? (
+                    <CheckCircle2 size={20} color="#16a34a" strokeWidth={1.8} />
+                  ) : (
+                    <Clock size={20} color="#2563EB" strokeWidth={1.8} />
+                  )}
+                </View>
+                <View className="flex-1">
+                  <Text className="text-sm font-semibold text-ink-primary">
+                    {inviteSending
+                      ? "Sending invite…"
+                      : inviteSent
+                        ? "Invite sent — tap to resend"
+                        : `Invite ${counterParty.displayName} to verify`}
+                  </Text>
+                  <Text className="text-xs text-ink-muted">
+                    {inviteSent
+                      ? `A link was sent to ${counterParty.phone}`
+                      : "They will receive an SMS with a secure link"}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            )}
+
+            {counterIdentityComplete && (
+              <View className="flex-row items-center gap-sm rounded-xl border border-semantic-success/30 bg-semantic-success/10 p-md">
+                <View className="h-10 w-10 items-center justify-center rounded-xl bg-semantic-success/10">
+                  <CheckCircle2 size={20} color="#16a34a" strokeWidth={1.8} />
+                </View>
+                <Text className="flex-1 text-sm font-semibold text-semantic-success">
+                  {counterParty.displayName}'s identity verified
+                </Text>
+              </View>
+            )}
           </View>
         )}
 
         {livenessError && (
           <NoticeCard variant="error" title="Face check error" body={livenessError} compact />
+        )}
+
+        {inviteError && (
+          <NoticeCard variant="error" title="Could not send invite" body={inviteError} compact />
         )}
 
         {saveError && <NoticeCard variant="error" title="Could not save parties" body={saveError} compact />}
@@ -519,7 +646,9 @@ export default function PartiesStep() {
 
         {!identityComplete && savedParties.length === roleKeys.length && !formState.isDirty && (
           <Text className="text-xs text-ink-muted text-center">
-            Finish the Ghana Card uploads and face check for each party, then wait for verification to complete.
+            {!myIdentityComplete
+              ? "Complete your Ghana Card uploads and face check above."
+              : "Waiting for the other party to complete their identity verification."}
           </Text>
         )}
 
@@ -564,7 +693,6 @@ export default function PartiesStep() {
           void handleSourcePick("library");
         }}
       />
-
     </KeyboardAvoidingView>
   );
 }
