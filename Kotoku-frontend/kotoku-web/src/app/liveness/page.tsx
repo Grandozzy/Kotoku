@@ -46,7 +46,9 @@ function LivenessDetector() {
     <FaceLivenessDetector
       sessionId={sessionId}
       region={region}
-      onAnalysisComplete={() => postToNative({ type: "done" })}
+      onAnalysisComplete={async () => {
+        postToNative({ type: "done" });
+      }}
       onError={(error) =>
         postToNative({
           type: "error",
