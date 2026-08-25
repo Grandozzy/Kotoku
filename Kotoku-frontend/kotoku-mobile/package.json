@@ -10,8 +10,8 @@
     "apply-patches": "patch-package",
     "postinstall": "npm run apply-patches",
     "eas-build-post-install": "npm run apply-patches",
-    "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui"
+    "test:e2e": "npx playwright test",
+    "test:e2e:ui": "npx playwright test --ui"
   },
   "dependencies": {
     "@expo-google-fonts/cormorant-garamond": "^0.4.1",
