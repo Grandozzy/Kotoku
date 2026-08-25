@@ -214,6 +214,13 @@ export default function LegalPage() {
             and raise a question through your agreement&apos;s annotation panel, or
             consult a qualified Ghanaian legal practitioner.
           </p>
+          <p className="mt-3 text-sm text-neutral-500">
+            Need to delete your account and associated data?{" "}
+            <Link href="/legal/account-deletion" className="text-emerald-600 underline">
+              Submit an account deletion request
+            </Link>
+            .
+          </p>
         </div>
       </main>
     </div>

@@ -85,6 +85,13 @@ export default function AboutScreen() {
           <Text className="text-ink-muted">›</Text>
         </Pressable>
         <Pressable
+          onPress={() => Linking.openURL("https://www.kotoku-app.com/legal/account-deletion")}
+          className="bg-surface-card rounded-2xl border border-border-subtle px-lg py-md flex-row justify-between items-center active:opacity-70"
+        >
+          <Text className="text-md text-ink-primary">Request account deletion</Text>
+          <Text className="text-ink-muted">›</Text>
+        </Pressable>
+        <Pressable
           onPress={() => Linking.openURL("https://www.kotoku-app.com")}
           className="bg-surface-card rounded-2xl border border-border-subtle px-lg py-md flex-row justify-between items-center active:opacity-70"
         >
