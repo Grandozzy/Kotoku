@@ -15,12 +15,18 @@ Amplify.configure({
   },
 });
 
+type NativeBridgeWindow = Window &
+  typeof globalThis & {
+    ReactNativeWebView?: {
+      postMessage: (message: string) => void;
+    };
+  };
+
 function postToNative(data: Record<string, unknown>) {
-  if (typeof window !== "undefined" && (window as { ReactNativeWebView?: { postMessage: (s: string) => void } }).ReactNativeWebView) {
-    (window as { ReactNativeWebView: { postMessage: (s: string) => void } }).ReactNativeWebView.postMessage(
-      JSON.stringify(data),
-    );
-  }
+  if (typeof window === "undefined") return;
+
+  const nativeWindow = window as NativeBridgeWindow;
+  nativeWindow.ReactNativeWebView?.postMessage(JSON.stringify(data));
 }
 
 function LivenessDetector() {
