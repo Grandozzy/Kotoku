@@ -177,9 +177,9 @@ export default function DisputePage() {
               placeholder="Describe the issue clearly and factually…"
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="form-control mt-1 resize-none"
             />
-            <p className="text-xs text-neutral-400 mt-1">
+            <p className="form-help-strong">
               {reason.length} / 2000 characters
             </p>
           </div>
@@ -192,7 +192,7 @@ export default function DisputePage() {
                 !ownParty ||
                 reason.trim().length < 10
               }
-              className="px-5 py-2.5 rounded-full bg-red-600 text-white text-sm font-medium disabled:opacity-50 hover:bg-red-700"
+              className="btn-danger"
             >
               {raiseMutation.isPending ? "Submitting…" : "Submit dispute"}
             </button>

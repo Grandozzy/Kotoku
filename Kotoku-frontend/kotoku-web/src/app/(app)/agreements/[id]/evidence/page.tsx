@@ -211,7 +211,7 @@ export default function EvidencePage() {
         <select
           value={selectedType}
           onChange={(e) => setSelectedType(e.target.value)}
-          className="mt-1 block w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="form-control mt-1 block"
         >
           {EVIDENCE_TYPES.map(({ value, label }) => (
             <option key={value} value={value}>
@@ -240,7 +240,7 @@ export default function EvidencePage() {
         <p className="text-sm font-medium text-neutral-700">
           {isDragActive ? "Drop files here" : "Drag photos or documents here"}
         </p>
-        <p className="text-xs text-neutral-400 mt-1">
+        <p className="form-help mt-1">
           or click to browse · images and PDFs supported
         </p>
       </div>
@@ -285,7 +285,7 @@ export default function EvidencePage() {
                 </span>
                 <div className="min-w-0">
                   <p className="text-sm font-medium truncate">{item.file.name}</p>
-                  <p className="text-xs text-neutral-400">
+                  <p className="text-xs text-neutral-500">
                     {EVIDENCE_TYPES.find((t) => t.value === item.evidenceType)?.label}
                     <span> · {statusLabel(item.status)}</span>
                     {item.errorMsg && (
@@ -319,7 +319,7 @@ export default function EvidencePage() {
           <button
             onClick={uploadAll}
             disabled={uploadInProgress || uploadableCount === 0}
-            className="mt-2 w-full rounded-full bg-neutral-900 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-neutral-700 disabled:opacity-50 sm:w-fit"
+            className="btn-primary mt-2 w-full sm:w-fit"
           >
             {uploadInProgress
               ? "Uploading…"

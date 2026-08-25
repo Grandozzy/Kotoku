@@ -121,9 +121,9 @@ export default function NewAgreementPage() {
               value={customTitle}
               onChange={(e) => setCustomTitle(e.target.value)}
               maxLength={255}
-              className="mt-1 w-full rounded-lg border border-neutral-200 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              className="form-control mt-1 px-4 py-2.5 focus:ring-emerald-500"
             />
-            <p className="mt-1 text-xs text-neutral-400">
+            <p className="form-help-strong">
               Use names and the subject so both parties can identify it later.
             </p>
           </div>
@@ -132,7 +132,7 @@ export default function NewAgreementPage() {
         <button
           onClick={() => createMutation.mutate()}
           disabled={!canStart || createMutation.isPending}
-          className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-full bg-neutral-900 text-white text-sm font-medium disabled:opacity-50 hover:bg-neutral-700 transition-colors w-fit"
+          className="btn-primary w-fit"
         >
           {createMutation.isPending ? "Creating…" : (
             <><span>Start agreement</span><ArrowRight size={14} /></>

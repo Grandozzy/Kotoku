@@ -91,10 +91,10 @@ export default function LoginPage() {
                   if (error) setError(null);
                 }}
                 required
-                className="flex-1 px-4 py-2.5 text-sm focus:outline-none rounded-r-lg"
+                className="flex-1 rounded-r-lg bg-white px-4 py-2.5 text-sm text-neutral-900 caret-neutral-900 placeholder:text-neutral-400 focus:outline-none"
               />
             </div>
-            <p className="mt-1 text-xs text-neutral-500">
+            <p className="form-help-strong">
               Use the same number linked to your Kotoku agreements.
             </p>
           </div>
@@ -102,7 +102,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading || !isValidPhone}
-            className="inline-flex items-center justify-center gap-1.5 w-full py-2.5 rounded-full bg-neutral-900 text-white font-medium text-sm disabled:opacity-50 hover:bg-neutral-700 transition-colors"
+            className="btn-primary w-full"
           >
             {loading ? "Sending…" : <><span>Send code</span><ArrowRight size={14} /></>}
           </button>

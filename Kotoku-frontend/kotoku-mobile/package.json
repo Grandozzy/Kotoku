@@ -9,10 +9,13 @@
     "web": "expo start --web",
     "apply-patches": "patch-package",
     "postinstall": "npm run apply-patches",
-    "eas-build-post-install": "npm run apply-patches"
+    "eas-build-post-install": "npm run apply-patches",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui"
   },
   "dependencies": {
     "@expo-google-fonts/cormorant-garamond": "^0.4.1",
+    "@expo/metro-runtime": "57.0.13",
     "@hookform/resolvers": "^5.2.2",
     "@react-native-async-storage/async-storage": "3.1.1",
     "@react-native-community/netinfo": "11.4.1",
@@ -49,6 +52,7 @@
     "react-native-screens": "~4.16.0",
     "react-native-sms-user-consent": "1.0.51",
     "react-native-svg": "15.12.1",
+    "react-native-web": "0.21.2",
     "react-native-webview": "13.15.0",
     "react-native-worklets": "0.5.1",
     "tailwindcss": "^3.4.19",
@@ -56,6 +60,7 @@
     "zustand": "^5.0.12"
   },
   "devDependencies": {
+    "@playwright/test": "1.62.1",
     "@types/jest": "29.5.14",
     "@types/react": "~19.1.0",
     "babel-plugin-module-resolver": "^5.0.3",

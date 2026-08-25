@@ -86,7 +86,7 @@ export default function AgreementDetailPage() {
           onChange={(e) =>
             handleFieldChange(f.key, e.target.value === "true" ? true : e.target.value === "false" ? false : undefined)
           }
-          className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+          className="form-control focus:ring-emerald-500"
         >
           <option value="">—</option>
           <option value="true">Yes</option>
@@ -99,7 +99,7 @@ export default function AgreementDetailPage() {
         <select
           value={String(val ?? "")}
           onChange={(e) => handleFieldChange(f.key, e.target.value)}
-          className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+          className="form-control focus:ring-emerald-500"
         >
           <option value="">Select…</option>
           {f.options?.map((o) => (
@@ -121,7 +121,7 @@ export default function AgreementDetailPage() {
             f.type === "number" ? (e.target.value === "" ? "" : Number(e.target.value)) : e.target.value
           )
         }
-        className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+        className="form-control focus:ring-emerald-500"
       />
     );
   }
@@ -215,7 +215,7 @@ export default function AgreementDetailPage() {
             <button
               type="submit"
               disabled={updateMutation.isPending}
-              className="px-5 py-2.5 rounded-full bg-neutral-900 text-white text-sm font-medium disabled:opacity-50 hover:bg-neutral-700 transition-colors"
+              className="btn-primary"
             >
               {updateMutation.isPending ? "Saving…" : "Save changes"}
             </button>
@@ -262,7 +262,7 @@ export default function AgreementDetailPage() {
                 requiredFields.length > 0 && (
                   <button
                     disabled
-                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-neutral-900 text-white text-xs font-medium opacity-40 cursor-not-allowed"
+                    className="inline-flex items-center gap-1.5 rounded-full bg-neutral-300 px-4 py-2 text-xs font-medium text-neutral-700 cursor-not-allowed"
                   >
                     <span>Proceed to Evidence</span>
                     <ArrowRight size={12} />

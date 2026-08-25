@@ -106,13 +106,13 @@ function VerifyForm() {
               if (error) setError(null);
             }}
             required
-            className="w-full rounded-lg border border-neutral-200 px-3 py-3 text-center font-mono text-xl tracking-[0.25em] focus:outline-none focus:ring-2 focus:ring-blue-500 sm:px-4 sm:text-2xl sm:tracking-[0.4em]"
+            className="form-control px-3 py-3 text-center font-mono text-xl tracking-[0.25em] sm:px-4 sm:text-2xl sm:tracking-[0.4em]"
           />
           {error && <p className="text-sm text-red-600">{error}</p>}
           <button
             type="submit"
             disabled={loading || resendLoading || code.length < 6}
-            className="inline-flex items-center justify-center gap-1.5 w-full py-2.5 rounded-full bg-neutral-900 text-white font-medium text-sm disabled:opacity-50 hover:bg-neutral-700 transition-colors"
+            className="btn-primary w-full"
           >
             {loading ? "Verifying…" : <><span>Confirm</span><ArrowRight size={14} /></>}
           </button>

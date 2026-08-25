@@ -35,6 +35,66 @@
   --color-brand-mist:     var(--color-brand-mist);
 }
 
+@layer base {
+  input,
+  textarea,
+  select {
+    background: #ffffff;
+    color: #171717;
+    caret-color: #171717;
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: #9ca3af;
+    opacity: 1;
+  }
+
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus,
+  textarea:-webkit-autofill,
+  textarea:-webkit-autofill:hover,
+  textarea:-webkit-autofill:focus,
+  select:-webkit-autofill,
+  select:-webkit-autofill:hover,
+  select:-webkit-autofill:focus {
+    -webkit-text-fill-color: #171717;
+    box-shadow: 0 0 0px 1000px #ffffff inset;
+    transition: background-color 9999s ease-in-out 0s;
+  }
+}
+
+@layer components {
+  .form-control {
+    @apply w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-900 caret-neutral-900 shadow-sm placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-blue-500;
+  }
+
+  .form-control-error {
+    @apply border-red-400 focus:ring-red-500;
+  }
+
+  .form-control-readonly {
+    @apply bg-neutral-50 text-neutral-600;
+  }
+
+  .form-help {
+    @apply mt-1 text-xs text-neutral-500;
+  }
+
+  .form-help-strong {
+    @apply mt-1 text-xs text-neutral-600;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-full bg-neutral-900 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-neutral-700 disabled:cursor-not-allowed disabled:bg-neutral-300 disabled:text-neutral-700 disabled:opacity-100;
+  }
+
+  .btn-danger {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-full bg-red-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-red-200 disabled:text-red-800 disabled:opacity-100;
+  }
+}
+
 body {
   background: var(--background);
   color: var(--foreground);

@@ -108,7 +108,7 @@ function PartyCard({ party, onEdit }: { party: PartyInput; onEdit: () => void })
           <p className="mt-0.5 text-xs text-neutral-500">
             {ROLE_LABEL[party.role]} · {party.phone || "no phone"}
           </p>
-          <p className="mt-0.5 text-xs text-neutral-400">
+          <p className="mt-0.5 text-xs text-neutral-500">
             {ID_TYPE_LABEL[party.id_type]} — {party.id_number || "no ID number"}
           </p>
         </div>
@@ -166,7 +166,7 @@ function PartyForm({
           <select
             value={form.role}
             onChange={(event) => setField("role", event.target.value)}
-            className="mt-1 w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="form-control mt-1"
           >
             {ROLES.filter(
               (role) => allowedRoles.includes(role) || role === form.role || role === "witness",
@@ -191,7 +191,7 @@ function PartyForm({
             placeholder="As on Ghana Card"
             value={form.full_name}
             onChange={(event) => setField("full_name", event.target.value)}
-            className={`mt-1 w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${showError("full_name") ? "border-red-400" : "border-neutral-200"}`}
+            className={`form-control mt-1 ${showError("full_name") ? "form-control-error" : ""}`}
           />
           {showError("full_name") && (
             <p className="mt-1 text-xs text-red-500">{showError("full_name")}</p>
@@ -206,12 +206,12 @@ function PartyForm({
             placeholder="+233XXXXXXXXX or 0XXXXXXXXX"
             value={form.phone}
             onChange={(event) => setField("phone", event.target.value)}
-            className={`mt-1 w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${showError("phone") ? "border-red-400" : "border-neutral-200"}`}
+            className={`form-control mt-1 ${showError("phone") ? "form-control-error" : ""}`}
           />
           {showError("phone") ? (
             <p className="mt-1 text-xs text-red-500">{showError("phone")}</p>
           ) : (
-            <p className="mt-1 text-xs text-neutral-400">E.164 or local format</p>
+            <p className="form-help-strong">E.164 or local format</p>
           )}
         </div>
         <div>
@@ -229,7 +229,7 @@ function PartyForm({
             placeholder="e.g. GHA-123456789-0"
             value={form.id_number}
             onChange={(event) => setField("id_number", formatGhanaCardPin(event.target.value))}
-            className={`mt-1 w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${showError("id_number") ? "border-red-400" : "border-neutral-200"}`}
+            className={`form-control mt-1 ${showError("id_number") ? "form-control-error" : ""}`}
           />
           {showError("id_number") && (
             <p className="mt-1 text-xs text-red-500">{showError("id_number")}</p>
@@ -240,7 +240,7 @@ function PartyForm({
         <button
           onClick={handleSave}
           disabled={attempted && !valid}
-          className="rounded-full bg-neutral-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-neutral-700 disabled:opacity-40"
+          className="btn-primary px-4 py-2"
         >
           Save party
         </button>
@@ -305,12 +305,10 @@ function IdentityUploadButton({
 
 function OwnIdentitySection({
   party,
-  agreementId,
   uploadStates,
   onUpload,
 }: {
   party: Party;
-  agreementId: number;
   uploadStates: Record<string, UploadState>;
   onUpload: (party: Party, side: "front" | "back", file: File) => Promise<void>;
 }) {
@@ -463,7 +461,7 @@ function CounterpartyInviteSection({
           <button
             onClick={() => void handleSendInvite()}
             disabled={sending}
-            className="inline-flex items-center gap-2 self-start rounded-full border border-neutral-200 px-4 py-2 text-sm font-medium transition-colors hover:bg-neutral-50 disabled:opacity-50"
+            className="inline-flex items-center gap-2 self-start rounded-full border border-neutral-200 px-4 py-2 text-sm font-medium text-neutral-800 transition-colors hover:bg-neutral-50 disabled:cursor-not-allowed disabled:border-neutral-200 disabled:bg-neutral-100 disabled:text-neutral-500"
           >
             {sending ? (
               <Loader2 size={13} className="animate-spin" />
@@ -474,7 +472,7 @@ function CounterpartyInviteSection({
           </button>
 
           {inviteSent && !sendError && (
-            <p className="text-xs text-neutral-500">
+            <p className="form-help-strong">
               An SMS was sent to {party.phone}. They can open the link on their device to verify.
             </p>
           )}
@@ -629,7 +627,7 @@ export default function PartiesPage() {
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-xl font-bold tracking-tight">Parties</h1>
         {scenario && (
-          <p className="text-xs text-neutral-400">
+          <p className="text-xs text-neutral-500">
             Required: {scenario.roles.map((r) => ROLE_LABEL[r]).join(" + ")}
           </p>
         )}
@@ -706,7 +704,7 @@ export default function PartiesPage() {
           {isDirty && (
             <button
               onClick={() => setDraftParties(null)}
-              className="text-sm text-neutral-400 hover:text-neutral-600"
+              className="text-sm text-neutral-500 hover:text-neutral-700"
             >
               Discard changes
             </button>
@@ -737,7 +735,6 @@ export default function PartiesPage() {
           {myParty && (
             <OwnIdentitySection
               party={myParty}
-              agreementId={agreementId}
               uploadStates={uploadStates}
               onUpload={handleIdentityUpload}
             />
@@ -767,7 +764,7 @@ export default function PartiesPage() {
           <button
             onClick={() => void handlePrimaryAction()}
             disabled={saveMutation.isPending || (!isDirty && !identityComplete)}
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-neutral-900 px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-neutral-700 disabled:opacity-50"
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-neutral-900 px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-neutral-700 disabled:cursor-not-allowed disabled:bg-neutral-300 disabled:text-neutral-700 disabled:opacity-100"
           >
             {saveMutation.isPending ? (
               "Saving…"

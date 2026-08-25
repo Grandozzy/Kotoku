@@ -196,7 +196,7 @@ export default function ConsentPage() {
           <button
             onClick={() => requestMutation.mutate()}
             disabled={requestMutation.isPending || !!capReached}
-            className="px-5 py-2.5 rounded-full bg-neutral-900 text-white text-sm font-medium disabled:opacity-50 hover:bg-neutral-700 transition-colors w-fit"
+            className="btn-primary w-fit"
           >
             {requestMutation.isPending ? "Sending…" : "Send OTPs to all parties"}
           </button>
@@ -239,7 +239,7 @@ export default function ConsentPage() {
                 placeholder="+233XXXXXXXXX"
                 value={authenticatedPhone ?? ""}
                 readOnly
-                className="mt-1 w-full rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm text-neutral-500"
+                className="form-control form-control-readonly mt-1"
               />
             </div>
             <div>
@@ -251,7 +251,7 @@ export default function ConsentPage() {
                 placeholder="123456"
                 value={otp}
                 onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                className="mt-1 w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm font-mono tracking-widest text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="form-control mt-1 text-center font-mono tracking-widest"
               />
             </div>
           </div>
@@ -265,7 +265,7 @@ export default function ConsentPage() {
                 ownRecord.granted ||
                 otp.length < 6
               }
-              className="px-5 py-2.5 rounded-full bg-neutral-900 text-white text-sm font-medium disabled:opacity-50 hover:bg-neutral-700 transition-colors"
+              className="btn-primary"
             >
               {confirmMutation.isPending ? "Confirming…" : "Confirm consent"}
             </button>
