@@ -7,13 +7,11 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
-    "apply-patches": "patch-package",
-    "postinstall": "npm run apply-patches",
-    "eas-build-post-install": "npm run apply-patches",
     "test:e2e": "npx playwright test",
     "test:e2e:ui": "npx playwright test --ui"
   },
   "dependencies": {
+    "@eabdullazyanov/react-native-sms-user-consent": "1.3.0",
     "@expo-google-fonts/cormorant-garamond": "^0.4.1",
     "@expo/metro-runtime": "57.0.13",
     "@hookform/resolvers": "^5.2.2",
@@ -50,7 +48,6 @@
     "react-native-reanimated": "~4.1.1",
     "react-native-safe-area-context": "~5.6.0",
     "react-native-screens": "~4.16.0",
-    "react-native-sms-user-consent": "1.0.51",
     "react-native-svg": "15.12.1",
     "react-native-web": "0.21.2",
     "react-native-webview": "13.15.0",
@@ -64,7 +61,6 @@
     "@types/jest": "29.5.14",
     "@types/react": "~19.1.0",
     "babel-plugin-module-resolver": "^5.0.3",
-    "patch-package": "8.0.1",
     "typescript": "~5.9.2"
   },
   "private": true

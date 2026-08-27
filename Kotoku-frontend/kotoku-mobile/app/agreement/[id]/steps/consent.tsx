@@ -558,6 +558,7 @@ function ConsentPartyBlock({
             onChange={onCodeChange}
             error={error}
             disabled={disabled || loading}
+            enableSmsAutofill
           />
           <Button
             title={`Confirm ${role}`}

@@ -19,6 +19,7 @@ interface OTPInputProps {
   error?: string;
   disabled?: boolean;
   secureTextEntry?: boolean;
+  enableSmsAutofill?: boolean;
 }
 
 const normalizeOtpValue = (text: string, length: number) =>
@@ -31,6 +32,7 @@ export const OTPInput: React.FC<OTPInputProps> = ({
   error,
   disabled,
   secureTextEntry,
+  enableSmsAutofill = false,
 }) => {
   const inputRef = useRef<TextInput | null>(null);
   const displayValue = normalizeOtpValue(value, length);
@@ -55,7 +57,7 @@ export const OTPInput: React.FC<OTPInputProps> = ({
     },
     [focusInput, handleOtpChange],
   );
-  useSmsOtp(length, handleSmsCode);
+  useSmsOtp(enableSmsAutofill && !disabled ? length : 0, handleSmsCode);
 
   const cellBorder = error ? "border-semantic-error" : "border-border-subtle";
   const cellBorderFilled = error ? "border-semantic-error" : "border-brand-primary";
@@ -96,6 +98,13 @@ export const OTPInput: React.FC<OTPInputProps> = ({
           keyboardType="number-pad"
           maxLength={length}
           textContentType={Platform.OS === "ios" ? "oneTimeCode" : undefined}
+          autoComplete={
+            Platform.OS === "android"
+              ? "sms-otp"
+              : Platform.OS === "ios"
+                ? "one-time-code"
+                : undefined
+          }
           value={displayValue}
           editable={!disabled}
           onChangeText={handleOtpChange}

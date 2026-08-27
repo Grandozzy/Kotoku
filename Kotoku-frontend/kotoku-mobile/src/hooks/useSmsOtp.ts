@@ -17,31 +17,23 @@ import { Platform } from "react-native";
  */
 export function useSmsOtp(length: number, onCode: (code: string) => void) {
   useEffect(() => {
-    if (Platform.OS !== "android") return;
+    if (Platform.OS !== "android" || length <= 0) return;
 
     let cancelled = false;
+    let stopSmsHandling: (() => void) | null = null;
 
     const startListener = async () => {
       try {
-        // Dynamic import so the native module is never loaded on iOS.
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        const SMSUserConsent = (await import("react-native-sms-user-consent"))
-          .default;
-
-        const result = await SMSUserConsent.listenOTP();
+        const { retrieveVerificationCode, startSmsHandling: startSmsConsent } =
+          await import("@eabdullazyanov/react-native-sms-user-consent");
         if (cancelled) return;
 
-        const message: string = result?.receivedOtpMessage ?? "";
-        // Extract the first run of `length` consecutive digits from the message.
-        const match = message.match(/\d+/g);
-        if (!match) return;
-
-        const digits = match
-          .join("")
-          .replace(/\D/g, "")
-          .match(new RegExp(`\\d{${length}}`))?.[0];
-
-        if (digits) onCode(digits);
+        stopSmsHandling = startSmsConsent((event) => {
+          if (cancelled) return;
+          const message = event?.sms ?? "";
+          const digits = retrieveVerificationCode(message, length);
+          if (digits) onCode(digits);
+        });
       } catch {
         // User dismissed the dialog or no SMS arrived — silently ignore.
       }
@@ -51,10 +43,7 @@ export function useSmsOtp(length: number, onCode: (code: string) => void) {
 
     return () => {
       cancelled = true;
-      // Best-effort cleanup; ignore errors if listener already resolved.
-      import("react-native-sms-user-consent")
-        .then(({ default: SMSUserConsent }) => SMSUserConsent.removeOTPListener())
-        .catch(() => {});
+      stopSmsHandling?.();
     };
   }, [length, onCode]);
 }

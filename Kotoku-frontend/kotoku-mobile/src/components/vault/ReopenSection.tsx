@@ -278,6 +278,7 @@ function ReopenPartyBlock({
             onChange={onCodeChange}
             error={error}
             disabled={disabled || loading}
+            enableSmsAutofill
           />
           <Button
             title={`Confirm ${displayName}`}
