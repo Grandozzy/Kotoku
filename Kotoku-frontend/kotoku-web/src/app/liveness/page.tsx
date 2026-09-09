@@ -49,12 +49,14 @@ function LivenessDetector() {
       onAnalysisComplete={async () => {
         postToNative({ type: "done" });
       }}
-      onError={(error) =>
+      onError={(error) => {
+        const state = (error as { state?: string }).state;
+        console.error("[Liveness] onError state=%s error=%o", state, error);
         postToNative({
           type: "error",
-          message: String((error as { state?: string }).state ?? error),
-        })
-      }
+          message: state ?? String(error),
+        });
+      }}
     />
   );
 }

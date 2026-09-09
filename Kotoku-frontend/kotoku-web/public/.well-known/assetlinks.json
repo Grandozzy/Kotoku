@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.kotoku.mobile",
+      "sha256_cert_fingerprints": [
+        "AA:D7:F4:53:8D:E1:1A:B8:0B:FA:96:99:69:ED:48:9D:A6:48:62:D6"
+      ]
+    }
+  }
+]

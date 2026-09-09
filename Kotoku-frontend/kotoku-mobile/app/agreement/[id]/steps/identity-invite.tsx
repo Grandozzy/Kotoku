@@ -2,7 +2,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { CheckCircle2, ScanFace, ShieldCheck, XCircle } from "lucide-react-native";
 import { useRef, useState } from "react";
-import { ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { Platform, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import * as ImagePicker from "expo-image-picker";
 
 import { createLivenessSession, submitLivenessResult } from "@/api/agreements";
 import { LivenessWebView } from "@/components/identity/LivenessWebView";
@@ -74,6 +75,13 @@ export default function IdentityInviteStep() {
     setLivenessError(null);
     setLivenessLoading(true);
     try {
+      if (Platform.OS === "android") {
+        const { status } = await ImagePicker.requestCameraPermissionsAsync();
+        if (status !== "granted") {
+          setLivenessError("Camera access is required for the face check. Please allow camera permission and try again.");
+          return;
+        }
+      }
       const { session_id, region } = await createLivenessSession(agreementId, typedRole);
       setLivenessSession({ sessionId: session_id, region });
     } catch {

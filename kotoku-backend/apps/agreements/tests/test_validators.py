@@ -226,6 +226,30 @@ class TestUsedVehicleSaleValidation:
         codes = {e.code for e in result.errors}
         assert "MISSING_IDENTITY_SELFIE" in codes
 
+    def test_liveness_passed_satisfies_selfie_gate(self):
+        # Party verified via face liveness (no selfie EvidenceItem) must not
+        # trigger MISSING_IDENTITY_SELFIE so the agreement can be sealed.
+        a = self._base()
+        for t in ("vehicle_photo_front", "vehicle_photo_rear", "vehicle_photo_side"):
+            _evidence(a, t)
+        _identity_evidence(a, "seller")
+        _evidence(a, "buyer_ghana_card_front")
+        _evidence(a, "buyer_ghana_card_back")
+        PartyIdentityVerification.objects.create(
+            party=a.parties.get(role="buyer"),
+            status=PartyIdentityVerification.Status.VERIFIED,
+            liveness_status="passed",
+            entered_pin=a.parties.get(role="buyer").id_number,
+            entered_full_name=a.parties.get(role="buyer").display_name,
+            ocr_pin=a.parties.get(role="buyer").id_number,
+            ocr_full_name=a.parties.get(role="buyer").display_name.upper(),
+            detail="Liveness verified.",
+            face_match_score=98.0,
+        )
+        result = validate_agreement(a)
+        codes = {e.code for e in result.errors}
+        assert "MISSING_IDENTITY_SELFIE" not in codes
+
     def test_pending_evidence_not_counted(self):
         a = self._base()
         # Three pending vehicle photos — should NOT count toward the minimum

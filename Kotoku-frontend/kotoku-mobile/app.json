@@ -6,7 +6,6 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
     "scheme": "kotoku",
     "splash": {
       "image": "./assets/splash-icon.png",
@@ -18,7 +17,8 @@
       "bundleIdentifier": "com.kotoku.mobile",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
-      }
+      },
+      "associatedDomains": ["applinks:kotoku-app.com"]
     },
     "android": {
       "adaptiveIcon": {
@@ -27,7 +27,21 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.kotoku.mobile"
+      "package": "com.kotoku.mobile",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "kotoku-app.com",
+              "pathPrefix": "/invite"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -49,7 +63,13 @@
         }
       ],
       "expo-sqlite",
-      "expo-build-properties"
+      [
+        "expo-build-properties",
+        {
+          "android": { "newArchEnabled": false },
+          "ios": { "newArchEnabled": true }
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

@@ -24,9 +24,10 @@ export function useSmsOtp(length: number, onCode: (code: string) => void) {
 
     const startListener = async () => {
       try {
-        const { retrieveVerificationCode, startSmsHandling: startSmsConsent } =
-          await import("@eabdullazyanov/react-native-sms-user-consent");
+        const mod = await import("@eabdullazyanov/react-native-sms-user-consent");
         if (cancelled) return;
+        if (typeof mod?.startSmsHandling !== "function") return;
+        const { retrieveVerificationCode, startSmsHandling: startSmsConsent } = mod;
 
         stopSmsHandling = startSmsConsent((event) => {
           if (cancelled) return;
@@ -35,7 +36,8 @@ export function useSmsOtp(length: number, onCode: (code: string) => void) {
           if (digits) onCode(digits);
         });
       } catch {
-        // User dismissed the dialog or no SMS arrived — silently ignore.
+        // Library not available or incompatible with current RN arch — OTP autofill
+        // is optional; manual entry still works.
       }
     };
 

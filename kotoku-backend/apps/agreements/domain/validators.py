@@ -220,7 +220,7 @@ def _check_party_ghana_card_uploads(
                 field_name="evidence",
             )
             continue
-        if not state.selfie_uploaded:
+        if not state.selfie_uploaded and state.liveness_status != "passed":
             result.add(
                 code="MISSING_IDENTITY_SELFIE",
                 message=f"A confirmed selfie photo is required for the {party.role}.",

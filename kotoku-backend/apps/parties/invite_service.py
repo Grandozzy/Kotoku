@@ -43,7 +43,7 @@ class PartyInviteService:
         agreement = party.agreement
         body = (
             f'You have been invited to verify your identity for "{agreement.title}" on Kotoku. '
-            f"Open the Kotoku app and tap: {link}"
+            f"Tap to verify (opens app or browser): {link}"
         )
 
         def _send() -> None:
