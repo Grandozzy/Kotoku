@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { Controller, useForm } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from "react-native";
 import { z } from "zod";
 import { FileBadge2 } from "lucide-react-native";

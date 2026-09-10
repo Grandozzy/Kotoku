@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Clock } from "lucide-react-native";
 import { Text, View } from "react-native";
 import { useAnnotations, useDeleteAnnotation } from "@/features/annotations";

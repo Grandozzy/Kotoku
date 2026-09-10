@@ -1,4 +1,4 @@
-import { Camera, CheckCircle, ImagePlus, RefreshCw } from "lucide-react-native";
+import { CheckCircle, ImagePlus, RefreshCw } from "lucide-react-native";
 import { ActivityIndicator, Image, Pressable, Text, View } from "react-native";
 
 import { colors } from "@/theme/tokens";

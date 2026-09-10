@@ -1,5 +1,5 @@
 import { ReactNode, useRef } from "react";
-import { Animated, Pressable, View } from "react-native";
+import { Animated, Pressable } from "react-native";
 import { Swipeable } from "react-native-gesture-handler";
 import { Pencil, Trash2 } from "lucide-react-native";
 

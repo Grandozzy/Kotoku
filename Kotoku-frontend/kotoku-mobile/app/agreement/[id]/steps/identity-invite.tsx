@@ -1,7 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { CheckCircle2, ScanFace, ShieldCheck, XCircle } from "lucide-react-native";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Platform, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 
@@ -18,7 +18,6 @@ import {
 import type { Party } from "@/types/agreement";
 import { useAgreement } from "@/features/agreements/useAgreementDraft";
 import { useEvidenceUpload } from "@/features/evidence/useEvidenceUpload";
-import { getApiErrorMessage } from "@/lib/errorHandler";
 
 interface UploadSheetState {
   slotId: string;
@@ -40,8 +39,30 @@ export default function IdentityInviteStep() {
   const [livenessSession, setLivenessSession] = useState<{ sessionId: string; region: string } | null>(null);
   const [livenessLoading, setLivenessLoading] = useState(false);
   const [livenessError, setLivenessError] = useState<string | null>(null);
+  const [submittingResult, setSubmittingResult] = useState(false);
+  const [localLivenessStatus, setLocalLivenessStatus] = useState<"passed" | "failed" | null>(null);
+  const [pollVerification, setPollVerification] = useState(false);
   const [uploadSheet, setUploadSheet] = useState<UploadSheetState | null>(null);
   const processingResult = useRef(false);
+
+  // Poll the agreement every 3 s after liveness passes until identity is fully verified.
+  useEffect(() => {
+    if (!pollVerification) return;
+    const timer = setInterval(() => {
+      void queryClient.invalidateQueries({ queryKey: ["agreement", agreementId] });
+    }, 3000);
+    return () => clearInterval(timer);
+  }, [pollVerification, agreementId, queryClient]);
+
+  // Stop polling once the party's identity is fully verified.
+  useEffect(() => {
+    if (!pollVerification || !agreement) return;
+    const typedRoleInner = role as Party["role"];
+    const partyInner = agreement.parties.find((p) => p.role === typedRoleInner);
+    if (partyInner && isPartyIdentityComplete(partyInner)) {
+      setPollVerification(false);
+    }
+  }, [agreement, pollVerification, role]);
 
   if (isLoading || !agreement) {
     return <ScreenLoader />;
@@ -69,10 +90,13 @@ export default function IdentityInviteStep() {
   const backItem = items[backType];
   const livenessPassed = party.livenessStatus === "passed";
   const livenessFailed = party.livenessStatus === "failed";
+  const effectiveLivenessPassed = localLivenessStatus === "passed" || livenessPassed;
+  const effectiveLivenessFailed = !effectiveLivenessPassed && (localLivenessStatus === "failed" || livenessFailed);
   const complete = isPartyIdentityComplete(party);
 
   const handleStartLiveness = async () => {
     setLivenessError(null);
+    setLocalLivenessStatus(null);
     setLivenessLoading(true);
     try {
       if (Platform.OS === "android") {
@@ -94,14 +118,20 @@ export default function IdentityInviteStep() {
   const handleLivenessComplete = async () => {
     if (!livenessSession || processingResult.current) return;
     processingResult.current = true;
+    setSubmittingResult(true);
     setLivenessSession(null);
     try {
-      await submitLivenessResult(agreementId, typedRole);
+      const result = await submitLivenessResult(agreementId, typedRole);
+      setLocalLivenessStatus(result.status);
+      if (result.status === "passed") {
+        setPollVerification(true);
+      }
       await queryClient.invalidateQueries({ queryKey: ["agreement", agreementId] });
     } catch {
       setLivenessError("Face check result could not be retrieved. Please try again.");
     } finally {
       processingResult.current = false;
+      setSubmittingResult(false);
     }
   };
 
@@ -217,20 +247,20 @@ export default function IdentityInviteStep() {
           </View>
 
           <TouchableOpacity
-            disabled={livenessLoading || livenessPassed}
+            disabled={livenessLoading || submittingResult || effectiveLivenessPassed}
             onPress={() => void handleStartLiveness()}
             className={`flex-row items-center gap-sm rounded-xl border p-md ${
-              livenessPassed
+              effectiveLivenessPassed
                 ? "border-semantic-success/30 bg-semantic-success/10"
-                : livenessFailed
+                : effectiveLivenessFailed
                   ? "border-semantic-error/30 bg-semantic-error/10"
                   : "border-border-subtle bg-surface-card"
             }`}
           >
             <View className="h-10 w-10 items-center justify-center rounded-xl bg-brand-primary/10">
-              {livenessPassed ? (
+              {effectiveLivenessPassed ? (
                 <CheckCircle2 size={20} color="#16a34a" strokeWidth={1.8} />
-              ) : livenessFailed ? (
+              ) : effectiveLivenessFailed ? (
                 <XCircle size={20} color="#dc2626" strokeWidth={1.8} />
               ) : (
                 <ScanFace size={20} color="#2563EB" strokeWidth={1.8} />
@@ -238,19 +268,23 @@ export default function IdentityInviteStep() {
             </View>
             <View className="flex-1">
               <Text className="text-sm font-semibold text-ink-primary">
-                {livenessPassed
+                {effectiveLivenessPassed
                   ? "Face check passed"
-                  : livenessFailed
+                  : effectiveLivenessFailed
                     ? "Face check failed — tap to retry"
-                    : livenessLoading
-                      ? "Starting face check…"
-                      : "Start face check"}
+                    : submittingResult
+                      ? "Verifying…"
+                      : livenessLoading
+                        ? "Starting face check…"
+                        : "Start face check"}
               </Text>
-              {!livenessPassed && (
+              {!effectiveLivenessPassed && (
                 <Text className="text-xs text-ink-muted">
-                  {livenessLoading
-                    ? "Preparing camera…"
-                    : "Follow the on-screen prompts to confirm your identity"}
+                  {submittingResult
+                    ? "Checking your result, please wait…"
+                    : livenessLoading
+                      ? "Preparing camera…"
+                      : "Follow the on-screen prompts to confirm your identity"}
                 </Text>
               )}
             </View>
@@ -263,6 +297,15 @@ export default function IdentityInviteStep() {
 
         {uploadError && (
           <NoticeCard variant="error" title="Upload needs attention" body={uploadError} compact />
+        )}
+
+        {effectiveLivenessPassed && !complete && (
+          <NoticeCard
+            variant="success"
+            title="Face check passed"
+            body="Your Ghana Card details are being verified. This usually takes a few seconds."
+            compact
+          />
         )}
 
         {complete && (

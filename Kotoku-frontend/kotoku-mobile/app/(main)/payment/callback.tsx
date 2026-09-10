@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { AlertCircle, CheckCircle2, Clock3, RefreshCw } from "lucide-react-native";
+import { AlertCircle, CheckCircle2, Clock3 } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Text, View } from "react-native";
 

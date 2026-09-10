@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Modal, TextInput } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { AlertCircle, CheckCircle2, ChevronLeft, Clock, Loader2, Pencil } from "lucide-react-native";
+import { CheckCircle2, ChevronLeft, Clock, Loader2, Pencil } from "lucide-react-native";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 

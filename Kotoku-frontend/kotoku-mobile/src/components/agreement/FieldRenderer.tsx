@@ -1,5 +1,5 @@
 import { Controller, Control } from "react-hook-form";
-import { CalendarDays, CheckCircle2, Coins, Hash, ListFilter } from "lucide-react-native";
+import { CalendarDays, CheckCircle2, Coins, ListFilter } from "lucide-react-native";
 import { Pressable, Switch, Text, View } from "react-native";
 
 import { TextInput } from "@/components/ui";

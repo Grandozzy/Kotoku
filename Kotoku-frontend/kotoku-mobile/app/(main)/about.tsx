@@ -1,4 +1,4 @@
-import { ChevronLeft, ShieldCheck, Sparkles } from "lucide-react-native";
+import { ChevronLeft, Sparkles } from "lucide-react-native";
 import { Linking, Pressable, ScrollView, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";

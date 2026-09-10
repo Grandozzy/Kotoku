@@ -1,4 +1,3 @@
-import { AlertCircle } from "lucide-react-native";
 import { downloadAsync, deleteAsync, cacheDirectory } from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
 import { Loader } from "lucide-react-native";
