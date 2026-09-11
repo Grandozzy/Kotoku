@@ -219,7 +219,7 @@ class PartyService:
                     }
                     if party.id_number in existing_pins:
                         raise DomainError(
-                            f"Ghana Card PIN must be unique per agreement. Another party already uses '{party.id_number}'."
+                            f"Ghana Card Number must be unique per agreement. Another party already uses '{party.id_number}'."
                         )
             if update_fields:
                 update_fields.append("updated_at")

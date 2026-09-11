@@ -431,7 +431,7 @@ class TestIdentityBaselineValidation:
         a = _agreement(acct, scenario="custom_deal")
         _party(a, "buyer")
         _party(a, "seller")
-        # Witness with no identity data — should NOT trigger Ghana Card PIN errors
+        # Witness with no identity data — should NOT trigger Ghana Card Number errors
         Party.objects.create(
             agreement=a,
             role="witness",

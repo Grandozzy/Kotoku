@@ -82,7 +82,7 @@ function validateParty(party: PartyInput): PartyFieldErrors {
     party.id_number.trim().length > 0 &&
     !GHANA_CARD_PIN_REGEX.test(normalizeGhanaCardPin(party.id_number))
   ) {
-    errors.id_number = "Use the Ghana Card PIN format GHA-000000000-0";
+    errors.id_number = "Use the Ghana Card Number format GHA-000000000-0";
   }
   return errors;
 }
@@ -222,7 +222,7 @@ function PartyForm({
         </div>
         <div className="col-span-2">
           <label className="text-xs font-medium text-neutral-600">
-            Ghana Card PIN <span className="text-red-400">*</span>
+            Ghana Card Number <span className="text-red-400">*</span>
           </label>
           <input
             type="text"
@@ -716,7 +716,7 @@ export default function PartiesPage() {
         <p className="text-sm text-red-600">
           {getApiErrorMessage(
             saveMutation.error,
-            "Could not save parties. Check phone format and Ghana Card PINs.",
+            "Could not save parties. Check phone format and Ghana Card Numbers.",
           )}
         </p>
       )}
@@ -780,7 +780,7 @@ export default function PartiesPage() {
 
       {parties.length >= 2 && !allPartiesComplete && (
         <p className="text-xs text-amber-600">
-          Some party entries are incomplete. Fill in all required fields and valid Ghana Card PINs
+          Some party entries are incomplete. Fill in all required fields and valid Ghana Card Numbers
           for every party before proceeding.
         </p>
       )}

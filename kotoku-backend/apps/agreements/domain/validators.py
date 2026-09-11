@@ -160,7 +160,7 @@ def _check_room_rental(agreement, parties: list, result: ValidationResult) -> No
 
 
 def _check_identity_baseline(parties: list, result: ValidationResult) -> None:
-    """Every non-witness party must have a valid, unique Ghana Card PIN recorded."""
+    """Every non-witness party must have a valid, unique Ghana Card Number recorded."""
     seen_pins: dict[str, str] = {}
     for party in parties:
         if not is_identity_required(party.role):
@@ -169,8 +169,8 @@ def _check_identity_baseline(parties: list, result: ValidationResult) -> None:
             result.add(
                 code="MISSING_GHANA_CARD_PIN",
                 message=(
-                    f"Ghana Card PIN is required for the {party.role}. "
-                    "Please provide the Ghana Card PIN."
+                    f"Ghana Card Number is required for the {party.role}. "
+                    "Please provide the Ghana Card Number."
                 ),
                 field_name="parties",
             )
@@ -179,7 +179,7 @@ def _check_identity_baseline(parties: list, result: ValidationResult) -> None:
             result.add(
                 code="INVALID_GHANA_CARD_PIN",
                 message=(
-                    f"The {party.role} must use a valid Ghana Card PIN in the form "
+                    f"The {party.role} must use a valid Ghana Card Number in the form "
                     "GHA-000000000-0."
                 ),
                 field_name="parties",
@@ -190,7 +190,7 @@ def _check_identity_baseline(parties: list, result: ValidationResult) -> None:
             result.add(
                 code="DUPLICATE_GHANA_CARD_PIN",
                 message=(
-                    f"The {party.role} and {seen_pins[normalized_pin]} cannot share the same Ghana Card PIN."
+                    f"The {party.role} and {seen_pins[normalized_pin]} cannot share the same Ghana Card Number."
                 ),
                 field_name="parties",
             )

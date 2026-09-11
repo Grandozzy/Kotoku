@@ -4,8 +4,8 @@ export const GHANA_CARD_PIN_REGEX = /^GHA-\d{9}-\d$/;
 
 const IDENTITY_FAILURE_MESSAGES: Record<string, string> = {
   ghana_card_markers_missing: "The uploaded document does not look like a Ghana Card. Upload a clear photo of the actual card.",
-  ocr_pin_missing: "We could not read the Ghana Card PIN from the card image. Retake the photo with sharper focus and less glare.",
-  ocr_pin_mismatch: "The Ghana Card PIN on the image does not match the PIN entered for this party.",
+  ocr_pin_missing: "We could not read the Ghana Card Number from the card image. Retake the photo with sharper focus and less glare.",
+  ocr_pin_mismatch: "The Ghana Card Number on the image does not match the number entered for this party.",
   ocr_name_mismatch: "The name read from the Ghana Card does not match the party name entered.",
   selfie_face_missing: "No face was detected. Try the face check again in better lighting.",
   face_match_failed: "The face check did not match the Ghana Card portrait. Try again in better lighting.",

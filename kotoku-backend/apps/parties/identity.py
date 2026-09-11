@@ -32,10 +32,10 @@ def validate_party_identity_input(*, role: str, id_type: str, id_number: str) ->
 
     normalized_pin = normalize_ghana_card_pin(id_number)
     if not normalized_pin:
-        raise DomainError(f"Ghana Card PIN is required for role '{role}'.")
+        raise DomainError(f"Ghana Card Number is required for role '{role}'.")
     if not is_valid_ghana_card_pin(normalized_pin):
         raise DomainError(
-            f"Ghana Card PIN must use the format GHA-000000000-0 for role '{role}'."
+            f"Ghana Card Number must use the format GHA-000000000-0 for role '{role}'."
         )
     return normalized_pin
 
@@ -51,7 +51,7 @@ def ensure_unique_pins(parties_data: list[dict]) -> None:
             continue
         if pin in pins:
             raise DomainError(
-                f"Ghana Card PIN must be unique per agreement. Roles '{pins[pin]}' and '{role}' cannot share one."
+                f"Ghana Card Number must be unique per agreement. Roles '{pins[pin]}' and '{role}' cannot share one."
             )
         pins[pin] = role
 

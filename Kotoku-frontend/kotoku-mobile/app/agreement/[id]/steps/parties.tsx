@@ -70,7 +70,7 @@ const partySchema = z.object({
     .transform((value) => normalizeGhanaCardPin(value))
     .refine(
       (value) => GHANA_CARD_PIN_REGEX.test(value),
-      "Use the Ghana Card PIN format GHA-000000000-0",
+      "Use the Ghana Card Number format GHA-000000000-0",
     ),
 });
 
@@ -82,7 +82,7 @@ const partiesSchema = z
   .refine(
     (value) => value.partyA.idNumber !== value.partyB.idNumber,
     {
-      message: "Buyer and seller cannot share the same Ghana Card PIN.",
+      message: "Buyer and seller cannot share the same Ghana Card Number.",
       path: ["partyB", "idNumber"],
     },
   );
@@ -297,7 +297,7 @@ export default function PartiesStep() {
       setSaveError(
         getApiErrorMessage(
           error,
-          "Could not save parties. Check the Ghana Card PINs and phone numbers.",
+          "Could not save parties. Check the Ghana Card Numbers and phone numbers.",
         ),
       );
     } finally {
@@ -768,7 +768,7 @@ function PartySection({
         name={`${prefix}.idNumber` as const}
         render={({ field: { onChange, value } }) => (
           <TextInput
-            label="Ghana Card PIN"
+            label="Ghana Card Number"
             placeholder="GHA-123456789-0"
             required
             error={errors?.idNumber?.message}
