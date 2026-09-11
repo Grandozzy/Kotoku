@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Modal, TextInput } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { CheckCircle2, ChevronLeft, Clock, Loader2, Pencil } from "lucide-react-native";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Badge, BottomSheet, Button, NoticeCard, ScreenLoader } from "@/components/ui";
@@ -109,11 +109,16 @@ export default function VaultDetailScreen() {
   const canRaiseDispute = record.agreementStatus === "sealed";
 
   return (
-    <View className="flex-1">
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+    >
       <ScrollView
       className="flex-1 bg-surface-canvas"
       contentContainerClassName="pb-2xl"
       keyboardShouldPersistTaps="handled"
+      automaticallyAdjustKeyboardInsets
+      keyboardDismissMode="interactive"
     >
       {/* Top bar */}
       <View className="flex-row items-center px-lg pb-md gap-md" style={{ paddingTop: insets.top + 12 }}>
@@ -397,7 +402,7 @@ export default function VaultDetailScreen() {
         <Pencil size={24} color="white" />
       </Pressable>
     )}
-  </View>
+  </KeyboardAvoidingView>
   );
 }
 

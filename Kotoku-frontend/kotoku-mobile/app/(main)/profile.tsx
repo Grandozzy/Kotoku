@@ -147,6 +147,8 @@ export default function ProfileScreen() {
       contentContainerClassName="px-lg pb-2xl gap-lg"
       contentContainerStyle={{ paddingTop: insets.top + 12 }}
       keyboardShouldPersistTaps="handled"
+      automaticallyAdjustKeyboardInsets
+      keyboardDismissMode="interactive"
     >
       {/* Header */}
       <View>

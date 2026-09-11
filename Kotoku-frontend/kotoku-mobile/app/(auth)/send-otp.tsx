@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useForm } from "react-hook-form";
-import { ScrollView, Text, View } from "react-native";
+import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from "react-native";
 
 function normalizeLocalDigits(input: string): string {
   const d = input.replace(/\D/g, "");
@@ -37,10 +37,16 @@ export default function SendOtpScreen() {
   };
 
   return (
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+    >
     <ScrollView
       className="flex-1 bg-surface-canvas"
       contentContainerClassName="flex-grow px-lg py-2xl justify-center gap-xl"
       keyboardShouldPersistTaps="handled"
+      automaticallyAdjustKeyboardInsets
+      keyboardDismissMode="interactive"
     >
       <View className="items-center gap-md">
         <KotokuLogo variant="stacked" size={72} color="navy" />
@@ -124,5 +130,6 @@ export default function SendOtpScreen() {
         compact
       />
     </ScrollView>
+    </KeyboardAvoidingView>
   );
 }

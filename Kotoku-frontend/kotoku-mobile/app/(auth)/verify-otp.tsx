@@ -1,7 +1,7 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { CheckCircle2 } from "lucide-react-native";
 import { useState } from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from "react-native";
 
 import { Button, NoticeCard, OTPInput } from "@/components/ui";
 import { KotokuLogo } from "@/components/brand/KotokuLogo";
@@ -40,10 +40,16 @@ export default function VerifyOtpScreen() {
   const isDisabled = isLoading || resendMutation.isPending;
 
   return (
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+    >
     <ScrollView
       className="flex-1 bg-surface-canvas"
       contentContainerClassName="flex-grow px-lg py-2xl justify-center gap-xl"
       keyboardShouldPersistTaps="handled"
+      automaticallyAdjustKeyboardInsets
+      keyboardDismissMode="interactive"
     >
       <View className="items-center gap-md">
         <KotokuLogo variant="stacked" size={68} color="navy" />
@@ -125,5 +131,6 @@ export default function VerifyOtpScreen() {
         compact
       />
     </ScrollView>
+    </KeyboardAvoidingView>
   );
 }

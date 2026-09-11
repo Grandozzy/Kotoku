@@ -86,6 +86,8 @@ export default function DetailsStep() {
       contentContainerClassName="px-lg py-xl gap-xl"
       contentContainerStyle={{ paddingBottom: 60 }}
       keyboardShouldPersistTaps="handled"
+      automaticallyAdjustKeyboardInsets
+      keyboardDismissMode="interactive"
     >
       <View className="gap-md rounded-3xl bg-ink-primary p-lg">
         <View className="flex-row items-start gap-md">
