@@ -12,6 +12,7 @@ export default function InviteScreen() {
   const router = useRouter();
   const { token } = useLocalSearchParams<{ token: string }>();
   const isAuthenticated = useSessionStore((s) => s.isAuthenticated);
+  const setPendingInviteToken = useSessionStore((s) => s.setPendingInviteToken);
 
   const [detail, setDetail] = useState<IdentityInviteDetail | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -30,11 +31,8 @@ export default function InviteScreen() {
 
   const handleContinue = async () => {
     if (!isAuthenticated) {
-      // Save token to navigate back after auth.
-      router.push({
-        pathname: "/(auth)/welcome",
-        params: { pendingInviteToken: token },
-      } as never);
+      setPendingInviteToken(token);
+      router.push("/(auth)/welcome" as never);
       return;
     }
 

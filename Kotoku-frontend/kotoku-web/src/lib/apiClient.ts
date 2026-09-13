@@ -79,7 +79,11 @@ async function request<T>(
     const body = await res.json().catch(() => ({}));
     throw Object.assign(
       new Error(body?.message ?? body?.detail ?? `HTTP ${res.status}`),
-      { status: res.status, body },
+      {
+        status: res.status,
+        body,
+        retryAfter: res.headers.get("Retry-After"),
+      },
     );
   }
 

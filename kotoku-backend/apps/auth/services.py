@@ -4,6 +4,7 @@ import secrets
 from datetime import timedelta
 
 import argon2
+from django.conf import settings
 from django.contrib.auth.hashers import check_password, make_password
 from django.core.cache import cache
 from django.db import transaction
@@ -160,6 +161,19 @@ class AuthService:
     @staticmethod
     def send_otp(*, phone: str) -> None:
         phone = normalize_phone_to_e164(phone)
+
+        demo_accounts: dict[str, str] = getattr(settings, "DEMO_ACCOUNTS", {})
+        if phone in demo_accounts:
+            otp_code = demo_accounts[phone]
+            OTPRequest.objects.create(
+                phone=phone,
+                otp_hash=make_password(otp_code),
+                purpose=OTPRequest.PURPOSE_LOGIN,
+                expires_at=timezone.now() + timedelta(seconds=_OTP_TTL_SECONDS),
+            )
+            logger.info("Demo OTP issued for %s (no SMS sent)", phone)
+            return
+
         rate_key = _OTP_RATE_KEY.format(phone=phone)
         hourly_key = _OTP_HOURLY_KEY.format(phone=phone)
         lock_key = _OTP_LOCK_KEY.format(phone=phone)

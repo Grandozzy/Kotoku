@@ -17,6 +17,7 @@ import { FaceLivenessDetector } from "@aws-amplify/ui-react-liveness";
 import "@aws-amplify/ui-react/styles.css";
 
 import { authApi } from "@/api/auth";
+import { getApiErrorMessage } from "@/lib/errorHandler";
 import { evidenceApi } from "@/api/evidence";
 import { invitesApi, type InviteDetail } from "@/api/invites";
 import { KotokuLogo } from "@/components/brand/KotokuLogo";
@@ -33,6 +34,16 @@ Amplify.configure({
     },
   },
 });
+
+const LIVENESS_ERROR_MESSAGES: Record<string, string> = {
+  CAMERA_ACCESS_DENIED: "Camera access was denied. Please allow camera permission and try again.",
+  TIMEOUT: "The face check timed out. Please try again.",
+  SERVER_ERROR: "A server error occurred during the face check. Please try again.",
+  RUNTIME_ERROR: "An unexpected error occurred during the face check. Please try again.",
+  FACE_DISTANCE_TOO_FAR_AT_START: "Please position your face closer to the camera and try again.",
+  MOBILE_LANDSCAPE_MODE: "Please hold your phone upright (portrait mode) and try again.",
+  FRESHNESS_TIMEOUT: "Face check timed out. Try again in better lighting.",
+};
 
 type Step = "loading" | "error" | "preview" | "login" | "verify_otp" | "upload" | "liveness" | "done";
 
@@ -79,9 +90,11 @@ export default function InvitePage() {
   const hasHydrated = useSessionStore((s) => s.hasHydrated);
   const setSession = useSessionStore((s) => s.setSession);
 
-  const [step, setStep] = useState<Step>("loading");
+  const [step, setStep] = useState<Step>(() => (token ? "loading" : "error"));
   const [invite, setInvite] = useState<InviteDetail | null>(null);
-  const [inviteError, setInviteError] = useState<string | null>(null);
+  const [inviteError, setInviteError] = useState<string | null>(() =>
+    token ? null : "This invite link is missing required information.",
+  );
 
   // After claim
   const [agreementId, setAgreementId] = useState<number | null>(null);
@@ -115,11 +128,7 @@ export default function InvitePage() {
 
   // Fetch invite detail on mount
   useEffect(() => {
-    if (!token) {
-      setInviteError("This invite link is missing required information.");
-      setStep("error");
-      return;
-    }
+    if (!token) return;
     invitesApi
       .getDetail(token)
       .then((detail) => {
@@ -176,8 +185,8 @@ export default function InvitePage() {
     try {
       await authApi.requestOtp(phone);
       setStep("verify_otp");
-    } catch {
-      setAuthError("Could not send OTP. Check the number and try again.");
+    } catch (err) {
+      setAuthError(getApiErrorMessage(err, "Could not send OTP. Check the number and try again."));
     } finally {
       setAuthLoading(false);
     }
@@ -209,8 +218,8 @@ export default function InvitePage() {
     try {
       await authApi.requestOtp(phone);
       setResendSuccess(true);
-    } catch {
-      setAuthError("Could not resend OTP.");
+    } catch (err) {
+      setAuthError(getApiErrorMessage(err, "Could not resend OTP."));
     } finally {
       setAuthLoading(false);
     }
@@ -270,8 +279,18 @@ export default function InvitePage() {
   async function handleLivenessComplete() {
     if (!agreementId || !role) return;
     try {
-      await invitesApi.submitLivenessResult(agreementId, role);
-      setStep("done");
+      const result = await invitesApi.submitLivenessResult(agreementId, role);
+      if (result.status === "expired") {
+        setLivenessError("The face check timed out. Please tap below to try again.");
+        setLivenessSessionId(null);
+        setStep("upload");
+      } else if (result.status === "failed") {
+        setLivenessError("Face check did not pass. Try again in better lighting.");
+        setLivenessSessionId(null);
+        setStep("upload");
+      } else {
+        setStep("done");
+      }
     } catch {
       setLivenessError(
         "Face check completed but we could not confirm your result. Tap below to try again.",
@@ -282,11 +301,9 @@ export default function InvitePage() {
   }
 
   function handleLivenessError(error: unknown) {
-    const state = (error as { state?: string }).state;
+    const state = (error as { state?: string }).state ?? "";
     setLivenessError(
-      state
-        ? `Face check failed: ${state}. Please try again.`
-        : "Face check failed. Please try again.",
+      LIVENESS_ERROR_MESSAGES[state] ?? "Face check failed. Please try again.",
     );
     setLivenessSessionId(null);
     setStep("upload");

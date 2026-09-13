@@ -8,6 +8,7 @@ import { authApi } from "@/api/auth";
 import { isValidE164Phone } from "@/lib/phone";
 import { useSessionStore } from "@/store/sessionStore";
 import { KotokuLogo } from "@/components/brand/KotokuLogo";
+import { getApiErrorMessage } from "@/lib/errorHandler";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -50,8 +51,8 @@ export default function LoginPage() {
     try {
       await authApi.requestOtp(normalizedPhone);
       router.push(`/verify?phone=${encodeURIComponent(normalizedPhone)}`);
-    } catch {
-      setError("Could not send OTP. Check the number and try again.");
+    } catch (err) {
+      setError(getApiErrorMessage(err, "Could not send OTP. Check the number and try again."));
     } finally {
       setLoading(false);
     }

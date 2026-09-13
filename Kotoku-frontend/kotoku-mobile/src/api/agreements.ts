@@ -133,9 +133,9 @@ export async function createLivenessSession(
 export async function submitLivenessResult(
   agreementId: number,
   role: string,
-): Promise<{ status: "passed" | "failed"; confidence: number }> {
+): Promise<{ status: "passed" | "failed" | "expired"; confidence: number }> {
   const res = await apiClient.post<
-    ApiResponse<{ status: "passed" | "failed"; confidence: number }>
+    ApiResponse<{ status: "passed" | "failed" | "expired"; confidence: number }>
   >(`/agreements/${agreementId}/identity/${role}/liveness-result/`);
   return res.data.data;
 }

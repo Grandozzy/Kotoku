@@ -122,9 +122,13 @@ export default function IdentityInviteStep() {
     setLivenessSession(null);
     try {
       const result = await submitLivenessResult(agreementId, typedRole);
-      setLocalLivenessStatus(result.status);
+      setLocalLivenessStatus(result.status === "expired" ? "failed" : result.status);
       if (result.status === "passed") {
         setPollVerification(true);
+      } else if (result.status === "expired") {
+        setLivenessError("The face check timed out. Please tap to try again.");
+      } else {
+        setLivenessError("Face check did not pass. Try again in better lighting.");
       }
       await queryClient.invalidateQueries({ queryKey: ["agreement", agreementId] });
     } catch {

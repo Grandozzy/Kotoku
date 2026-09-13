@@ -9,7 +9,9 @@ import "@aws-amplify/ui-react/styles.css";
 Amplify.configure({
   Auth: {
     Cognito: {
-      identityPoolId: "eu-west-1:869e47c6-53c0-4dbc-9379-bcae17769346",
+      identityPoolId:
+        process.env.NEXT_PUBLIC_AMPLIFY_IDENTITY_POOL_ID ??
+        "eu-west-1:869e47c6-53c0-4dbc-9379-bcae17769346",
       allowGuestAccess: true,
     },
   },
@@ -21,6 +23,16 @@ type NativeBridgeWindow = Window &
       postMessage: (message: string) => void;
     };
   };
+
+const LIVENESS_ERROR_MESSAGES: Record<string, string> = {
+  CAMERA_ACCESS_DENIED: "Camera access was denied. Please allow camera permission and try again.",
+  TIMEOUT: "The face check timed out. Please try again.",
+  SERVER_ERROR: "A server error occurred during the face check. Please try again.",
+  RUNTIME_ERROR: "An unexpected error occurred during the face check. Please try again.",
+  FACE_DISTANCE_TOO_FAR_AT_START: "Please position your face closer to the camera and try again.",
+  MOBILE_LANDSCAPE_MODE: "Please hold your phone upright (portrait mode) and try again.",
+  FRESHNESS_TIMEOUT: "Face check timed out. Try again in better lighting.",
+};
 
 function postToNative(data: Record<string, unknown>) {
   if (typeof window === "undefined") return;
@@ -50,11 +62,11 @@ function LivenessDetector() {
         postToNative({ type: "done" });
       }}
       onError={(error) => {
-        const state = (error as { state?: string }).state;
+        const state = (error as { state?: string }).state ?? "";
         console.error("[Liveness] onError state=%s error=%o", state, error);
         postToNative({
           type: "error",
-          message: state ?? String(error),
+          message: LIVENESS_ERROR_MESSAGES[state] ?? "Face check failed. Please try again.",
         });
       }}
     />

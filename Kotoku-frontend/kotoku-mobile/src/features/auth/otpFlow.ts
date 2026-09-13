@@ -84,6 +84,8 @@ export function useSendOtp() {
 
 export function useVerifyOtp(phone: string) {
   const setSession = useSessionStore((s) => s.setSession);
+  const pendingInviteToken = useSessionStore((s) => s.pendingInviteToken);
+  const setPendingInviteToken = useSessionStore((s) => s.setPendingInviteToken);
   const router = useRouter();
 
   return useMutation({
@@ -94,7 +96,11 @@ export function useVerifyOtp(phone: string) {
       await saveSession(access, refresh, session_id, sessionPhone, user.account_id, user.pin_configured);
       setSession(access, sessionPhone, user.account_id, user.pin_configured);
       if (!user.pin_configured) {
+        // pendingInviteToken stays in store; usePinSetup will consume it after PIN is set
         router.replace("/(auth)/pin-setup" as never);
+      } else if (pendingInviteToken) {
+        setPendingInviteToken(null);
+        router.replace(`/invite/${pendingInviteToken}` as never);
       } else {
         router.replace("/(main)/home");
       }
@@ -110,6 +116,8 @@ export function useResendOtp(phone: string) {
 
 export function usePinSetup() {
   const setPinConfigured = useSessionStore((s) => s.setPinConfigured);
+  const pendingInviteToken = useSessionStore((s) => s.pendingInviteToken);
+  const setPendingInviteToken = useSessionStore((s) => s.setPendingInviteToken);
   const router = useRouter();
 
   return useMutation({
@@ -117,7 +125,12 @@ export function usePinSetup() {
     onSuccess: async () => {
       await savePinConfigured(true);
       setPinConfigured(true);
-      router.replace("/(main)/home");
+      if (pendingInviteToken) {
+        setPendingInviteToken(null);
+        router.replace(`/invite/${pendingInviteToken}` as never);
+      } else {
+        router.replace("/(main)/home");
+      }
     },
   });
 }

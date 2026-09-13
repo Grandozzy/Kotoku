@@ -503,7 +503,12 @@ class IdentityService:
         aws_status = result["status"]
         confidence = result["confidence"]
         passed = aws_status == "SUCCEEDED" and confidence >= 90.0
+        expired = aws_status == "EXPIRED"
+        # DB stores only passed/failed — both FAILED and EXPIRED require a retry.
         liveness_status = "passed" if passed else "failed"
+        # API response carries the finer-grained status so clients can show a
+        # "timed out" message instead of "face didn't match" for EXPIRED sessions.
+        api_status = "expired" if expired else liveness_status
 
         ref_s3_key = ""
         if passed and result["reference_image_bytes"]:
@@ -531,12 +536,13 @@ class IdentityService:
         )
         logger.info(
             "[IDENTITY] liveness_result_processed party_id=%s role=%s "
-            "aws_status=%s confidence=%.2f passed=%s",
+            "aws_status=%s confidence=%.2f passed=%s expired=%s",
             party.pk,
             party.role,
             aws_status,
             confidence,
             passed,
+            expired,
         )
 
         if passed and verification.status != PartyIdentityVerification.Status.VERIFIED:
@@ -561,4 +567,4 @@ class IdentityService:
                 )
                 IdentityService.queue_party_verification(party_id=party.pk)
 
-        return {"status": liveness_status, "confidence": confidence}
+        return {"status": api_status, "confidence": confidence}

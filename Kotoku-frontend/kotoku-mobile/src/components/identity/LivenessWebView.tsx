@@ -1,9 +1,11 @@
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { Modal, TouchableOpacity, View } from "react-native";
 import { WebView, type WebViewMessageEvent } from "react-native-webview";
 import { X } from "lucide-react-native";
 
 import { WEB_BASE_URL } from "@/constants/config";
+
+const WATCHDOG_MS = 3 * 60 * 1000; // 3 minutes — generous upper bound for the full liveness flow
 
 interface Props {
   sessionId: string;
@@ -16,6 +18,21 @@ interface Props {
 export function LivenessWebView({ sessionId, region, onComplete, onError, onClose }: Props) {
   const settled = useRef(false);
   const uri = `${WEB_BASE_URL}/liveness?session_id=${encodeURIComponent(sessionId)}&region=${encodeURIComponent(region)}`;
+
+  // Watchdog: if the Amplify component crashes or the network drops mid-session,
+  // neither onAnalysisComplete nor onError fires and postToNative never runs.
+  // After WATCHDOG_MS with no resolution, surface an error so the user isn't
+  // stranded in the full-screen modal.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (settled.current) return;
+      settled.current = true;
+      onError("The face check timed out. Please try again.");
+    }, WATCHDOG_MS);
+    return () => clearTimeout(timer);
+    // onError identity is stable for the lifetime of this modal mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function handleMessage(event: WebViewMessageEvent) {
     if (settled.current) return;

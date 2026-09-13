@@ -8,6 +8,7 @@ import { authApi } from "@/api/auth";
 import { isValidE164Phone } from "@/lib/phone";
 import { useSessionStore } from "@/store/sessionStore";
 import { KotokuLogo } from "@/components/brand/KotokuLogo";
+import { getApiErrorMessage } from "@/lib/errorHandler";
 
 function VerifyForm() {
   const router = useRouter();
@@ -71,8 +72,8 @@ function VerifyForm() {
     try {
       await authApi.requestOtp(phone);
       setResendSuccess(true);
-    } catch {
-      setError("Could not resend OTP. Check the number and try again.");
+    } catch (err) {
+      setError(getApiErrorMessage(err, "Could not resend OTP. Check the number and try again."));
     } finally {
       setResendLoading(false);
     }

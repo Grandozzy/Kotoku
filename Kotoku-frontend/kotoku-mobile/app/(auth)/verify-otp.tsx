@@ -32,8 +32,11 @@ export default function VerifyOtpScreen() {
   };
 
   // Surface the most relevant error — verify takes priority over resend
-  const apiError = verifyMutation.isError
+  const verifyError = verifyMutation.isError
     ? getApiErrorMessage(verifyMutation.error)
+    : null;
+  const resendError = resendMutation.isError
+    ? getApiErrorMessage(resendMutation.error)
     : null;
 
   const isLoading = verifyMutation.isPending;
@@ -76,10 +79,19 @@ export default function VerifyOtpScreen() {
             setCode(val);
             if (verifyMutation.isError) verifyMutation.reset();
           }}
-          error={apiError ?? undefined}
+          error={verifyError ?? undefined}
           disabled={isDisabled}
           enableSmsAutofill
         />
+
+        {resendError && (
+          <NoticeCard
+            variant="error"
+            title="Could not resend code"
+            body={resendError}
+            compact
+          />
+        )}
 
         <Button
           title="Verify"

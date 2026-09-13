@@ -131,6 +131,8 @@ export default function PartiesStep() {
   const [livenessSession, setLivenessSession] = useState<{ role: string; sessionId: string; region: string } | null>(null);
   const [livenessLoading, setLivenessLoading] = useState<string | null>(null);
   const [livenessError, setLivenessError] = useState<string | null>(null);
+  const [submittingResult, setSubmittingResult] = useState(false);
+  const [localLivenessStatus, setLocalLivenessStatus] = useState<"passed" | "failed" | null>(null);
   const [inviteSending, setInviteSending] = useState(false);
   const [inviteSent, setInviteSent] = useState(false);
   const [inviteError, setInviteError] = useState<string | null>(null);
@@ -320,6 +322,7 @@ export default function PartiesStep() {
 
   const handleStartLiveness = async (role: string) => {
     setLivenessError(null);
+    setLocalLivenessStatus(null);
     setLivenessLoading(role);
     try {
       const { session_id, region } = await createLivenessSession(agreementId, role);
@@ -334,15 +337,23 @@ export default function PartiesStep() {
   const handleLivenessComplete = async () => {
     if (!livenessSession || processingResult.current) return;
     processingResult.current = true;
+    setSubmittingResult(true);
     const { role } = livenessSession;
     setLivenessSession(null);
     try {
-      await submitLivenessResult(agreementId, role);
+      const result = await submitLivenessResult(agreementId, role);
+      setLocalLivenessStatus(result.status === "expired" ? "failed" : result.status);
+      if (result.status === "expired") {
+        setLivenessError("The face check timed out. Please tap to try again.");
+      } else if (result.status === "failed") {
+        setLivenessError("Face check did not pass. Try again in better lighting.");
+      }
       await queryClient.invalidateQueries({ queryKey: ["agreement", agreementId] });
     } catch {
       setLivenessError("Face check result could not be retrieved. Please try again.");
     } finally {
       processingResult.current = false;
+      setSubmittingResult(false);
     }
   };
 
@@ -506,45 +517,55 @@ export default function PartiesStep() {
                 </View>
               </View>
 
-              <TouchableOpacity
-                disabled={livenessLoading === myParty.role || myParty.livenessStatus === "passed"}
-                onPress={() => void handleStartLiveness(myParty.role)}
-                className={`flex-row items-center gap-sm rounded-xl border p-md ${
-                  myParty.livenessStatus === "passed"
-                    ? "border-semantic-success/30 bg-semantic-success/10"
-                    : myParty.livenessStatus === "failed"
-                      ? "border-semantic-error/30 bg-semantic-error/10"
-                      : "border-border-subtle bg-surface-card"
-                }`}
-              >
-                <View className="h-10 w-10 items-center justify-center rounded-xl bg-brand-primary/10">
-                  {myParty.livenessStatus === "passed" ? (
-                    <CheckCircle2 size={20} color="#16a34a" strokeWidth={1.8} />
-                  ) : myParty.livenessStatus === "failed" ? (
-                    <XCircle size={20} color="#dc2626" strokeWidth={1.8} />
-                  ) : (
-                    <ScanFace size={20} color="#2563EB" strokeWidth={1.8} />
-                  )}
-                </View>
-                <View className="flex-1">
-                  <Text className="text-sm font-semibold text-ink-primary">
-                    {myParty.livenessStatus === "passed"
-                      ? "Face check passed"
-                      : myParty.livenessStatus === "failed"
-                        ? "Face check failed — tap to retry"
-                        : livenessLoading === myParty.role
-                          ? "Starting face check…"
-                          : "Start face check"}
-                  </Text>
-                  {myParty.livenessStatus !== "passed" && (
-                    <Text className="text-xs text-ink-muted">
-                      {livenessLoading === myParty.role
-                        ? "Preparing camera…"
-                        : "Follow the on-screen prompts to confirm your identity"}
-                    </Text>
-                  )}
-                </View>
-              </TouchableOpacity>
+              {(() => {
+                const effectivePassed = localLivenessStatus === "passed" || myParty.livenessStatus === "passed";
+                const effectiveFailed = !effectivePassed && (localLivenessStatus === "failed" || myParty.livenessStatus === "failed");
+                return (
+                  <TouchableOpacity
+                    disabled={livenessLoading === myParty.role || submittingResult || effectivePassed}
+                    onPress={() => void handleStartLiveness(myParty.role)}
+                    className={`flex-row items-center gap-sm rounded-xl border p-md ${
+                      effectivePassed
+                        ? "border-semantic-success/30 bg-semantic-success/10"
+                        : effectiveFailed
+                          ? "border-semantic-error/30 bg-semantic-error/10"
+                          : "border-border-subtle bg-surface-card"
+                    }`}
+                  >
+                    <View className="h-10 w-10 items-center justify-center rounded-xl bg-brand-primary/10">
+                      {effectivePassed ? (
+                        <CheckCircle2 size={20} color="#16a34a" strokeWidth={1.8} />
+                      ) : effectiveFailed ? (
+                        <XCircle size={20} color="#dc2626" strokeWidth={1.8} />
+                      ) : (
+                        <ScanFace size={20} color="#2563EB" strokeWidth={1.8} />
+                      )}
+                    </View>
+                    <View className="flex-1">
+                      <Text className="text-sm font-semibold text-ink-primary">
+                        {effectivePassed
+                          ? "Face check passed"
+                          : effectiveFailed
+                            ? "Face check failed — tap to retry"
+                            : submittingResult
+                              ? "Verifying…"
+                              : livenessLoading === myParty.role
+                                ? "Starting face check…"
+                                : "Start face check"}
+                      </Text>
+                      {!effectivePassed && (
+                        <Text className="text-xs text-ink-muted">
+                          {submittingResult
+                            ? "Checking your result, please wait…"
+                            : livenessLoading === myParty.role
+                              ? "Preparing camera…"
+                              : "Follow the on-screen prompts to confirm your identity"}
+                        </Text>
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                );
+              })()}
             </View>
           </View>
         )}

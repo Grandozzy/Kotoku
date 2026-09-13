@@ -117,7 +117,7 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_RATES": {
         "auth_ip": os.getenv("THROTTLE_AUTH_IP_RATE", "60/h"),
         "refresh_ip": os.getenv("THROTTLE_REFRESH_IP_RATE", "120/h"),
-        "send_otp_phone": os.getenv("THROTTLE_SEND_OTP_PHONE_RATE", "3/h"),
+        "send_otp_phone": os.getenv("THROTTLE_SEND_OTP_PHONE_RATE", "5/h"),
         "verify_otp_phone": os.getenv("THROTTLE_VERIFY_OTP_PHONE_RATE", "20/h"),
         "pin_verify_phone": os.getenv("THROTTLE_PIN_VERIFY_PHONE_RATE", "30/h"),
     },
@@ -375,6 +375,16 @@ LOGGING = {
         },
     },
 }
+
+# Demo accounts: fixed OTP codes for testing without live SMS.
+# Format: "+233XXXXXXXXX:123456,+233YYYYYYYYYY:654321"
+# Leave unset (or empty) in production — these numbers bypass rate limits and SMS.
+DEMO_ACCOUNTS: dict[str, str] = {}
+_demo_raw = os.environ.get("DEMO_ACCOUNTS", "")
+for _entry in filter(None, _demo_raw.split(",")):
+    if ":" in _entry:
+        _phone, _code = _entry.split(":", 1)
+        DEMO_ACCOUNTS[_phone.strip()] = _code.strip()
 
 if SENTRY_DSN:
     import sentry_sdk

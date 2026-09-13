@@ -4,8 +4,34 @@ export function getApiErrorMessage(
 ): string {
   const candidate = error as {
     response?: { data?: Record<string, unknown> };
+    status?: number;
+    body?: Record<string, unknown>;
+    retryAfter?: string | null;
     message?: string;
   } | null;
+
+  if (candidate?.status === 429) {
+    const headerSeconds = Number(candidate.retryAfter);
+    const detail = typeof candidate.body?.detail === "string"
+      ? candidate.body.detail
+      : candidate.message ?? "";
+    const match = detail.match(/(?:available|retry|again)\D+(\d+)\s*seconds?/i);
+    const seconds = Number.isFinite(headerSeconds) && headerSeconds > 0
+      ? Math.ceil(headerSeconds)
+      : match
+        ? Number(match[1])
+        : null;
+    if (!seconds) return "Too many requests. Please wait before trying again.";
+    if (seconds < 60) {
+      return `Too many requests. Try again in ${seconds} second${seconds === 1 ? "" : "s"}.`;
+    }
+    const minutes = Math.ceil(seconds / 60);
+    if (minutes < 60) {
+      return `Too many requests. Try again in ${minutes} minute${minutes === 1 ? "" : "s"}.`;
+    }
+    const hours = Math.ceil(minutes / 60);
+    return `Too many requests. Try again in ${hours} hour${hours === 1 ? "" : "s"}.`;
+  }
 
   if (candidate?.response?.data) {
     const data = candidate.response.data;
