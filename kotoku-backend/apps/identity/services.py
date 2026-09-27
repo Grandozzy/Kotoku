@@ -2,6 +2,8 @@ import logging
 import re
 from dataclasses import dataclass
 
+from django.conf import settings
+from django.core.cache import cache
 from django.db import transaction
 from django.utils import timezone
 
@@ -14,6 +16,71 @@ from infrastructure.storage.s3 import S3StorageClient
 
 _OCR_PIN_RE = re.compile(r"GHA[\s-]*(\d{9})[\s-]*(\d)")
 logger = logging.getLogger("kotoku")
+
+
+def _classify_liveness_result(*, aws_status: str, confidence: float) -> str:
+    """Return a user-safe decision without exposing the biometric score."""
+    if aws_status == "EXPIRED":
+        return "expired"
+    if aws_status in {"CREATED", "IN_PROGRESS"}:
+        return "processing"
+    if aws_status != "SUCCEEDED":
+        return "failed"
+
+    pass_threshold = settings.AWS_REKOGNITION_LIVENESS_THRESHOLD
+    review_threshold = settings.AWS_REKOGNITION_LIVENESS_REVIEW_THRESHOLD
+    if not 0 <= review_threshold <= pass_threshold <= 100:
+        raise RuntimeError("Invalid Rekognition liveness threshold configuration.")
+    if confidence >= pass_threshold:
+        return "passed"
+    if confidence >= review_threshold:
+        return "manual_review"
+    return "failed"
+
+
+_LIVENESS_DETAILS = {
+    "passed": "Face check passed.",
+    "manual_review": (
+        "Your face check needs review. You may retry in even lighting or contact support."
+    ),
+    "failed": "Face check did not pass. Remove face coverings and retry in clear, even lighting.",
+    "expired": "The face check timed out. Please try again.",
+    "processing": "Your face check is still processing. Please check again shortly.",
+}
+
+
+def _liveness_cache_key(party_id: int, suffix: str) -> str:
+    return f"identity:liveness:{party_id}:{suffix}"
+
+
+def _assert_liveness_attempt_allowed(*, party_id: int) -> None:
+    if cache.get(_liveness_cache_key(party_id, "cooldown")):
+        raise DomainError("Too many unsuccessful face checks. Please wait before trying again.")
+
+
+def _record_liveness_failure(*, party_id: int, session_id: str) -> None:
+    processed_key = _liveness_cache_key(party_id, f"failed-session:{session_id}")
+    cooldown = settings.AWS_REKOGNITION_LIVENESS_COOLDOWN_SECONDS
+    if not cache.add(processed_key, True, timeout=cooldown):
+        return
+
+    count_key = _liveness_cache_key(party_id, "failure-count")
+    window = settings.AWS_REKOGNITION_LIVENESS_FAILURE_WINDOW_SECONDS
+    if cache.add(count_key, 1, timeout=window):
+        failures = 1
+    else:
+        failures = cache.incr(count_key)
+    if failures >= settings.AWS_REKOGNITION_LIVENESS_MAX_FAILURES:
+        cache.set(_liveness_cache_key(party_id, "cooldown"), True, timeout=cooldown)
+
+
+def _clear_liveness_failures(*, party_id: int) -> None:
+    cache.delete_many(
+        [
+            _liveness_cache_key(party_id, "failure-count"),
+            _liveness_cache_key(party_id, "cooldown"),
+        ]
+    )
 
 
 def _normalize_text(value: str) -> str:
@@ -195,9 +262,8 @@ class IdentityService:
 
         # Liveness flow: use the reference image from the liveness session as the face source.
         # Legacy flow: fall back to the selfie evidence item.
-        liveness_passed = (
-            verification.liveness_status == "passed"
-            and bool(verification.liveness_reference_s3_key)
+        liveness_passed = verification.liveness_status == "passed" and bool(
+            verification.liveness_reference_s3_key
         )
         face_source_key = (
             verification.liveness_reference_s3_key
@@ -290,8 +356,7 @@ class IdentityService:
             outcome = IdentityVerificationOutcome(
                 status=PartyIdentityVerification.Status.PENDING,
                 detail=(
-                    "Identity verification is temporarily unavailable. "
-                    "We will retry automatically."
+                    "Identity verification is temporarily unavailable. We will retry automatically."
                 ),
                 failure_codes=["verification_unavailable"],
                 ocr_pin="",
@@ -308,8 +373,7 @@ class IdentityService:
             outcome = IdentityVerificationOutcome(
                 status=PartyIdentityVerification.Status.FAILED,
                 detail=(
-                    "Identity verification failed unexpectedly. "
-                    "Please retry the Ghana Card upload."
+                    "Identity verification failed unexpectedly. Please retry the Ghana Card upload."
                 ),
                 failure_codes=["verification_unexpected_failure"],
                 ocr_pin="",
@@ -334,9 +398,7 @@ class IdentityService:
         verification.failure_codes = outcome.failure_codes
         verification.detail = outcome.detail
         verification.verified_at = (
-            timezone.now()
-            if outcome.status == PartyIdentityVerification.Status.VERIFIED
-            else None
+            timezone.now() if outcome.status == PartyIdentityVerification.Status.VERIFIED else None
         )
         verification.save(
             update_fields=[
@@ -466,6 +528,7 @@ class IdentityService:
     @staticmethod
     def create_liveness_session(*, party) -> str:
         """Create a Rekognition Face Liveness session for this party and persist the session ID."""
+        _assert_liveness_attempt_allowed(party_id=party.pk)
         rekognition = RekognitionClient()
         session_id = rekognition.create_face_liveness_session()
         verification = IdentityService.ensure_party_verification(party=party)
@@ -473,12 +536,19 @@ class IdentityService:
         verification.liveness_status = "pending"
         verification.liveness_confidence = None
         verification.liveness_reference_s3_key = ""
+        if verification.status == PartyIdentityVerification.Status.MANUAL_REVIEW_REQUIRED:
+            verification.status = PartyIdentityVerification.Status.PENDING
+            verification.failure_codes = []
+            verification.detail = "Face check retry started."
         verification.save(
             update_fields=[
                 "liveness_session_id",
                 "liveness_status",
                 "liveness_confidence",
                 "liveness_reference_s3_key",
+                "status",
+                "failure_codes",
+                "detail",
                 "updated_at",
             ]
         )
@@ -502,20 +572,22 @@ class IdentityService:
 
         aws_status = result["status"]
         confidence = result["confidence"]
-        passed = aws_status == "SUCCEEDED" and confidence >= 90.0
-        expired = aws_status == "EXPIRED"
-        # DB stores only passed/failed — both FAILED and EXPIRED require a retry.
-        liveness_status = "passed" if passed else "failed"
-        # API response carries the finer-grained status so clients can show a
-        # "timed out" message instead of "face didn't match" for EXPIRED sessions.
-        api_status = "expired" if expired else liveness_status
+        decision = _classify_liveness_result(
+            aws_status=aws_status,
+            confidence=confidence,
+        )
+        if decision == "processing":
+            return {"status": decision, "detail": _LIVENESS_DETAILS[decision]}
+
+        passed = decision == "passed"
+        # Expired AWS sessions are stored as failed because they require a new session.
+        liveness_status = "failed" if decision == "expired" else decision
 
         ref_s3_key = ""
-        if passed and result["reference_image_bytes"]:
+        if decision in {"passed", "manual_review"} and result["reference_image_bytes"]:
             storage = S3StorageClient()
             ref_s3_key = (
-                f"agreements/{party.agreement_id}/identity"
-                f"/{party.role}_liveness_reference.jpg"
+                f"agreements/{party.agreement_id}/identity/{party.role}_liveness_reference.jpg"
             )
             storage.upload(
                 ref_s3_key,
@@ -526,11 +598,33 @@ class IdentityService:
         verification.liveness_status = liveness_status
         verification.liveness_confidence = confidence
         verification.liveness_reference_s3_key = ref_s3_key
+        if decision == "manual_review":
+            verification.status = PartyIdentityVerification.Status.MANUAL_REVIEW_REQUIRED
+            verification.failure_codes = ["liveness_manual_review"]
+            verification.detail = _LIVENESS_DETAILS[decision]
+            _record_liveness_failure(
+                party_id=party.pk,
+                session_id=verification.liveness_session_id,
+            )
+        elif passed:
+            _clear_liveness_failures(party_id=party.pk)
+            if verification.status == PartyIdentityVerification.Status.MANUAL_REVIEW_REQUIRED:
+                verification.status = PartyIdentityVerification.Status.PENDING
+                verification.failure_codes = []
+                verification.detail = _LIVENESS_DETAILS[decision]
+        else:
+            _record_liveness_failure(
+                party_id=party.pk,
+                session_id=verification.liveness_session_id,
+            )
         verification.save(
             update_fields=[
                 "liveness_status",
                 "liveness_confidence",
                 "liveness_reference_s3_key",
+                "status",
+                "failure_codes",
+                "detail",
                 "updated_at",
             ]
         )
@@ -542,7 +636,7 @@ class IdentityService:
             aws_status,
             confidence,
             passed,
-            expired,
+            decision == "expired",
         )
 
         if passed and verification.status != PartyIdentityVerification.Status.VERIFIED:
@@ -567,4 +661,4 @@ class IdentityService:
                 )
                 IdentityService.queue_party_verification(party_id=party.pk)
 
-        return {"status": api_status, "confidence": confidence}
+        return {"status": decision, "detail": _LIVENESS_DETAILS[decision]}

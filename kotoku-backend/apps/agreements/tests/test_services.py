@@ -192,7 +192,9 @@ class TestSealAgreement:
     def test_transitions_to_sealed(self, db):
         account = _account("f@t.com")
         agreement = AgreementService.create_draft(
-            title="T", created_by=account, scenario_template="used_vehicle_sale",
+            title="T",
+            created_by=account,
+            scenario_template="used_vehicle_sale",
         )
         agreement.status = AgreementStatus.ACTIVE
         agreement.save()
@@ -218,9 +220,12 @@ class TestSealAgreement:
         )
         for vp in ("vehicle_photo_front", "vehicle_photo_side", "vehicle_photo_rear"):
             EvidenceItem.objects.create(
-                agreement=agreement, uploaded_by=party,
-                file_type=EvidenceItem.FileType.PHOTO, evidence_type=vp,
-                mime_type="image/jpeg", upload_status=EvidenceItem.UploadStatus.CONFIRMED,
+                agreement=agreement,
+                uploaded_by=party,
+                file_type=EvidenceItem.FileType.PHOTO,
+                evidence_type=vp,
+                mime_type="image/jpeg",
+                upload_status=EvidenceItem.UploadStatus.CONFIRMED,
             )
         self._verified_identity_bundle(agreement, party)
         self._verified_identity_bundle(agreement, seller)
@@ -231,7 +236,9 @@ class TestSealAgreement:
     def test_seal_hash_stored_on_seal(self, db):
         account = _account("seal_hash1@t.com")
         agreement = AgreementService.create_draft(
-            title="Hash Test", created_by=account, scenario_template="used_vehicle_sale",
+            title="Hash Test",
+            created_by=account,
+            scenario_template="used_vehicle_sale",
         )
         agreement.status = AgreementStatus.ACTIVE
         agreement.save()
@@ -255,8 +262,10 @@ class TestSealAgreement:
         )
         for vp in ("vehicle_photo_front", "vehicle_photo_side", "vehicle_photo_rear"):
             EvidenceItem.objects.create(
-                agreement=agreement, uploaded_by=buyer,
-                file_type=EvidenceItem.FileType.PHOTO, evidence_type=vp,
+                agreement=agreement,
+                uploaded_by=buyer,
+                file_type=EvidenceItem.FileType.PHOTO,
+                evidence_type=vp,
                 upload_status=EvidenceItem.UploadStatus.CONFIRMED,
             )
         self._verified_identity_bundle(agreement, buyer)
@@ -332,7 +341,9 @@ class TestSealAgreement:
     ):
         account = _account("seal_receipt@test.com")
         agreement = AgreementService.create_draft(
-            title="Receipt", created_by=account, scenario_template="used_vehicle_sale",
+            title="Receipt",
+            created_by=account,
+            scenario_template="used_vehicle_sale",
         )
         agreement.status = AgreementStatus.ACTIVE
         agreement.save()
@@ -364,9 +375,12 @@ class TestSealAgreement:
         self._verified_identity_bundle(agreement, buyer)
         for vp in ("vehicle_photo_front", "vehicle_photo_side", "vehicle_photo_rear"):
             EvidenceItem.objects.create(
-                agreement=agreement, uploaded_by=seller,
-                file_type=EvidenceItem.FileType.PHOTO, evidence_type=vp,
-                file_hash=f"receipt-vp-{vp}", upload_status=EvidenceItem.UploadStatus.CONFIRMED,
+                agreement=agreement,
+                uploaded_by=seller,
+                file_type=EvidenceItem.FileType.PHOTO,
+                evidence_type=vp,
+                file_hash=f"receipt-vp-{vp}",
+                upload_status=EvidenceItem.UploadStatus.CONFIRMED,
             )
         EvidenceItem.objects.create(
             agreement=agreement,
@@ -409,7 +423,9 @@ class TestSealAgreement:
     ):
         account = _account("seal_receipt_long@test.com")
         agreement = AgreementService.create_draft(
-            title="Receipt", created_by=account, scenario_template="used_vehicle_sale",
+            title="Receipt",
+            created_by=account,
+            scenario_template="used_vehicle_sale",
         )
         agreement.status = AgreementStatus.ACTIVE
         agreement.save()
@@ -475,7 +491,9 @@ class TestSealAgreement:
     def test_seal_notifications_wait_for_transaction_commit(self, db, monkeypatch):
         account = _account("seal_commit@test.com")
         agreement = AgreementService.create_draft(
-            title="Commit Guard", created_by=account, scenario_template="used_vehicle_sale",
+            title="Commit Guard",
+            created_by=account,
+            scenario_template="used_vehicle_sale",
         )
         agreement.status = AgreementStatus.ACTIVE
         agreement.save()
@@ -503,8 +521,10 @@ class TestSealAgreement:
         self._verified_identity_bundle(agreement, buyer)
         for vp in ("vehicle_photo_front", "vehicle_photo_side", "vehicle_photo_rear"):
             EvidenceItem.objects.create(
-                agreement=agreement, uploaded_by=party,
-                file_type=EvidenceItem.FileType.PHOTO, evidence_type=vp,
+                agreement=agreement,
+                uploaded_by=party,
+                file_type=EvidenceItem.FileType.PHOTO,
+                evidence_type=vp,
                 upload_status=EvidenceItem.UploadStatus.CONFIRMED,
             )
 
@@ -578,7 +598,9 @@ class TestSealAgreement:
     def test_fail_open_override_allows_seal_when_billing_check_errors(self, db, monkeypatch):
         account = _account("seal_billing_override@test.com")
         agreement = AgreementService.create_draft(
-            title="T", created_by=account, scenario_template="used_vehicle_sale",
+            title="T",
+            created_by=account,
+            scenario_template="used_vehicle_sale",
         )
         agreement.status = AgreementStatus.ACTIVE
         agreement.save()
@@ -604,8 +626,10 @@ class TestSealAgreement:
         self._verified_identity_bundle(agreement, seller)
         for vp in ("vehicle_photo_front", "vehicle_photo_side", "vehicle_photo_rear"):
             EvidenceItem.objects.create(
-                agreement=agreement, uploaded_by=party,
-                file_type=EvidenceItem.FileType.PHOTO, evidence_type=vp,
+                agreement=agreement,
+                uploaded_by=party,
+                file_type=EvidenceItem.FileType.PHOTO,
+                evidence_type=vp,
                 upload_status=EvidenceItem.UploadStatus.CONFIRMED,
             )
 

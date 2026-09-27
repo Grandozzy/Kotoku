@@ -1,6 +1,6 @@
+import hashlib
 import json
 import logging
-import hashlib
 
 from django.conf import settings
 from django.http import HttpResponse
@@ -42,7 +42,9 @@ def _derive_webhook_event_id(payload: dict) -> str:
         data.get("reference"),
         data.get("subscription_code"),
         data.get("invoice_code"),
-        data.get("customer", {}).get("customer_code") if isinstance(data.get("customer"), dict) else "",
+        data.get("customer", {}).get("customer_code")
+        if isinstance(data.get("customer"), dict)
+        else "",
     ):
         value = str(candidate or "").strip()
         if value:
@@ -59,6 +61,7 @@ class ConfigView(APIView):
     Returns the Paystack public key so the mobile client can initialise the
     Paystack SDK without the key being baked into the app bundle.
     """
+
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
@@ -72,6 +75,7 @@ class InitiateView(APIView):
     Body: { "plan_id": "personal_plus" }
     Starts a Paystack checkout and returns the authorization URL.
     """
+
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
@@ -94,11 +98,14 @@ class InitiateView(APIView):
                 plan_id=serializer.validated_data["plan_id"],
                 callback_url=serializer.validated_data.get("callback_url") or None,
             )
-        return ok({
-            "authorization_url": result.authorization_url,
-            "access_code": result.access_code,
-            "reference": result.reference,
-        }, status_code=201)
+        return ok(
+            {
+                "authorization_url": result.authorization_url,
+                "access_code": result.access_code,
+                "reference": result.reference,
+            },
+            status_code=201,
+        )
 
 
 class SubscriptionView(APIView):
@@ -106,6 +113,7 @@ class SubscriptionView(APIView):
     GET /api/payments/subscription/
     Returns the current subscription state for the authenticated account.
     """
+
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
@@ -119,6 +127,7 @@ class CheckoutStatusView(APIView):
     GET /api/payments/checkout-status/?reference=<ref>
     Returns the current payment confirmation state for one checkout.
     """
+
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
@@ -138,6 +147,7 @@ class CancelCheckoutView(APIView):
     paid, Paystack's webhook will have already moved the checkout to a
     terminal status before this call arrives.
     """
+
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
@@ -157,6 +167,7 @@ class CancelView(APIView):
     Marks the active subscription to cancel at period end. Does not refund.
     Account.plan is not changed immediately — the period-end task handles it.
     """
+
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
@@ -181,6 +192,7 @@ class WebhookView(APIView):
       5. Dispatch process_payment_event Celery task.
       6. Return 200 immediately — never block on processing.
     """
+
     authentication_classes = []
     permission_classes = []
 

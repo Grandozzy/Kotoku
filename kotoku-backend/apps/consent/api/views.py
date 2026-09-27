@@ -131,9 +131,7 @@ class PublicConsentLinkConfirmView(APIView):
         )
         return ok(
             {
-                "consent_record": ConsentRecordOutputSerializer(
-                    result["consent_record"]
-                ).data,
+                "consent_record": ConsentRecordOutputSerializer(result["consent_record"]).data,
                 "all_consented": result["all_consented"],
             }
         )

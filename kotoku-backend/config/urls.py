@@ -43,7 +43,11 @@ urlpatterns = [
         PublicConsentLinkConfirmView.as_view(),
         name="public-consent-link-confirm",
     ),
-    path("api/consent-links/<str:token>/", PublicConsentLinkView.as_view(), name="public-consent-link"),
+    path(
+        "api/consent-links/<str:token>/",
+        PublicConsentLinkView.as_view(),
+        name="public-consent-link",
+    ),
     path(
         "api/vault-receipts/<str:token>/",
         PublicSealedReceiptView.as_view(),

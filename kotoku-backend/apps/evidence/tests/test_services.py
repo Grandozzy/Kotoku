@@ -16,10 +16,10 @@ _seq = 0
 
 # Minimal valid file headers for each EvidenceItem.FileType
 _FAKE_FILE: dict[str, bytes] = {
-    "photo": b"\xff\xd8\xff" + b"\x00" * 10,       # JPEG
-    "document": b"%PDF-1.7\n" + b"\x00" * 10,      # PDF
+    "photo": b"\xff\xd8\xff" + b"\x00" * 10,  # JPEG
+    "document": b"%PDF-1.7\n" + b"\x00" * 10,  # PDF
     "signature": b"\x89PNG\r\n\x1a\n" + b"\x00" * 10,  # PNG
-    "voice_note": b"RIFF\x00\x00\x00\x00WAVE",     # WAV
+    "voice_note": b"RIFF\x00\x00\x00\x00WAVE",  # WAV
 }
 
 

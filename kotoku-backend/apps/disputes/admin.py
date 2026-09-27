@@ -10,13 +10,16 @@ from common.exceptions import DomainError
 
 # ── Inline resolution form ──────────────────────────────────────────────────
 
+
 class ResolutionForm(forms.Form):
     resolution_note = forms.CharField(
-        widget=forms.Textarea(attrs={
-            "rows": 4,
-            "style": "width:100%;",
-            "placeholder": "Write a clear resolution or dismissal note…",
-        }),
+        widget=forms.Textarea(
+            attrs={
+                "rows": 4,
+                "style": "width:100%;",
+                "placeholder": "Write a clear resolution or dismissal note…",
+            }
+        ),
         label="Resolution / dismissal note",
         required=True,
     )
@@ -25,23 +28,28 @@ class ResolutionForm(forms.Form):
 # ── Status badge ────────────────────────────────────────────────────────────
 
 _STATUS_STYLES = {
-    "open":          "background:#FEF3C7;color:#92400E",
+    "open": "background:#FEF3C7;color:#92400E",
     "investigating": "background:#DBEAFE;color:#1E40AF",
-    "resolved":      "background:#D1FAE5;color:#065F46",
-    "dismissed":     "background:#F3F4F6;color:#6B7280",
+    "resolved": "background:#D1FAE5;color:#065F46",
+    "dismissed": "background:#F3F4F6;color:#6B7280",
 }
+
 
 def coloured_status(obj: Dispute) -> str:
     style = _STATUS_STYLES.get(obj.status, "")
     return format_html(
-        '<span style="padding:2px 10px;border-radius:999px;font-size:12px;font-weight:600;{}">{}</span>',
+        '<span style="padding:2px 10px;border-radius:999px;font-size:12px;'
+        'font-weight:600;{}">{}</span>',
         style,
         obj.get_status_display(),
     )
+
+
 coloured_status.short_description = "Status"  # type: ignore[attr-defined]
 
 
 # ── Bulk action ─────────────────────────────────────────────────────────────
+
 
 @admin.action(description="Mark selected disputes as Investigating")
 def action_mark_investigating(
@@ -54,16 +62,25 @@ def action_mark_investigating(
             updated += 1
         except DomainError:
             pass
-    modeladmin.message_user(request, f"{updated} dispute(s) marked as Investigating.", messages.SUCCESS)
+    modeladmin.message_user(
+        request, f"{updated} dispute(s) marked as Investigating.", messages.SUCCESS
+    )
 
 
 # ── Admin class ─────────────────────────────────────────────────────────────
 
+
 @admin.register(Dispute)
 class DisputeAdmin(admin.ModelAdmin):
-
     # ── List view ───────────────────────────────────────────────────────────
-    list_display = ("id", "agreement_link", "raised_by", coloured_status, "created_at", "resolved_at")
+    list_display = (
+        "id",
+        "agreement_link",
+        "raised_by",
+        coloured_status,
+        "created_at",
+        "resolved_at",
+    )
     list_filter = ("status", "created_at")
     search_fields = ("reason", "resolution", "agreement__title", "raised_by__display_name")
     list_select_related = ("agreement", "raised_by")
@@ -81,20 +98,30 @@ class DisputeAdmin(admin.ModelAdmin):
         "updated_at",
     )
     fieldsets = (
-        ("Dispute", {
-            "fields": ("agreement_link", "raised_by", coloured_status, "created_at"),
-        }),
-        ("Reason submitted by party", {
-            "fields": ("reason",),
-        }),
-        ("Resolution", {
-            "fields": ("status", "resolution", "resolved_at", "updated_at"),
-        }),
+        (
+            "Dispute",
+            {
+                "fields": ("agreement_link", "raised_by", coloured_status, "created_at"),
+            },
+        ),
+        (
+            "Reason submitted by party",
+            {
+                "fields": ("reason",),
+            },
+        ),
+        (
+            "Resolution",
+            {
+                "fields": ("status", "resolution", "resolved_at", "updated_at"),
+            },
+        ),
     )
 
     def agreement_link(self, obj: Dispute):
         url = f"/admin/agreements/agreement/{obj.agreement_id}/change/"
         return format_html('<a href="{}">{}</a>', url, obj.agreement.title)
+
     agreement_link.short_description = "Agreement"  # type: ignore[attr-defined]
 
     # ── Custom change view — inject resolve / dismiss form ──────────────────
@@ -120,7 +147,9 @@ class DisputeAdmin(admin.ModelAdmin):
                             DisputeService.resolve_dispute(
                                 dispute=dispute, resolution=note, actor=str(request.user)
                             )
-                            self.message_user(request, "Dispute marked as resolved.", messages.SUCCESS)
+                            self.message_user(
+                                request, "Dispute marked as resolved.", messages.SUCCESS
+                            )
                         else:
                             DisputeService.dismiss_dispute(
                                 dispute=dispute, resolution=note, actor=str(request.user)

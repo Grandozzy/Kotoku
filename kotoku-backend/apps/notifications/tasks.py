@@ -18,9 +18,7 @@ logger = logging.getLogger(__name__)
 )
 def dispatch_notification(notification_id: int) -> None:
     try:
-        notification = Notification.objects.select_related("account").get(
-            pk=notification_id
-        )
+        notification = Notification.objects.select_related("account").get(pk=notification_id)
     except Notification.DoesNotExist:
         logger.warning("Notification %s not found", notification_id)
         return
@@ -40,9 +38,7 @@ def dispatch_notification(notification_id: int) -> None:
             success = provider.send(to=to, body=notification.body, subject=notification.subject)
         else:
             success = provider.send(to=to, body=notification.body)
-        notification.status = (
-            Notification.Status.SENT if success else Notification.Status.FAILED
-        )
+        notification.status = Notification.Status.SENT if success else Notification.Status.FAILED
         if success:
             notification.sent_at = timezone.now()
     except Exception:

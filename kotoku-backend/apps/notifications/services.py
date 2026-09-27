@@ -39,7 +39,8 @@ class NotificationService:
         )
         if destination:
             logger.info(
-                "Notification %s queued; explicit destination provided but account-bound dispatch will use account contact.",
+                "Notification %s queued; explicit destination provided but "
+                "account-bound dispatch will use account contact.",
                 notification.pk,
             )
         dispatch_notification.delay(notification.pk)

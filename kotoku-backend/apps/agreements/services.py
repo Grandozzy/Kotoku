@@ -14,8 +14,8 @@ from apps.agreements.domain.policies import (
     can_request_reopen,
     can_seal,
 )
-from apps.agreements.domain.validators import validate_agreement
 from apps.agreements.domain.state_machine import next_state
+from apps.agreements.domain.validators import validate_agreement
 from apps.agreements.models import Agreement, AgreementRevision
 from apps.audit.services import AuditService
 from apps.identity.models import IdentityRecord
@@ -86,9 +86,7 @@ def _build_seal_receipt_sms(agreement, party: Party) -> str:
         .order_by("evidence_type", "file_key")
         .values_list("evidence_type", flat=True)
     )
-    evidence_labels = [
-        et for et in all_labels if parse_identity_evidence_type(et) is None
-    ]
+    evidence_labels = [et for et in all_labels if parse_identity_evidence_type(et) is None]
     shown = evidence_labels[:_RECEIPT_MAX_EVIDENCE_ITEMS]
     if not shown:
         files_summary = "none"
@@ -292,7 +290,8 @@ class AgreementService:
         validation = validate_agreement(agreement)
         if not validation.valid:
             raise DomainError(
-                "Cannot seal: agreement validation failed. Resolve the remaining identity or evidence issues first."
+                "Cannot seal: agreement validation failed. Resolve the remaining "
+                "identity or evidence issues first."
             )
         new_status = next_state(agreement.status, "seal")
         agreement.status = new_status

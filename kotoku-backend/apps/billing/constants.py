@@ -2,6 +2,7 @@
 Billing plan definitions — single source of truth for all plan metadata.
 Do NOT expose cost/margin or storage-in-GB fields to users.
 """
+
 from dataclasses import dataclass
 from typing import List
 
@@ -17,14 +18,14 @@ class PlanFeatures:
 @dataclass(frozen=True)
 class Plan:
     id: str
-    family: str                     # "personal" | "enterprise"
+    family: str  # "personal" | "enterprise"
     name: str
     tagline: str
-    price_ghs: int                  # monthly price in GHS
-    max_agreements_per_month: int   # hard cap for Personal; soft cap for Enterprise
+    price_ghs: int  # monthly price in GHS
+    max_agreements_per_month: int  # hard cap for Personal; soft cap for Enterprise
     retention_months: int
     features: PlanFeatures
-    is_soft_cap: bool = False       # True for Enterprise plans
+    is_soft_cap: bool = False  # True for Enterprise plans
 
 
 PLANS: List[Plan] = [
@@ -36,7 +37,9 @@ PLANS: List[Plan] = [
         price_ghs=49,
         max_agreements_per_month=1,
         retention_months=12,
-        features=PlanFeatures(team_seats=1, bulk_creation=False, reporting=False, archive_search=False),
+        features=PlanFeatures(
+            team_seats=1, bulk_creation=False, reporting=False, archive_search=False
+        ),
     ),
     Plan(
         id="personal_plus",
@@ -46,7 +49,9 @@ PLANS: List[Plan] = [
         price_ghs=79,
         max_agreements_per_month=3,
         retention_months=24,
-        features=PlanFeatures(team_seats=1, bulk_creation=False, reporting=False, archive_search=False),
+        features=PlanFeatures(
+            team_seats=1, bulk_creation=False, reporting=False, archive_search=False
+        ),
     ),
     Plan(
         id="personal_protect",
@@ -56,7 +61,9 @@ PLANS: List[Plan] = [
         price_ghs=99,
         max_agreements_per_month=7,
         retention_months=36,
-        features=PlanFeatures(team_seats=1, bulk_creation=False, reporting=False, archive_search=False),
+        features=PlanFeatures(
+            team_seats=1, bulk_creation=False, reporting=False, archive_search=False
+        ),
     ),
     Plan(
         id="enterprise_standard",
@@ -66,7 +73,9 @@ PLANS: List[Plan] = [
         price_ghs=400,
         max_agreements_per_month=20,
         retention_months=60,  # 5 years
-        features=PlanFeatures(team_seats=3, bulk_creation=True, reporting=True, archive_search=False),
+        features=PlanFeatures(
+            team_seats=3, bulk_creation=True, reporting=True, archive_search=False
+        ),
         is_soft_cap=True,
     ),
     Plan(
@@ -77,7 +86,9 @@ PLANS: List[Plan] = [
         price_ghs=1200,
         max_agreements_per_month=80,
         retention_months=120,  # 10 years
-        features=PlanFeatures(team_seats=10, bulk_creation=True, reporting=True, archive_search=True),
+        features=PlanFeatures(
+            team_seats=10, bulk_creation=True, reporting=True, archive_search=True
+        ),
         is_soft_cap=True,
     ),
 ]
@@ -87,7 +98,12 @@ PLAN_MAP: dict[str, Plan] = {p.id: p for p in PLANS}
 DEFAULT_PLAN_ID = "personal_basic"
 
 # Personal plan IDs in upgrade order
-PERSONAL_UPGRADE_ORDER = ["personal_basic", "personal_plus", "personal_protect", "enterprise_standard"]
+PERSONAL_UPGRADE_ORDER = [
+    "personal_basic",
+    "personal_plus",
+    "personal_protect",
+    "enterprise_standard",
+]
 
 # Misuse heuristics thresholds
 MISUSE_CONSECUTIVE_MONTHS_AT_CAP = 3

@@ -13,7 +13,8 @@ SECRET_KEY = os.getenv(
 )
 DEBUG = os.getenv("DJANGO_DEBUG", "false").lower() == "true"
 ALLOWED_HOSTS = [
-    host.strip() for host in os.getenv("DJANGO_ALLOWED_HOSTS", "127.0.0.1,localhost").split(",")
+    host.strip()
+    for host in os.getenv("DJANGO_ALLOWED_HOSTS", "127.0.0.1,localhost").split(",")
     if host.strip()
 ] + ["healthcheck.railway.app"]
 
@@ -70,11 +71,13 @@ TEMPLATES = [
         "BACKEND": "django.template.backends.django.DjangoTemplates",
         "DIRS": [BASE_DIR / "templates"],
         "APP_DIRS": True,
-        "OPTIONS": {"context_processors": [
-            "django.template.context_processors.request",
-            "django.contrib.auth.context_processors.auth",
-            "django.contrib.messages.context_processors.messages",
-        ]},
+        "OPTIONS": {
+            "context_processors": [
+                "django.template.context_processors.request",
+                "django.contrib.auth.context_processors.auth",
+                "django.contrib.messages.context_processors.messages",
+            ]
+        },
     }
 ]
 
@@ -139,8 +142,12 @@ SIMPLE_JWT = {
     "AUTH_TOKEN_CLASSES": ("rest_framework_simplejwt.tokens.AccessToken",),
 }
 
-CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", os.getenv("REDIS_URL", "redis://localhost:6379/0"))
-CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", os.getenv("REDIS_URL", "redis://localhost:6379/0"))
+CELERY_BROKER_URL = os.getenv(
+    "CELERY_BROKER_URL", os.getenv("REDIS_URL", "redis://localhost:6379/0")
+)
+CELERY_RESULT_BACKEND = os.getenv(
+    "CELERY_RESULT_BACKEND", os.getenv("REDIS_URL", "redis://localhost:6379/0")
+)
 CELERY_TASK_ALWAYS_EAGER = False
 BILLING_ENFORCEMENT_FAIL_OPEN = (
     os.getenv("BILLING_ENFORCEMENT_FAIL_OPEN", "false").lower() == "true"
@@ -160,7 +167,7 @@ CELERY_BEAT_SCHEDULE = {
     },
     "cleanup-expired-otp-requests": {
         "task": "apps.auth.tasks.cleanup_expired_otp_requests",
-        "schedule": 3600,   # hourly
+        "schedule": 3600,  # hourly
     },
     "cleanup-expired-device-sessions": {
         "task": "apps.auth.tasks.cleanup_expired_device_sessions",
@@ -193,9 +200,19 @@ AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY", "")
 AWS_SESSION_TOKEN = os.getenv("AWS_SESSION_TOKEN", "").strip()
 AWS_STORAGE_BUCKET_NAME = os.getenv("AWS_STORAGE_BUCKET_NAME", "kotoku-evidence")
 AWS_S3_REGION_NAME = os.getenv("AWS_S3_REGION_NAME", "eu-west-1")
+AWS_REKOGNITION_LIVENESS_THRESHOLD = float(os.getenv("AWS_REKOGNITION_LIVENESS_THRESHOLD", "80"))
+AWS_REKOGNITION_LIVENESS_REVIEW_THRESHOLD = float(
+    os.getenv("AWS_REKOGNITION_LIVENESS_REVIEW_THRESHOLD", "70")
+)
+AWS_REKOGNITION_LIVENESS_MAX_FAILURES = int(os.getenv("AWS_REKOGNITION_LIVENESS_MAX_FAILURES", "5"))
+AWS_REKOGNITION_LIVENESS_FAILURE_WINDOW_SECONDS = int(
+    os.getenv("AWS_REKOGNITION_LIVENESS_FAILURE_WINDOW_SECONDS", "180")
+)
+AWS_REKOGNITION_LIVENESS_COOLDOWN_SECONDS = int(
+    os.getenv("AWS_REKOGNITION_LIVENESS_COOLDOWN_SECONDS", "1800")
+)
 AWS_ENDPOINT_URL_S3 = (
-    os.getenv("AWS_ENDPOINT_URL_S3", "").strip()
-    or os.getenv("AWS_S3_ENDPOINT_URL", "").strip()
+    os.getenv("AWS_ENDPOINT_URL_S3", "").strip() or os.getenv("AWS_S3_ENDPOINT_URL", "").strip()
 )
 
 # --- Infobip (primary SMS provider) ---
@@ -250,11 +267,12 @@ PAYSTACK_PLAN_CODE_ENV_MAP: dict[str, str] = {
 # Map billing plan IDs → Paystack plan codes.
 # Set each via env var after creating plans in the Paystack dashboard.
 PAYSTACK_PLAN_CODES: dict[str, str] = {
-    plan_id: os.getenv(env_name, "")
-    for plan_id, env_name in PAYSTACK_PLAN_CODE_ENV_MAP.items()
+    plan_id: os.getenv(env_name, "") for plan_id, env_name in PAYSTACK_PLAN_CODE_ENV_MAP.items()
 }
 PAYSTACK_CALLBACK_URL = os.getenv("PAYSTACK_CALLBACK_URL", "")
-PARTY_INVITE_DEEP_LINK_BASE = os.getenv("PARTY_INVITE_DEEP_LINK_BASE", "https://kotoku-app.com/invite/")
+PARTY_INVITE_DEEP_LINK_BASE = os.getenv(
+    "PARTY_INVITE_DEEP_LINK_BASE", "https://kotoku-app.com/invite/"
+)
 
 GOOGLE_VISION_PROJECT_ID = os.getenv("GOOGLE_VISION_PROJECT_ID", "").strip()
 GOOGLE_VISION_LOCATION = os.getenv("GOOGLE_VISION_LOCATION", "eu").strip() or "eu"
@@ -295,10 +313,13 @@ AUTH_REFRESH_COOKIE_NAME = os.getenv("AUTH_REFRESH_COOKIE_NAME", "kotoku_refresh
 AUTH_REFRESH_COOKIE_DOMAIN = os.getenv("AUTH_REFRESH_COOKIE_DOMAIN", "")
 AUTH_REFRESH_COOKIE_PATH = os.getenv("AUTH_REFRESH_COOKIE_PATH", "/api/auth/")
 AUTH_REFRESH_COOKIE_SAMESITE = os.getenv("AUTH_REFRESH_COOKIE_SAMESITE", "Lax")
-AUTH_REFRESH_COOKIE_SECURE = os.getenv(
-    "AUTH_REFRESH_COOKIE_SECURE",
-    "false" if DEBUG else "true",
-).lower() == "true"
+AUTH_REFRESH_COOKIE_SECURE = (
+    os.getenv(
+        "AUTH_REFRESH_COOKIE_SECURE",
+        "false" if DEBUG else "true",
+    ).lower()
+    == "true"
+)
 AUTH_WEB_REFRESH_COOKIE_MAX_AGE = int(os.getenv("AUTH_WEB_REFRESH_COOKIE_MAX_AGE", "28800"))
 EVIDENCE_VIEW_URL_TTL_SECONDS = int(os.getenv("EVIDENCE_VIEW_URL_TTL_SECONDS", "900"))
 _default_email_backend = (

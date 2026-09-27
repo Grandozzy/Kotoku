@@ -65,7 +65,8 @@ class PartyIdentityVerification(models.Model):
     verified_at = models.DateTimeField(null=True, blank=True)
     # Face Liveness fields (populated by the liveness session API flow)
     liveness_session_id = models.CharField(max_length=256, blank=True)
-    liveness_status = models.CharField(max_length=16, blank=True)  # "", "pending", "passed", "failed"
+    # pending, passed, failed, or manual_review
+    liveness_status = models.CharField(max_length=16, blank=True)
     liveness_confidence = models.FloatField(null=True, blank=True)
     liveness_reference_s3_key = models.CharField(max_length=512, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)

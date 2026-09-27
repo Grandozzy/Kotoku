@@ -32,10 +32,10 @@ def validate_party_identity_input(*, role: str, id_type: str, id_number: str) ->
 
     normalized_pin = normalize_ghana_card_pin(id_number)
     if not normalized_pin:
-        raise DomainError(f"Ghana Card Number is required for role '{role}'.")
+        raise DomainError(f"Ghana Card number is required for role '{role}'.")
     if not is_valid_ghana_card_pin(normalized_pin):
         raise DomainError(
-            f"Ghana Card Number must use the format GHA-000000000-0 for role '{role}'."
+            f"Ghana Card number must use the format GHA-000000000-0 for role '{role}'."
         )
     return normalized_pin
 
@@ -51,7 +51,8 @@ def ensure_unique_pins(parties_data: list[dict]) -> None:
             continue
         if pin in pins:
             raise DomainError(
-                f"Ghana Card Number must be unique per agreement. Roles '{pins[pin]}' and '{role}' cannot share one."
+                "Ghana Card number must be unique per agreement. "
+                f"Roles '{pins[pin]}' and '{role}' cannot share one."
             )
         pins[pin] = role
 
@@ -87,11 +88,14 @@ def validate_identity_evidence_type(*, agreement, evidence_type: str) -> None:
     role, _side = parsed
     if not agreement.parties.filter(role=role).exists():
         raise DomainError(
-            f"Identity evidence type '{evidence_type}' does not match a party role on this agreement."
+            f"Identity evidence type '{evidence_type}' does not match a party role "
+            "on this agreement."
         )
 
 
-def latest_identity_evidence_by_party(*, parties, evidence_items) -> dict[str, dict[str, EvidenceItem]]:
+def latest_identity_evidence_by_party(
+    *, parties, evidence_items
+) -> dict[str, dict[str, EvidenceItem]]:
     latest_by_slot: dict[tuple[str, str], EvidenceItem] = {}
     for item in evidence_items:
         if item.upload_status != EvidenceItem.UploadStatus.CONFIRMED:
@@ -182,9 +186,7 @@ def build_party_identity_states(
                 else None
             ),
             verification_status=(
-                verification.status
-                if verification
-                else PartyIdentityVerification.Status.PENDING
+                verification.status if verification else PartyIdentityVerification.Status.PENDING
             ),
             verification_detail=(
                 verification.detail

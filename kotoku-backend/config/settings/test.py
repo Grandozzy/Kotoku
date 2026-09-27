@@ -3,7 +3,7 @@ from .base import *  # noqa: F403
 DEBUG = False
 SECRET_KEY = "kotoku-test-secret-key-minimum-32-bytes-2026"
 PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
-DATABASES["default"] = {  # type: ignore[index]
+DATABASES["default"] = {  # type: ignore[index]  # noqa: F405
     "ENGINE": "django.db.backends.sqlite3",
     "NAME": ":memory:",
 }
@@ -21,7 +21,7 @@ CACHES = {
     }
 }
 
-STATIC_ROOT = BASE_DIR / "output" / "static-test"  # type: ignore[name-defined]
+STATIC_ROOT = BASE_DIR / "output" / "static-test"  # type: ignore[name-defined]  # noqa: F405
 STATIC_ROOT.mkdir(parents=True, exist_ok=True)
 
 LOGGING = {

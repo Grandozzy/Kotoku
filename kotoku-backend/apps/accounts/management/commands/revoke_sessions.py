@@ -22,8 +22,8 @@ class Command(BaseCommand):
 
         try:
             user = User.objects.get(phone=phone)
-        except User.DoesNotExist:
-            raise CommandError(f"No user found with phone {phone!r}.")
+        except User.DoesNotExist as exc:
+            raise CommandError(f"No user found with phone {phone!r}.") from exc
 
         updated = DeviceSession.objects.filter(user=user, is_revoked=False).update(
             is_revoked=True,
@@ -31,7 +31,5 @@ class Command(BaseCommand):
             revoked_reason=reason,
         )
         self.stdout.write(
-            self.style.SUCCESS(
-                f"Revoked {updated} session(s) for {phone} (reason: {reason!r})."
-            )
+            self.style.SUCCESS(f"Revoked {updated} session(s) for {phone} (reason: {reason!r}).")
         )

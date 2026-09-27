@@ -193,9 +193,8 @@ class ConsentService:
             )
             phone = party.phone
             if phone:
-                is_creator_party = (
-                    purpose == ConsentRecord.Purpose.CONSENT
-                    and _is_creator_party(agreement=agreement, party=party)
+                is_creator_party = purpose == ConsentRecord.Purpose.CONSENT and _is_creator_party(
+                    agreement=agreement, party=party
                 )
                 if purpose == ConsentRecord.Purpose.CONSENT and not is_creator_party:
                     token = ConsentService.make_consent_link_token(
@@ -238,14 +237,10 @@ class ConsentService:
             "created_by__user",
         ).get(pk=agreement_id)
         if agreement.status != AgreementStatus.PENDING_CONSENT:
-            raise DomainError(
-                "Cannot request consent: agreement must be in pending_consent status"
-            )
+            raise DomainError("Cannot request consent: agreement must be in pending_consent status")
         from apps.consent.selectors import ConsentSelector  # noqa: PLC0415
 
-        existing_records = ConsentSelector.list_consent_for_agreement(
-            agreement_id=agreement_id
-        )
+        existing_records = ConsentSelector.list_consent_for_agreement(agreement_id=agreement_id)
         if existing_records.exists() and ConsentSelector.all_parties_consented(
             agreement_id=agreement_id
         ):
@@ -275,8 +270,10 @@ class ConsentService:
             raise DomainError("Too many verification attempts. Try again later.")
 
         try:
-            record = ConsentRecord.objects.select_related("agreement").select_for_update().get(
-                pk=consent_record_id
+            record = (
+                ConsentRecord.objects.select_related("agreement")
+                .select_for_update()
+                .get(pk=consent_record_id)
             )
         except ConsentRecord.DoesNotExist:
             raise DomainError("Invalid or expired verification code") from None
@@ -308,13 +305,9 @@ class ConsentService:
             metadata={"channel": record.channel},
         )
         agreement = Agreement.objects.select_for_update().get(pk=record.agreement_id)
-        all_granted = not ConsentRecord.objects.filter(
-            agreement=agreement, granted=False
-        ).exists()
+        all_granted = not ConsentRecord.objects.filter(agreement=agreement, granted=False).exists()
         if all_granted:
-            has_revision = AgreementRevision.objects.filter(
-                agreement=agreement
-            ).exists()
+            has_revision = AgreementRevision.objects.filter(agreement=agreement).exists()
             if not has_revision:
                 new_status = next_state(agreement.status, "all_consented")
                 agreement.status = new_status
@@ -353,18 +346,16 @@ class ConsentService:
 
         if not can_request_consent(agreement):
             raise DomainError(
-                "Agreement must have at least 2 parties and be in draft or "
-                "pending_consent status."
+                "Agreement must have at least 2 parties and be in draft or pending_consent status."
             )
 
         original_status = agreement.status
 
         from apps.consent.selectors import ConsentSelector  # noqa: PLC0415
+
         if agreement.status == AgreementStatus.PENDING_CONSENT:
             if ConsentSelector.all_parties_consented(agreement_id=agreement_id):
-                raise DomainError(
-                    "All parties have already consented. Proceed to seal."
-                )
+                raise DomainError("All parties have already consented. Proceed to seal.")
         else:
             # DRAFT or ACTIVE → PENDING_CONSENT
             agreement.status = next_state(agreement.status, "request_consent")
@@ -467,15 +458,16 @@ class ConsentService:
         if attempts >= _OTP_MAX_ATTEMPTS:
             raise DomainError("Too many verification attempts. Try again later.")
 
-        valid = (
-            record.expires_at >= timezone.now()
-            and verify_otp_hash(otp_code, record.otp_code_hash)
+        valid = record.expires_at >= timezone.now() and verify_otp_hash(
+            otp_code, record.otp_code_hash
         )
         if not valid:
             cache.set(cache_key, attempts + 1, timeout=_OTP_LOCKOUT_SECONDS)
             logger.warning(
                 "Failed reopen OTP for party phone=%s agreement=%s (attempt %s)",
-                party_phone, agreement_id, attempts + 1,
+                party_phone,
+                agreement_id,
+                attempts + 1,
             )
             raise DomainError("Invalid or expired verification code.")
 
@@ -493,8 +485,10 @@ class ConsentService:
 
         # Check if all parties have now confirmed; if so, complete the reopen.
         from apps.agreements.domain.policies import all_parties_confirmed_reopen  # noqa: PLC0415
+
         if all_parties_confirmed_reopen(agreement_id):
             from apps.agreements.services import AgreementService  # noqa: PLC0415
+
             AgreementService.complete_bilateral_reopen(agreement_id=agreement_id)
 
         return record
@@ -520,14 +514,11 @@ class ConsentService:
             raise DomainError("Invalid or expired verification code.") from None
 
         try:
-            record = (
-                ConsentRecord.objects.select_for_update()
-                .get(
-                    agreement_id=agreement_id,
-                    party=party,
-                    purpose=purpose,
-                    granted=False,
-                )
+            record = ConsentRecord.objects.select_for_update().get(
+                agreement_id=agreement_id,
+                party=party,
+                purpose=purpose,
+                granted=False,
             )
         except ConsentRecord.DoesNotExist:
             raise DomainError("Invalid or expired verification code.") from None
@@ -537,15 +528,16 @@ class ConsentService:
         if attempts >= _OTP_MAX_ATTEMPTS:
             raise DomainError("Too many verification attempts. Try again later.")
 
-        valid = (
-            record.expires_at >= timezone.now()
-            and verify_otp_hash(otp_code, record.otp_code_hash)
+        valid = record.expires_at >= timezone.now() and verify_otp_hash(
+            otp_code, record.otp_code_hash
         )
         if not valid:
             cache.set(cache_key, attempts + 1, timeout=_OTP_LOCKOUT_SECONDS)
             logger.warning(
                 "Failed consent OTP for party phone=%s agreement=%s (attempt %s)",
-                party_phone, agreement_id, attempts + 1,
+                party_phone,
+                agreement_id,
+                attempts + 1,
             )
             raise DomainError("Invalid or expired verification code.")
 
@@ -561,17 +553,13 @@ class ConsentService:
             metadata={"party_id": party.pk, "channel": record.channel},
         )
         from apps.consent.selectors import ConsentSelector  # noqa: PLC0415
-        if (
-            purpose == ConsentRecord.Purpose.CONSENT
-            and ConsentSelector.all_parties_consented(
-                agreement_id=agreement_id,
-                purpose=purpose,
-            )
+
+        if purpose == ConsentRecord.Purpose.CONSENT and ConsentSelector.all_parties_consented(
+            agreement_id=agreement_id,
+            purpose=purpose,
         ):
             agreement = Agreement.objects.select_for_update().get(pk=agreement_id)
-            has_revision = AgreementRevision.objects.filter(
-                agreement=agreement
-            ).exists()
+            has_revision = AgreementRevision.objects.filter(agreement=agreement).exists()
             if not has_revision:
                 agreement.status = next_state(agreement.status, "all_consented")
                 agreement.save(update_fields=["status", "updated_at"])
@@ -624,6 +612,7 @@ class ConsentService:
             .first()
         )
         from apps.consent.selectors import ConsentSelector  # noqa: PLC0415
+
         all_consented = ConsentSelector.all_parties_consented(
             agreement_id=agreement.pk,
             purpose=purpose,

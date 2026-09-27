@@ -186,10 +186,7 @@ def test_account_already_on_personal_basic_still_expires_sub(mock_notify):
 @patch("apps.payments.tasks._notify")
 def test_multiple_lapsed_subscriptions_all_downgraded(mock_notify):
     accounts = [_make_account(plan="personal_plus") for _ in range(3)]
-    subs = [
-        _make_sub(a, Subscription.STATUS_CANCELLED, period_end=_YESTERDAY)
-        for a in accounts
-    ]
+    subs = [_make_sub(a, Subscription.STATUS_CANCELLED, period_end=_YESTERDAY) for a in accounts]
 
     expire_lapsed_subscriptions()
 

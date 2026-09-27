@@ -73,7 +73,8 @@ def _find_open_checkout_by_email(email: str) -> SubscriptionCheckout | None:
     return (
         SubscriptionCheckout.objects.filter(
             account__email=email,
-            status__in=SubscriptionCheckout.OPEN_STATUSES + [SubscriptionCheckout.STATUS_PROVIDER_CREATED],
+            status__in=SubscriptionCheckout.OPEN_STATUSES
+            + [SubscriptionCheckout.STATUS_PROVIDER_CREATED],
         )
         .order_by("-created_at", "-id")
         .first()
@@ -122,6 +123,7 @@ def _notify(account, body: str) -> None:
     """Send an SMS notification through the existing notifications app."""
     try:
         from apps.notifications.services import NotificationService
+
         NotificationService.send_notification(
             account_id=account.pk,
             channel=Notification.Channel.SMS,
@@ -138,6 +140,7 @@ def _notify_email(account, *, subject: str, body: str) -> None:
         return
     try:
         from apps.notifications.services import NotificationService
+
         NotificationService.send_notification(
             account_id=account.pk,
             channel=Notification.Channel.EMAIL,
@@ -216,10 +219,16 @@ def _handle_subscription_create(data: dict) -> None:
         sub.current_period_start = _parse_date(start)
         sub.current_period_end = _parse_date(next_payment)
         sub.cancel_at_period_end = False
-        sub.save(update_fields=[
-            "paystack_sub_id", "status",
-            "current_period_start", "current_period_end", "cancel_at_period_end", "updated_at",
-        ])
+        sub.save(
+            update_fields=[
+                "paystack_sub_id",
+                "status",
+                "current_period_start",
+                "current_period_end",
+                "cancel_at_period_end",
+                "updated_at",
+            ]
+        )
 
         checkout = _find_checkout_for_activated_subscription(sub)
         if not checkout and customer_email:
@@ -230,7 +239,9 @@ def _handle_subscription_create(data: dict) -> None:
             checkout.status = SubscriptionCheckout.STATUS_PROVIDER_CREATED
             checkout.save(update_fields=["activated_subscription", "status", "updated_at"])
             if checkout.replaces_subscription_id:
-                old_sub = Subscription.objects.select_for_update().get(pk=checkout.replaces_subscription_id)
+                old_sub = Subscription.objects.select_for_update().get(
+                    pk=checkout.replaces_subscription_id
+                )
                 _cancel_replaced_subscription(old_sub, sub)
 
     AuditService.record_event(
@@ -318,7 +329,8 @@ def _handle_invoice_payment_failed(data: dict) -> None:
     )
     _notify(
         sub.account,
-        "Your Kotoku payment failed. Please update your card details to keep your subscription active.",
+        "Your Kotoku payment failed. Please update your card details to keep your "
+        "subscription active.",
     )
     _notify_email(
         sub.account,
@@ -360,9 +372,15 @@ def _handle_invoice_update(data: dict) -> None:
             sub.current_period_start = period_start
         sub.status = Subscription.STATUS_ACTIVE
         sub.cancel_at_period_end = False
-        sub.save(update_fields=[
-            "current_period_start", "current_period_end", "status", "cancel_at_period_end", "updated_at",
-        ])
+        sub.save(
+            update_fields=[
+                "current_period_start",
+                "current_period_end",
+                "status",
+                "cancel_at_period_end",
+                "updated_at",
+            ]
+        )
 
     Invoice.objects.update_or_create(
         paystack_ref=ref,
@@ -410,12 +428,12 @@ def _handle_subscription_expiring_cards(data: dict) -> None:
 # ── Event dispatch table ──────────────────────────────────────────────────────
 
 _HANDLERS = {
-    "charge.success":                _handle_charge_success,
-    "subscription.create":           _handle_subscription_create,
-    "subscription.disable":          _handle_subscription_disable,
-    "invoice.payment_failed":        _handle_invoice_payment_failed,
-    "invoice.update":                _handle_invoice_update,
-    "subscription.expiring_cards":   _handle_subscription_expiring_cards,
+    "charge.success": _handle_charge_success,
+    "subscription.create": _handle_subscription_create,
+    "subscription.disable": _handle_subscription_disable,
+    "invoice.payment_failed": _handle_invoice_payment_failed,
+    "invoice.update": _handle_invoice_update,
+    "subscription.expiring_cards": _handle_subscription_expiring_cards,
 }
 
 
@@ -487,7 +505,8 @@ def expire_lapsed_subscriptions() -> None:
                     f"Hi {account.full_name or 'there'},\n\n"
                     f"Your Kotoku subscription ({old_plan.replace('_', ' ').title()}) has ended "
                     "and you have been moved to the Personal Basic plan.\n\n"
-                    "You can resubscribe at any time from the app to restore your previous limits.\n\n"
+                    "You can resubscribe at any time from the app to restore your "
+                    "previous limits.\n\n"
                     "The Kotoku team"
                 ),
             )
@@ -498,7 +517,8 @@ def expire_lapsed_subscriptions() -> None:
         except Exception:
             logger.exception(
                 "expire_lapsed_subscriptions: failed to expire sub=%s account=%s",
-                sub.pk, account.pk,
+                sub.pk,
+                account.pk,
             )
 
     logger.info("expire_lapsed_subscriptions: downgraded %d account(s)", downgraded)
@@ -535,13 +555,16 @@ def process_payment_event(self, event_id: str) -> None:
         PaymentEvent.objects.filter(event_id=event_id).update(processed=True, error="")
         logger.info(
             "process_payment_event: event_id=%s type=%s processed OK",
-            event_id, event.event_type,
+            event_id,
+            event.event_type,
         )
     except Exception as exc:
         error_msg = f"{type(exc).__name__}: {exc}"
         logger.exception(
             "process_payment_event: event_id=%s type=%s failed: %s",
-            event_id, event.event_type, error_msg,
+            event_id,
+            event.event_type,
+            error_msg,
         )
         PaymentEvent.objects.filter(event_id=event_id).update(error=error_msg)
         # Do not re-raise — Paystack will re-deliver the webhook if we return non-2xx,

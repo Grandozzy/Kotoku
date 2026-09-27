@@ -33,11 +33,11 @@ def setup_agreement_with_party(authenticated_client):
         sealed_at=timezone.now(),
     )
     party = Party.objects.create(
-            agreement=agreement,
-            display_name="Test Party",
-            role=Party.Role.SELLER,
-            phone="+233123456789",
-        )
+        agreement=agreement,
+        display_name="Test Party",
+        role=Party.Role.SELLER,
+        phone="+233123456789",
+    )
     return client, account, agreement, party
 
 
@@ -138,7 +138,9 @@ class TestDisputeDetailAPI:
         response = client.get(f"/api/agreements/{agreement.pk}/disputes/{dispute.pk}/")
         assert response.status_code == 200
 
-    def test_participant_can_get_dispute_detail(self, setup_agreement_with_party, participant_client):
+    def test_participant_can_get_dispute_detail(
+        self, setup_agreement_with_party, participant_client
+    ):
         owner_client, account, agreement, party = setup_agreement_with_party
         participant_api, participant_account = participant_client
         Party.objects.create(
@@ -153,9 +155,7 @@ class TestDisputeDetailAPI:
             reason="Test reason",
         )
 
-        response = participant_api.get(
-            f"/api/agreements/{agreement.pk}/disputes/{dispute.pk}/"
-        )
+        response = participant_api.get(f"/api/agreements/{agreement.pk}/disputes/{dispute.pk}/")
         assert response.status_code == 200
 
 
@@ -172,7 +172,9 @@ class TestDisputeCasePackAPI:
         assert response.status_code == 200
         assert "case_pack" in response.data["data"]
 
-    def test_participant_can_generate_case_pack(self, setup_agreement_with_party, participant_client):
+    def test_participant_can_generate_case_pack(
+        self, setup_agreement_with_party, participant_client
+    ):
         owner_client, account, agreement, party = setup_agreement_with_party
         participant_api, participant_account = participant_client
         Party.objects.create(
@@ -194,7 +196,9 @@ class TestDisputeCasePackAPI:
 
 @pytest.mark.django_db
 class TestDisputeRootEndpoints:
-    def test_participant_can_list_disputes_from_root(self, setup_agreement_with_party, participant_client):
+    def test_participant_can_list_disputes_from_root(
+        self, setup_agreement_with_party, participant_client
+    ):
         owner_client, account, agreement, party = setup_agreement_with_party
         participant_api, participant_account = participant_client
         Party.objects.create(
@@ -203,7 +207,7 @@ class TestDisputeRootEndpoints:
             role=Party.Role.BUYER,
             phone=participant_account.phone,
         )
-        dispute = Dispute.objects.create(
+        Dispute.objects.create(
             agreement=agreement,
             raised_by=party,
             reason="Test reason",

@@ -47,8 +47,9 @@ def install_admin_mfa(site: admin.AdminSite) -> None:
     original_get_urls = site.get_urls
 
     def _client_ip(request: HttpRequest) -> str:
-        return (request.META.get("HTTP_X_FORWARDED_FOR", "").split(",")[0].strip()
-                or request.META.get("REMOTE_ADDR", "unknown"))
+        return request.META.get("HTTP_X_FORWARDED_FOR", "").split(",")[
+            0
+        ].strip() or request.META.get("REMOTE_ADDR", "unknown")
 
     def _consume_rate_limit(key: str, *, limit: int, ttl_seconds: int) -> bool:
         count = cache.get(key, 0)
@@ -94,9 +95,7 @@ def install_admin_mfa(site: admin.AdminSite) -> None:
         return (account.email or "").strip().lower()
 
     def _issue_code(user: User, email: str) -> None:
-        AdminMfaCode.objects.filter(user=user, used_at__isnull=True).update(
-            used_at=timezone.now()
-        )
+        AdminMfaCode.objects.filter(user=user, used_at__isnull=True).update(used_at=timezone.now())
         raw_code = f"{secrets.randbelow(1000000):06d}"
         ttl = getattr(settings, "ADMIN_MFA_CODE_TTL_SECONDS", 600)
         AdminMfaCode.objects.create(
@@ -250,8 +249,7 @@ def install_admin_mfa(site: admin.AdminSite) -> None:
                 form.add_error(None, "Too many authentication code attempts. Try again later.")
             elif form.is_valid():
                 record = (
-                    AdminMfaCode.objects
-                    .filter(user=user, used_at__isnull=True)
+                    AdminMfaCode.objects.filter(user=user, used_at__isnull=True)
                     .order_by("-created_at")
                     .first()
                 )
@@ -291,7 +289,9 @@ def install_admin_mfa(site: admin.AdminSite) -> None:
     def get_urls(self: admin.AdminSite):
         urls = original_get_urls()
         custom_urls = [
-            path("enroll-email/", never_cache(csrf_protect(enroll_email_view)), name="enroll-email"),
+            path(
+                "enroll-email/", never_cache(csrf_protect(enroll_email_view)), name="enroll-email"
+            ),
             path("verify/", never_cache(csrf_protect(verify_code_view)), name="verify-code"),
             path("resend-code/", never_cache(csrf_protect(resend_code_view)), name="resend-code"),
         ]

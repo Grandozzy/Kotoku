@@ -190,12 +190,8 @@ class TestVerifyOtp:
         agreement = _agreement_with_parties()
         records = ConsentService.request_consent(agreement_id=agreement.pk)
         record = records[0]
-        ConsentRecord.objects.filter(pk=record.pk).update(
-            otp_code_hash=hash_otp("111111")
-        )
-        result = ConsentService.verify_otp(
-            consent_record_id=record.pk, otp_code="111111"
-        )
+        ConsentRecord.objects.filter(pk=record.pk).update(otp_code_hash=hash_otp("111111"))
+        result = ConsentService.verify_otp(consent_record_id=record.pk, otp_code="111111")
         assert result.granted is True
         assert result.granted_at is not None
 
@@ -203,9 +199,7 @@ class TestVerifyOtp:
         agreement = _agreement_with_parties()
         records = ConsentService.request_consent(agreement_id=agreement.pk)
         record = records[0]
-        ConsentRecord.objects.filter(pk=record.pk).update(
-            otp_code_hash=hash_otp("222222")
-        )
+        ConsentRecord.objects.filter(pk=record.pk).update(otp_code_hash=hash_otp("222222"))
         ConsentService.verify_otp(consent_record_id=record.pk, otp_code="222222")
         assert AuditLog.objects.filter(event_type="consent.granted").exists()
 
@@ -213,9 +207,7 @@ class TestVerifyOtp:
         agreement = _agreement_with_parties()
         records = ConsentService.request_consent(agreement_id=agreement.pk)
         with pytest.raises(DomainError, match="Invalid or expired"):
-            ConsentService.verify_otp(
-                consent_record_id=records[0].pk, otp_code="000000"
-            )
+            ConsentService.verify_otp(consent_record_id=records[0].pk, otp_code="000000")
 
     def test_raises_on_expired_otp(self, db):
         agreement = _agreement_with_parties()
@@ -225,9 +217,7 @@ class TestVerifyOtp:
             otp_code_hash=hash_otp("333333"), expires_at=timezone.now() - timedelta(minutes=1)
         )
         with pytest.raises(DomainError, match="expired"):
-            ConsentService.verify_otp(
-                consent_record_id=record.pk, otp_code="333333"
-            )
+            ConsentService.verify_otp(consent_record_id=record.pk, otp_code="333333")
 
     def test_raises_on_already_granted(self, db):
         agreement = _agreement_with_parties()
@@ -237,9 +227,7 @@ class TestVerifyOtp:
             otp_code_hash=hash_otp("444444"), granted=True
         )
         with pytest.raises(DomainError, match="Invalid or expired"):
-            ConsentService.verify_otp(
-                consent_record_id=record.pk, otp_code="444444"
-            )
+            ConsentService.verify_otp(consent_record_id=record.pk, otp_code="444444")
 
     def test_raises_on_nonexistent_record(self, db):
         with pytest.raises(DomainError, match="Invalid or expired"):
@@ -248,33 +236,19 @@ class TestVerifyOtp:
     def test_transitions_agreement_to_active_when_all_consented(self, db):
         agreement = _agreement_with_parties()
         records = ConsentService.request_consent(agreement_id=agreement.pk)
-        ConsentRecord.objects.filter(pk=records[0].pk).update(
-            otp_code_hash=hash_otp("555555")
-        )
-        ConsentRecord.objects.filter(pk=records[1].pk).update(
-            otp_code_hash=hash_otp("666666")
-        )
-        ConsentService.verify_otp(
-            consent_record_id=records[0].pk, otp_code="555555"
-        )
-        ConsentService.verify_otp(
-            consent_record_id=records[1].pk, otp_code="666666"
-        )
+        ConsentRecord.objects.filter(pk=records[0].pk).update(otp_code_hash=hash_otp("555555"))
+        ConsentRecord.objects.filter(pk=records[1].pk).update(otp_code_hash=hash_otp("666666"))
+        ConsentService.verify_otp(consent_record_id=records[0].pk, otp_code="555555")
+        ConsentService.verify_otp(consent_record_id=records[1].pk, otp_code="666666")
         agreement.refresh_from_db()
         assert agreement.status == AgreementStatus.ACTIVE
-        assert AuditLog.objects.filter(
-            event_type="agreement.all_consented"
-        ).exists()
+        assert AuditLog.objects.filter(event_type="agreement.all_consented").exists()
 
     def test_does_not_transition_when_only_one_consented(self, db):
         agreement = _agreement_with_parties()
         records = ConsentService.request_consent(agreement_id=agreement.pk)
-        ConsentRecord.objects.filter(pk=records[0].pk).update(
-            otp_code_hash=hash_otp("777777")
-        )
-        ConsentService.verify_otp(
-            consent_record_id=records[0].pk, otp_code="777777"
-        )
+        ConsentRecord.objects.filter(pk=records[0].pk).update(otp_code_hash=hash_otp("777777"))
+        ConsentService.verify_otp(consent_record_id=records[0].pk, otp_code="777777")
         agreement.refresh_from_db()
         assert agreement.status == AgreementStatus.PENDING_CONSENT
 

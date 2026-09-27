@@ -76,6 +76,7 @@ class Account(models.Model):
 
 # ── Device sessions ───────────────────────────────────────────────────────────
 
+
 class DeviceSession(models.Model):
     CLIENT_MOBILE = "mobile"
     CLIENT_WEB = "web"
@@ -125,13 +126,14 @@ class DeviceSession(models.Model):
 
 # ── User PIN ──────────────────────────────────────────────────────────────────
 
+
 class UserPin(models.Model):
     user = models.OneToOneField(
         "accounts.User",
         on_delete=models.CASCADE,
         related_name="pin",
     )
-    pin_hash = models.CharField(max_length=256)   # Argon2 hash via argon2-cffi
+    pin_hash = models.CharField(max_length=256)  # Argon2 hash via argon2-cffi
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     failed_attempts = models.IntegerField(default=0)
@@ -150,6 +152,7 @@ class UserPin(models.Model):
 
 # ── OTP requests ──────────────────────────────────────────────────────────────
 
+
 class OTPRequest(models.Model):
     PURPOSE_LOGIN = "login"
     PURPOSE_SEAL = "seal"
@@ -166,7 +169,7 @@ class OTPRequest(models.Model):
         default=_default_otp_id,
     )
     phone = models.CharField(max_length=20)
-    otp_hash = models.CharField(max_length=256)   # hashed, never plain
+    otp_hash = models.CharField(max_length=256)  # hashed, never plain
     purpose = models.CharField(max_length=20, choices=PURPOSE_CHOICES, default=PURPOSE_LOGIN)
     agreement_id = models.CharField(max_length=50, blank=True)  # only for seal/reopen
     created_at = models.DateTimeField(auto_now_add=True)

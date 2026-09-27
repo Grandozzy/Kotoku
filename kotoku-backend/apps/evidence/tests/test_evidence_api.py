@@ -3,6 +3,7 @@
 S3 calls are patched at the S3StorageClient boundary so tests never hit
 real object storage.
 """
+
 from unittest.mock import patch
 
 import pytest
@@ -62,15 +63,26 @@ def _agreement(account, status=AgreementStatus.DRAFT):
 
 def _set_parties(agreement, initiator_phone):
     from apps.accounts.models import Account
+
     acct = Account.objects.get(phone=initiator_phone)
     PartyService.set_parties(
         agreement_id=agreement.pk,
         initiator_account=acct,
         parties_data=[
-            {"role": "seller", "full_name": "Kofi", "phone": initiator_phone,
-             "id_type": "ghana_card", "id_number": _pin(111111111)},
-            {"role": "buyer", "full_name": "Ama", "phone": "+233200000070",
-             "id_type": "ghana_card", "id_number": _pin(222222222)},
+            {
+                "role": "seller",
+                "full_name": "Kofi",
+                "phone": initiator_phone,
+                "id_type": "ghana_card",
+                "id_number": _pin(111111111),
+            },
+            {
+                "role": "buyer",
+                "full_name": "Ama",
+                "phone": "+233200000070",
+                "id_type": "ghana_card",
+                "id_number": _pin(222222222),
+            },
         ],
     )
 
@@ -155,7 +167,12 @@ class TestUploadUrlApi:
         agreement = _agreement(acct)
         resp = client.post(
             _UPLOAD_URL_PATH.format(id=agreement.pk),
-            {"evidence_type": "doc", "mime_type": "text/html", "size_bytes": 100, "checksum_sha256": _FAKE_CHECKSUM},
+            {
+                "evidence_type": "doc",
+                "mime_type": "text/html",
+                "size_bytes": 100,
+                "checksum_sha256": _FAKE_CHECKSUM,
+            },
             format="json",
         )
         assert resp.status_code == 400
@@ -165,7 +182,12 @@ class TestUploadUrlApi:
         agreement = _agreement(acct)
         resp = client.post(
             _UPLOAD_URL_PATH.format(id=agreement.pk),
-            {"evidence_type": "Bad Name!", "mime_type": "image/jpeg", "size_bytes": 100, "checksum_sha256": _FAKE_CHECKSUM},
+            {
+                "evidence_type": "Bad Name!",
+                "mime_type": "image/jpeg",
+                "size_bytes": 100,
+                "checksum_sha256": _FAKE_CHECKSUM,
+            },
             format="json",
         )
         assert resp.status_code == 400
@@ -230,7 +252,9 @@ class TestUploadUrlApi:
             },
             format="json",
         )
-        item = EvidenceItem.objects.get(agreement=agreement, evidence_type="seller_ghana_card_front")
+        item = EvidenceItem.objects.get(
+            agreement=agreement, evidence_type="seller_ghana_card_front"
+        )
         assert item.uploaded_by is not None
         assert item.uploaded_by.phone == acct.phone
 
@@ -297,7 +321,10 @@ class TestUploadUrlApi:
             format="json",
         )
         assert resp.status_code == 503
-        assert resp.json()["message"] == "Evidence storage is temporarily unavailable. Please try again."
+        assert (
+            resp.json()["message"]
+            == "Evidence storage is temporarily unavailable. Please try again."
+        )
 
 
 @patch(
@@ -314,8 +341,9 @@ class TestUploadUrlApi:
 )
 @pytest.mark.django_db
 class TestConfirmUploadApi:
-    def _request_url(self, client, agreement_id, evidence_type="vehicle_photo_front",
-                     mime_type="image/jpeg"):
+    def _request_url(
+        self, client, agreement_id, evidence_type="vehicle_photo_front", mime_type="image/jpeg"
+    ):
         resp = client.post(
             _UPLOAD_URL_PATH.format(id=agreement_id),
             {
@@ -423,8 +451,12 @@ class TestConfirmUploadApi:
         agreement = _agreement(acct)
         resp = client.post(
             _EVIDENCE_PATH.format(id=agreement.pk),
-            {"file_key": "agreements/99/evidence/ghost.jpg",
-             "evidence_type": "vehicle_photo_front", "mime_type": "image/jpeg", "checksum_sha256": _FAKE_CHECKSUM},
+            {
+                "file_key": "agreements/99/evidence/ghost.jpg",
+                "evidence_type": "vehicle_photo_front",
+                "mime_type": "image/jpeg",
+                "checksum_sha256": _FAKE_CHECKSUM,
+            },
             format="json",
         )
         assert resp.status_code == 400
@@ -452,7 +484,12 @@ class TestConfirmUploadApi:
         agreement = _agreement(acct)
         resp = APIClient().post(
             _EVIDENCE_PATH.format(id=agreement.pk),
-            {"file_key": "k", "evidence_type": "x_y", "mime_type": "image/jpeg", "checksum_sha256": _FAKE_CHECKSUM},
+            {
+                "file_key": "k",
+                "evidence_type": "x_y",
+                "mime_type": "image/jpeg",
+                "checksum_sha256": _FAKE_CHECKSUM,
+            },
             format="json",
         )
         assert resp.status_code == 401
@@ -544,7 +581,10 @@ class TestConfirmUploadApi:
             format="json",
         )
         assert resp.status_code == 503
-        assert resp.json()["message"] == "Uploaded file could not be verified in storage. Please try again."
+        assert (
+            resp.json()["message"]
+            == "Uploaded file could not be verified in storage. Please try again."
+        )
 
 
 @patch(

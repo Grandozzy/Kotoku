@@ -23,6 +23,7 @@ from rest_framework.test import APIClient
 
 from apps.accounts.models import Account, User
 from apps.audit.models import AuditLog
+from apps.billing.constants import PLAN_MAP
 from apps.payments.models import Invoice, PaymentEvent, Subscription, SubscriptionCheckout
 from apps.payments.tasks import process_payment_event
 
@@ -61,6 +62,11 @@ def _post_webhook(client, payload: dict, secret: str = _WEBHOOK_SECRET) -> objec
 
 
 def _make_event(event_type: str, data: dict, event_id: str = "evt_001") -> dict:
+    if event_type == "charge.success":
+        plan_id = (data.get("metadata") or {}).get("plan_id")
+        if plan_id in PLAN_MAP:
+            data.setdefault("amount", PLAN_MAP[plan_id].price_ghs * 100)
+            data.setdefault("currency", "GHS")
     return {"id": event_id, "event": event_type, "data": data}
 
 
@@ -152,7 +158,9 @@ def test_webhook_missing_event_id_returns_400():
         HTTP_X_PAYSTACK_SIGNATURE=sig,
     )
     assert resp.status_code == 200
-    assert PaymentEvent.objects.filter(event_id__startswith="derived:charge.success:sha256:").exists()
+    assert PaymentEvent.objects.filter(
+        event_id__startswith="derived:charge.success:sha256:"
+    ).exists()
 
 
 @pytest.mark.django_db
@@ -188,15 +196,21 @@ def test_charge_success_activates_plan(mock_notify):
         status=SubscriptionCheckout.STATUS_PENDING,
     )
 
-    payload = _make_event("charge.success", {
-        "reference": "kotoku_ref001",
-        "plan": {"plan_code": "PLN_plus"},
-        "customer": {"customer_code": "CUS_abc", "email": account.email},
-        "metadata": {"account_id": account.id, "plan_id": "personal_plus"},
-    }, "evt_charge_001")
+    payload = _make_event(
+        "charge.success",
+        {
+            "reference": "kotoku_ref001",
+            "plan": {"plan_code": "PLN_plus"},
+            "customer": {"customer_code": "CUS_abc", "email": account.email},
+            "metadata": {"account_id": account.id, "plan_id": "personal_plus"},
+        },
+        "evt_charge_001",
+    )
     event = PaymentEvent.objects.create(
-        event_id="evt_charge_001", event_type="charge.success",
-        payload=payload, processed=False,
+        event_id="evt_charge_001",
+        event_type="charge.success",
+        payload=payload,
+        processed=False,
     )
 
     process_payment_event("evt_charge_001")
@@ -239,16 +253,22 @@ def test_charge_success_without_plan_reactivates_recovery_checkout(mock_email, m
         status=SubscriptionCheckout.STATUS_PENDING,
     )
 
-    payload = _make_event("charge.success", {
-        "reference": "kotoku_onetime",
-        "amount": 7900,
-        "currency": "GHS",
-        "customer": {"customer_code": "CUS_x", "email": "x@test.com"},
-        "metadata": {},
-    }, "evt_onetime_001")
+    payload = _make_event(
+        "charge.success",
+        {
+            "reference": "kotoku_onetime",
+            "amount": 7900,
+            "currency": "GHS",
+            "customer": {"customer_code": "CUS_x", "email": "x@test.com"},
+            "metadata": {},
+        },
+        "evt_onetime_001",
+    )
     PaymentEvent.objects.create(
-        event_id="evt_onetime_001", event_type="charge.success",
-        payload=payload, processed=False,
+        event_id="evt_onetime_001",
+        event_type="charge.success",
+        payload=payload,
+        processed=False,
     )
     process_payment_event("evt_onetime_001")
 
@@ -263,7 +283,10 @@ def test_charge_success_without_plan_reactivates_recovery_checkout(mock_email, m
     assert sub.current_period_start == date(2026, 6, 1)
     assert sub.current_period_end == date(2026, 7, 1)
     assert checkout.status == SubscriptionCheckout.STATUS_PROVIDER_CREATED
-    assert Invoice.objects.filter(paystack_ref="kotoku_onetime", status=Invoice.STATUS_PAID).exists()
+    assert Invoice.objects.filter(
+        paystack_ref="kotoku_onetime",
+        status=Invoice.STATUS_PAID,
+    ).exists()
     mock_notify.assert_called_once()
 
 
@@ -289,16 +312,22 @@ def test_subscription_create_stores_sub_id_and_period():
         activated_subscription=sub,
     )
 
-    payload = _make_event("subscription.create", {
-        "subscription_code": "SUB_xyz123",
-        "email_token": "tok_abc",
-        "customer": {"customer_code": "CUS_abc", "email": account.email},
-        "next_payment_date": "2026-06-27T00:00:00.000Z",
-        "start": "2026-05-27T00:00:00.000Z",
-    }, "evt_subcreate_001")
+    payload = _make_event(
+        "subscription.create",
+        {
+            "subscription_code": "SUB_xyz123",
+            "email_token": "tok_abc",
+            "customer": {"customer_code": "CUS_abc", "email": account.email},
+            "next_payment_date": "2026-06-27T00:00:00.000Z",
+            "start": "2026-05-27T00:00:00.000Z",
+        },
+        "evt_subcreate_001",
+    )
     PaymentEvent.objects.create(
-        event_id="evt_subcreate_001", event_type="subscription.create",
-        payload=payload, processed=False,
+        event_id="evt_subcreate_001",
+        event_type="subscription.create",
+        payload=payload,
+        processed=False,
     )
 
     process_payment_event("evt_subcreate_001")
@@ -342,12 +371,16 @@ def test_plan_switch_creates_new_subscription_and_replaces_old(mock_factory):
     PaymentEvent.objects.create(
         event_id="evt_switch_charge_001",
         event_type="charge.success",
-        payload=_make_event("charge.success", {
-            "reference": "kotoku_switch_001",
-            "plan": {"plan_code": "PLN_plus"},
-            "customer": {"customer_code": "CUS_switch", "email": account.email},
-            "metadata": {"account_id": account.id, "plan_id": "personal_plus"},
-        }, "evt_switch_charge_001"),
+        payload=_make_event(
+            "charge.success",
+            {
+                "reference": "kotoku_switch_001",
+                "plan": {"plan_code": "PLN_plus"},
+                "customer": {"customer_code": "CUS_switch", "email": account.email},
+                "metadata": {"account_id": account.id, "plan_id": "personal_plus"},
+            },
+            "evt_switch_charge_001",
+        ),
         processed=False,
     )
     process_payment_event("evt_switch_charge_001")
@@ -359,12 +392,16 @@ def test_plan_switch_creates_new_subscription_and_replaces_old(mock_factory):
     PaymentEvent.objects.create(
         event_id="evt_switch_subcreate_001",
         event_type="subscription.create",
-        payload=_make_event("subscription.create", {
-            "subscription_code": "SUB_new_001",
-            "customer": {"customer_code": "CUS_switch", "email": account.email},
-            "next_payment_date": "2026-06-27T00:00:00.000Z",
-            "start": "2026-05-27T00:00:00.000Z",
-        }, "evt_switch_subcreate_001"),
+        payload=_make_event(
+            "subscription.create",
+            {
+                "subscription_code": "SUB_new_001",
+                "customer": {"customer_code": "CUS_switch", "email": account.email},
+                "next_payment_date": "2026-06-27T00:00:00.000Z",
+                "start": "2026-05-27T00:00:00.000Z",
+            },
+            "evt_switch_subcreate_001",
+        ),
         processed=False,
     )
     process_payment_event("evt_switch_subcreate_001")
@@ -402,12 +439,18 @@ def test_subscription_disable_marks_cancelled(mock_notify):
         current_period_end=date(2026, 5, 31),
     )
 
-    payload = _make_event("subscription.disable", {
-        "subscription_code": "SUB_cancel_me",
-    }, "evt_disable_001")
+    payload = _make_event(
+        "subscription.disable",
+        {
+            "subscription_code": "SUB_cancel_me",
+        },
+        "evt_disable_001",
+    )
     PaymentEvent.objects.create(
-        event_id="evt_disable_001", event_type="subscription.disable",
-        payload=payload, processed=False,
+        event_id="evt_disable_001",
+        event_type="subscription.disable",
+        payload=payload,
+        processed=False,
     )
 
     process_payment_event("evt_disable_001")
@@ -437,22 +480,31 @@ def test_invoice_payment_failed_sets_past_due(mock_notify):
         status=Subscription.STATUS_ACTIVE,
     )
 
-    payload = _make_event("invoice.payment_failed", {
-        "reference": "inv_fail_001",
-        "amount": 2500,
-        "currency": "GHS",
-        "subscription": {"subscription_code": "SUB_pastdue"},
-    }, "evt_invfail_001")
+    payload = _make_event(
+        "invoice.payment_failed",
+        {
+            "reference": "inv_fail_001",
+            "amount": 2500,
+            "currency": "GHS",
+            "subscription": {"subscription_code": "SUB_pastdue"},
+        },
+        "evt_invfail_001",
+    )
     PaymentEvent.objects.create(
-        event_id="evt_invfail_001", event_type="invoice.payment_failed",
-        payload=payload, processed=False,
+        event_id="evt_invfail_001",
+        event_type="invoice.payment_failed",
+        payload=payload,
+        processed=False,
     )
 
     process_payment_event("evt_invfail_001")
 
     sub.refresh_from_db()
     assert sub.status == Subscription.STATUS_PAST_DUE
-    assert Invoice.objects.filter(paystack_ref="inv_fail_001", status=Invoice.STATUS_FAILED).exists()
+    assert Invoice.objects.filter(
+        paystack_ref="inv_fail_001",
+        status=Invoice.STATUS_FAILED,
+    ).exists()
     mock_notify.assert_called_once()
 
 
@@ -472,18 +524,24 @@ def test_invoice_update_paid_extends_period():
         cancel_at_period_end=True,
     )
 
-    payload = _make_event("invoice.update", {
-        "paid": True,
-        "reference": "inv_renew_001",
-        "amount": 2500,
-        "currency": "GHS",
-        "period_start": "2026-06-01T00:00:00.000Z",
-        "period_end": "2026-06-30T00:00:00.000Z",
-        "subscription": {"subscription_code": "SUB_renew"},
-    }, "evt_invupdate_001")
+    payload = _make_event(
+        "invoice.update",
+        {
+            "paid": True,
+            "reference": "inv_renew_001",
+            "amount": 2500,
+            "currency": "GHS",
+            "period_start": "2026-06-01T00:00:00.000Z",
+            "period_end": "2026-06-30T00:00:00.000Z",
+            "subscription": {"subscription_code": "SUB_renew"},
+        },
+        "evt_invupdate_001",
+    )
     PaymentEvent.objects.create(
-        event_id="evt_invupdate_001", event_type="invoice.update",
-        payload=payload, processed=False,
+        event_id="evt_invupdate_001",
+        event_type="invoice.update",
+        payload=payload,
+        processed=False,
     )
 
     process_payment_event("evt_invupdate_001")
@@ -498,7 +556,8 @@ def test_invoice_update_paid_extends_period():
 @pytest.mark.django_db
 def test_invoice_update_unpaid_is_skipped():
     PaymentEvent.objects.create(
-        event_id="evt_invunpaid_001", event_type="invoice.update",
+        event_id="evt_invunpaid_001",
+        event_type="invoice.update",
         payload=_make_event("invoice.update", {"paid": False}, "evt_invunpaid_001"),
         processed=False,
     )
@@ -522,12 +581,18 @@ def test_expiring_cards_sends_notification(mock_notify):
         status=Subscription.STATUS_ACTIVE,
     )
 
-    payload = _make_event("subscription.expiring_cards", {
-        "customer": {"email": account.email},
-    }, "evt_expcard_001")
+    payload = _make_event(
+        "subscription.expiring_cards",
+        {
+            "customer": {"email": account.email},
+        },
+        "evt_expcard_001",
+    )
     PaymentEvent.objects.create(
-        event_id="evt_expcard_001", event_type="subscription.expiring_cards",
-        payload=payload, processed=False,
+        event_id="evt_expcard_001",
+        event_type="subscription.expiring_cards",
+        payload=payload,
+        processed=False,
     )
 
     process_payment_event("evt_expcard_001")
@@ -540,7 +605,8 @@ def test_expiring_cards_sends_notification(mock_notify):
 @pytest.mark.django_db
 def test_unknown_event_type_marked_processed():
     PaymentEvent.objects.create(
-        event_id="evt_unknown_001", event_type="transfer.success",
+        event_id="evt_unknown_001",
+        event_type="transfer.success",
         payload=_make_event("transfer.success", {}, "evt_unknown_001"),
         processed=False,
     )
@@ -552,8 +618,10 @@ def test_unknown_event_type_marked_processed():
 @pytest.mark.django_db
 def test_already_processed_event_is_skipped():
     PaymentEvent.objects.create(
-        event_id="evt_replay_001", event_type="charge.success",
-        payload={}, processed=True,
+        event_id="evt_replay_001",
+        event_type="charge.success",
+        payload={},
+        processed=True,
     )
     # Should return without touching anything — no exception.
     process_payment_event("evt_replay_001")
@@ -564,14 +632,20 @@ def test_handler_exception_stored_on_event():
     """If the handler raises, error is stored on PaymentEvent and does not crash the task."""
     # charge.success with a missing account_id will log and return — not raise.
     # Force a real exception by providing a non-existent account_id.
-    payload = _make_event("charge.success", {
-        "plan": {"plan_code": "PLN_plus"},
-        "customer": {"customer_code": "CUS_z", "email": "z@test.com"},
-        "metadata": {"account_id": 999999, "plan_id": "personal_plus"},
-    }, "evt_err_001")
+    payload = _make_event(
+        "charge.success",
+        {
+            "plan": {"plan_code": "PLN_plus"},
+            "customer": {"customer_code": "CUS_z", "email": "z@test.com"},
+            "metadata": {"account_id": 999999, "plan_id": "personal_plus"},
+        },
+        "evt_err_001",
+    )
     PaymentEvent.objects.create(
-        event_id="evt_err_001", event_type="charge.success",
-        payload=payload, processed=False,
+        event_id="evt_err_001",
+        event_type="charge.success",
+        payload=payload,
+        processed=False,
     )
 
     # Should not raise — error is stored on the event row.

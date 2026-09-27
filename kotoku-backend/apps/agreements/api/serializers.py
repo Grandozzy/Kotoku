@@ -103,7 +103,16 @@ class AgreementListSerializer(AgreementIdentitySerializerMixin, serializers.Mode
 
     class Meta:
         model = Agreement
-        fields = ("id", "title", "status", "scenario_template", "field_data", "created_at", "updated_at", "parties")
+        fields = (
+            "id",
+            "title",
+            "status",
+            "scenario_template",
+            "field_data",
+            "created_at",
+            "updated_at",
+            "parties",
+        )
 
 
 class AgreementDetailSerializer(AgreementIdentitySerializerMixin, serializers.ModelSerializer):

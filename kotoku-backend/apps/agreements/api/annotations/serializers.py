@@ -10,9 +10,7 @@ class AnnotationCreateSerializer(serializers.Serializer):
 
 class AnnotationSerializer(serializers.ModelSerializer):
     author_party_id = serializers.IntegerField(source="author_party.pk", read_only=True)
-    author_display_name = serializers.CharField(
-        source="author_party.display_name", read_only=True
-    )
+    author_display_name = serializers.CharField(source="author_party.display_name", read_only=True)
 
     class Meta:
         model = Annotation

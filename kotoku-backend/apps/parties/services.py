@@ -16,6 +16,7 @@ from common.phone_numbers import normalize_phone_for_compare, normalize_phone_to
 
 def _party_has_identity_uploads(party) -> bool:
     from apps.evidence.models import EvidenceItem
+
     patterns = [
         f"{party.role}_ghana_card_front",
         f"{party.role}_ghana_card_back",
@@ -219,7 +220,8 @@ class PartyService:
                     }
                     if party.id_number in existing_pins:
                         raise DomainError(
-                            f"Ghana Card Number must be unique per agreement. Another party already uses '{party.id_number}'."
+                            "Ghana Card number must be unique per agreement. "
+                            f"Another party already uses '{party.id_number}'."
                         )
             if update_fields:
                 update_fields.append("updated_at")

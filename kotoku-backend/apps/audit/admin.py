@@ -8,13 +8,13 @@ from .models import AuditLog
 # ── Event type badge ─────────────────────────────────────────────────────────
 
 _EVENT_COLOURS = {
-    "dispute":     "#EDE9FE;color:#5B21B6",
-    "agreement":   "#DBEAFE;color:#1E40AF",
-    "vault":       "#D1FAE5;color:#065F46",
-    "account":     "#FEF3C7;color:#92400E",
-    "auth":        "#FEE2E2;color:#991B1B",
-    "consent":     "#E0E7FF;color:#3730A3",
-    "notification":"#F0FDF4;color:#166534",
+    "dispute": "#EDE9FE;color:#5B21B6",
+    "agreement": "#DBEAFE;color:#1E40AF",
+    "vault": "#D1FAE5;color:#065F46",
+    "account": "#FEF3C7;color:#92400E",
+    "auth": "#FEE2E2;color:#991B1B",
+    "consent": "#E0E7FF;color:#3730A3",
+    "notification": "#F0FDF4;color:#166534",
 }
 
 
@@ -22,10 +22,13 @@ def coloured_event(obj: AuditLog) -> str:
     prefix = obj.event_type.split(".")[0] if "." in obj.event_type else obj.event_type
     colours = _EVENT_COLOURS.get(prefix, "#F3F4F6;color:#374151")
     return format_html(
-        '<span style="padding:2px 10px;border-radius:999px;font-size:12px;font-weight:600;background:{}">{}</span>',
+        '<span style="padding:2px 10px;border-radius:999px;font-size:12px;'
+        'font-weight:600;background:{}">{}</span>',
         colours,
         obj.event_type,
     )
+
+
 coloured_event.short_description = "Event"  # type: ignore[attr-defined]
 
 
@@ -41,14 +44,16 @@ def metadata_pretty(obj: AuditLog) -> str:
         'background:#F9FAFB;padding:8px 12px;border-radius:6px;">{}</pre>',
         pretty,
     )
+
+
 metadata_pretty.short_description = "Metadata"  # type: ignore[attr-defined]
 
 
 # ── Admin class ───────────────────────────────────────────────────────────────
 
+
 @admin.register(AuditLog)
 class AuditLogAdmin(admin.ModelAdmin):
-
     # ── List view ─────────────────────────────────────────────────────────────
     list_display = (coloured_event, "entity_type", "entity_id", "actor", "created_at")
     list_filter = ("entity_type", "created_at")
@@ -66,12 +71,18 @@ class AuditLogAdmin(admin.ModelAdmin):
         "created_at",
     )
     fieldsets = (
-        ("Event", {
-            "fields": (coloured_event, "entity_type", "entity_id", "actor", "created_at"),
-        }),
-        ("Metadata", {
-            "fields": (metadata_pretty,),
-        }),
+        (
+            "Event",
+            {
+                "fields": (coloured_event, "entity_type", "entity_id", "actor", "created_at"),
+            },
+        ),
+        (
+            "Metadata",
+            {
+                "fields": (metadata_pretty,),
+            },
+        ),
     )
 
     def has_add_permission(self, request) -> bool:

@@ -342,11 +342,9 @@ export default function PartiesStep() {
     setLivenessSession(null);
     try {
       const result = await submitLivenessResult(agreementId, role);
-      setLocalLivenessStatus(result.status === "expired" ? "failed" : result.status);
-      if (result.status === "expired") {
-        setLivenessError("The face check timed out. Please tap to try again.");
-      } else if (result.status === "failed") {
-        setLivenessError("Face check did not pass. Try again in better lighting.");
+      setLocalLivenessStatus(result.status === "passed" ? "passed" : "failed");
+      if (result.status !== "passed") {
+        setLivenessError(result.detail);
       }
       await queryClient.invalidateQueries({ queryKey: ["agreement", agreementId] });
     } catch {

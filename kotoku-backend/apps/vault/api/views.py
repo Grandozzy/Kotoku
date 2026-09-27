@@ -24,21 +24,21 @@ class VaultCollectionView(APIView):
         paginator = DefaultPagination()
         page = paginator.paginate_queryset(qs, request)
         serializer = VaultEntrySerializer(page, many=True)
-        return ok({
-            "results": serializer.data,
-            "count": paginator.page.paginator.count,
-            "next": paginator.get_next_link(),
-            "previous": paginator.get_previous_link(),
-        })
+        return ok(
+            {
+                "results": serializer.data,
+                "count": paginator.page.paginator.count,
+                "next": paginator.get_next_link(),
+                "previous": paginator.get_previous_link(),
+            }
+        )
 
 
 class VaultDetailView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
-    def _get_entry(
-        self, agreement_id: int, account_id: int, account_phone: str
-    ) -> VaultEntry:
+    def _get_entry(self, agreement_id: int, account_id: int, account_phone: str) -> VaultEntry:
         try:
             return VaultSelector.get_for_agreement(
                 agreement_id=agreement_id,

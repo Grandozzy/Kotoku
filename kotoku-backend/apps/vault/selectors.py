@@ -17,9 +17,9 @@ class VaultSelector:
     def get_for_agreement(
         *, agreement_id: int, account_id: int, account_phone: str = None
     ) -> VaultEntry:
-        qs = VaultEntry.objects.select_related(
-            "agreement", "agreement__created_by"
-        ).filter(agreement_id=agreement_id)
+        qs = VaultEntry.objects.select_related("agreement", "agreement__created_by").filter(
+            agreement_id=agreement_id
+        )
         if account_phone:
             qs = qs.filter(
                 Q(agreement__created_by__pk=account_id)

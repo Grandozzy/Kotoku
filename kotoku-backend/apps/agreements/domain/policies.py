@@ -29,6 +29,7 @@ def can_seal(agreement) -> bool:
     if agreement.status == AgreementStatus.PENDING_CONSENT:
         # Avoid a circular import by doing the import here.
         from apps.consent.selectors import ConsentSelector  # noqa: PLC0415
+
         return ConsentSelector.all_parties_consented(agreement_id=agreement.pk)
     return True  # ACTIVE: consent was already verified when transitioning from PENDING_CONSENT.
 

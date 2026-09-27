@@ -157,7 +157,8 @@ class Command(BaseCommand):
             title="Rental - 2BR Apartment at East Legon",
             defaults={
                 "description": (
-                    "Rental agreement for a 2-bedroom apartment at 14 Oxford Street, East Legon, Accra. "
+                    "Rental agreement for a 2-bedroom apartment at 14 Oxford Street, "
+                    "East Legon, Accra. "
                     "Landlord: Carlos Boateng. Tenant: Alice Mensah. "
                     "Monthly rent: GHS 3,500. Security deposit: GHS 7,000. "
                     "Lease period: 1 July 2026 to 30 June 2027."
@@ -166,7 +167,9 @@ class Command(BaseCommand):
                 "field_data": {
                     "property_type": "apartment",
                     "property_address": "14 Oxford Street, East Legon, Accra",
-                    "property_description": "2-bedroom apartment, en-suite master bedroom, shared bath, fitted kitchen",
+                    "property_description": (
+                        "2-bedroom apartment, en-suite master bedroom, shared bath, fitted kitchen"
+                    ),
                     "rent_amount": 3500,
                     "rent_period": "per_month",
                     "deposit_amount": 7000,
@@ -306,7 +309,7 @@ class Command(BaseCommand):
         )
         agreements.append(("Nissan Patrol Sale", agreement_4))
 
-        for label, agreement in agreements:
+        for _label, agreement in agreements:
             agreement.refresh_from_db()
 
         self._seal(agreement_1, label="Toyota Corolla Sale")
@@ -337,7 +340,7 @@ class Command(BaseCommand):
 
         self.stdout.write("")
         self.stdout.write("Agreements:")
-        for label, agreement in agreements:
+        for _label, agreement in agreements:
             agreement.refresh_from_db()
             self.stdout.write(f"  [{agreement.status}] {agreement.title}")
             self.stdout.write(f"    GET /api/agreements/{agreement.pk}/")

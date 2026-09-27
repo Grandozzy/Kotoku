@@ -131,6 +131,7 @@ class VerifyOtpView(APIView):
 
 class RefreshTokenView(APIView):
     """Custom refresh view that validates against device_sessions (opaque tokens)."""
+
     throttle_classes = [RefreshIpRateThrottle]
 
     def post(self, request):

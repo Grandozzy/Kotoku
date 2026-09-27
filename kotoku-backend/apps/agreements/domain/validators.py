@@ -190,7 +190,8 @@ def _check_identity_baseline(parties: list, result: ValidationResult) -> None:
             result.add(
                 code="DUPLICATE_GHANA_CARD_PIN",
                 message=(
-                    f"The {party.role} and {seen_pins[normalized_pin]} cannot share the same Ghana Card Number."
+                    f"The {party.role} and {seen_pins[normalized_pin]} cannot share "
+                    "the same Ghana Card number."
                 ),
                 field_name="parties",
             )
@@ -245,7 +246,10 @@ def _check_party_ghana_card_uploads(
             continue
         result.add(
             code="GHANA_CARD_VERIFICATION_FAILED",
-            message=f"Ghana Card verification failed for the {party.role}. Upload a clearer card image that matches the entered details.",
+            message=(
+                f"Ghana Card verification failed for the {party.role}. Upload a clearer "
+                "card image that matches the entered details."
+            ),
             field_name="evidence",
         )
 

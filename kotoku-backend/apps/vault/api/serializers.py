@@ -53,9 +53,7 @@ class VaultEntrySerializer(serializers.ModelSerializer):
         if obj.pdf_status != VaultEntry.PdfStatus.READY:
             return None
         if not obj.pdf_key:
-            raise ServiceUnavailableError(
-                "Vault PDF is temporarily unavailable. Please try again."
-            )
+            raise ServiceUnavailableError("Vault PDF is temporarily unavailable. Please try again.")
         try:
             return S3StorageClient().generate_presigned_url(
                 obj.pdf_key, expires_in=_PDF_SIGNED_URL_TTL

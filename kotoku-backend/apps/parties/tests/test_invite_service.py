@@ -3,6 +3,7 @@
 Covers: token expiry/claim helpers, create_and_send, get_detail, claim,
 get_agreement_for_claimed_invite, and the idempotent re-claim fix.
 """
+
 from datetime import timedelta
 from unittest.mock import patch
 
@@ -222,8 +223,9 @@ class TestGetDetail:
         assert detail["party_name"] == "Buyer Name"
 
     def test_invalid_token_raises_domain_error(self):
-        from apps.parties.invite_service import PartyInviteService
         import uuid
+
+        from apps.parties.invite_service import PartyInviteService
 
         with pytest.raises(DomainError):
             PartyInviteService.get_detail(token=str(uuid.uuid4()))
@@ -319,8 +321,9 @@ class TestClaim:
         assert exc_info.value.code == "invite_expired"
 
     def test_invalid_token_raises_domain_error(self):
-        from apps.parties.invite_service import PartyInviteService
         import uuid
+
+        from apps.parties.invite_service import PartyInviteService
 
         acct = _account("+233501903007")
         with pytest.raises(DomainError):
@@ -386,8 +389,8 @@ class TestGetAgreementForClaimedInvite:
         assert result.pk == ag.pk
 
     def test_unclaimed_invite_raises_does_not_exist(self):
-        from apps.parties.invite_service import PartyInviteService
         from apps.agreements.models import Agreement
+        from apps.parties.invite_service import PartyInviteService
 
         buyer_acct = _account("+233501904003")
         owner_acct = _account("+233501904004")
@@ -405,8 +408,8 @@ class TestGetAgreementForClaimedInvite:
             )
 
     def test_no_invite_raises_does_not_exist(self):
-        from apps.parties.invite_service import PartyInviteService
         from apps.agreements.models import Agreement
+        from apps.parties.invite_service import PartyInviteService
 
         buyer_acct = _account("+233501904005")
         owner_acct = _account("+233501904006")
@@ -420,8 +423,8 @@ class TestGetAgreementForClaimedInvite:
 
     def test_wrong_phone_raises_does_not_exist(self):
         """Phone in the query must match the party phone on the claimed invite."""
-        from apps.parties.invite_service import PartyInviteService
         from apps.agreements.models import Agreement
+        from apps.parties.invite_service import PartyInviteService
 
         owner_acct = _account("+233501904007")
         buyer_acct = _account("+233501904008")

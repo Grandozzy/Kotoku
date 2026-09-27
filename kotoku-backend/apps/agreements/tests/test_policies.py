@@ -66,27 +66,21 @@ class TestCanRequestConsent:
     def test_returns_true_when_pending_consent_with_two_parties(self, db):
         # Re-issue is allowed from PENDING_CONSENT so parties can get a fresh OTP.
         account = _make_account("owner2@test.com")
-        agreement = _make_agreement(
-            status=AgreementStatus.PENDING_CONSENT, created_by=account
-        )
+        agreement = _make_agreement(status=AgreementStatus.PENDING_CONSENT, created_by=account)
         _make_party(agreement, Party.Role.BUYER)
         _make_party(agreement, Party.Role.SELLER)
         assert can_request_consent(agreement) is True
 
     def test_returns_false_when_sealed(self, db):
         account = _make_account("owner3@test.com")
-        agreement = _make_agreement(
-            status=AgreementStatus.SEALED, created_by=account
-        )
+        agreement = _make_agreement(status=AgreementStatus.SEALED, created_by=account)
         _make_party(agreement, Party.Role.BUYER)
         _make_party(agreement, Party.Role.SELLER)
         assert can_request_consent(agreement) is False
 
     def test_returns_true_when_active_with_two_parties(self, db):
         account = _make_account("active_consent@test.com")
-        agreement = _make_agreement(
-            status=AgreementStatus.ACTIVE, created_by=account
-        )
+        agreement = _make_agreement(status=AgreementStatus.ACTIVE, created_by=account)
         _make_party(agreement, Party.Role.BUYER)
         _make_party(agreement, Party.Role.SELLER)
         assert can_request_consent(agreement) is True

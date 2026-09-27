@@ -1,6 +1,6 @@
 from django.urls import path
 
-from .views import InviteClaimView, InviteDetailView, PartyInviteSendView, PartiesView
+from .views import InviteClaimView, InviteDetailView, PartiesView, PartyInviteSendView
 
 urlpatterns = [
     path("", PartiesView.as_view(), name="agreement-parties"),

@@ -4,6 +4,7 @@ The PDF is intentionally simple: a header, key agreement fields, parties
 table, and evidence list.  No images or complex layout — just a readable
 A4 document that can be printed or shared.
 """
+
 from __future__ import annotations
 
 import io
@@ -66,18 +67,20 @@ _SECTION = ParagraphStyle(
     textColor=colors.HexColor("#1a1a2e"),
 )
 
-_TABLE_STYLE = TableStyle([
-    ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1a1a2e")),
-    ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-    ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-    ("FONTSIZE", (0, 0), (-1, -1), 9),
-    ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f5f5f5")]),
-    ("GRID", (0, 0), (-1, -1), 0.5, colors.lightgrey),
-    ("LEFTPADDING", (0, 0), (-1, -1), 6),
-    ("RIGHTPADDING", (0, 0), (-1, -1), 6),
-    ("TOPPADDING", (0, 0), (-1, -1), 4),
-    ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
-])
+_TABLE_STYLE = TableStyle(
+    [
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1a1a2e")),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTSIZE", (0, 0), (-1, -1), 9),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f5f5f5")]),
+        ("GRID", (0, 0), (-1, -1), 0.5, colors.lightgrey),
+        ("LEFTPADDING", (0, 0), (-1, -1), 6),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+        ("TOPPADDING", (0, 0), (-1, -1), 4),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+    ]
+)
 
 
 def _fmt_dt(dt) -> str:
@@ -136,13 +139,15 @@ def render_vault_pdf(entry_id: int) -> bytes:
     if parties:
         party_data = [["Role", "Name", "ID Type", "ID Number", "Phone"]]
         for p in parties:
-            party_data.append([
-                p.role.title(),
-                p.display_name,
-                p.id_type or "—",
-                p.id_number or "—",
-                p.phone or "—",
-            ])
+            party_data.append(
+                [
+                    p.role.title(),
+                    p.display_name,
+                    p.id_type or "—",
+                    p.id_number or "—",
+                    p.phone or "—",
+                ]
+            )
         t = Table(party_data, colWidths=[2.5 * cm, 4 * cm, 2.5 * cm, 4 * cm, 3 * cm])
         t.setStyle(_TABLE_STYLE)
         story.append(t)
@@ -157,11 +162,13 @@ def render_vault_pdf(entry_id: int) -> bytes:
     if evidence:
         ev_data = [["Type", "File Type", "File Hash (SHA-256)"]]
         for e in evidence:
-            ev_data.append([
-                e.evidence_type or "—",
-                e.file_type,
-                e.file_hash if e.file_hash else "—",
-            ])
+            ev_data.append(
+                [
+                    e.evidence_type or "—",
+                    e.file_type,
+                    e.file_hash if e.file_hash else "—",
+                ]
+            )
         t = Table(ev_data, colWidths=[5 * cm, 3 * cm, 8 * cm])
         t.setStyle(_TABLE_STYLE)
         story.append(t)
@@ -187,11 +194,13 @@ def render_vault_pdf(entry_id: int) -> bytes:
         story.append(Paragraph("Revision History", _SECTION))
         rev_data = [["#", "Sealed At", "Seal Hash"]]
         for rev in revisions:
-            rev_data.append([
-                str(rev.revision_number),
-                _fmt_dt(rev.sealed_at),
-                rev.seal_hash,
-            ])
+            rev_data.append(
+                [
+                    str(rev.revision_number),
+                    _fmt_dt(rev.sealed_at),
+                    rev.seal_hash,
+                ]
+            )
         rev_table = Table(rev_data, colWidths=[1.5 * cm, 4.5 * cm, 10 * cm])
         rev_table.setStyle(_TABLE_STYLE)
         story.append(rev_table)
@@ -203,11 +212,13 @@ def render_vault_pdf(entry_id: int) -> bytes:
         story.append(Paragraph("Notes", _SECTION))
         ann_data = [["Author", "Note", "Date"]]
         for ann in annotations:
-            ann_data.append([
-                ann.author_party.display_name,
-                ann.body[:200],
-                _fmt_dt(ann.created_at),
-            ])
+            ann_data.append(
+                [
+                    ann.author_party.display_name,
+                    ann.body[:200],
+                    _fmt_dt(ann.created_at),
+                ]
+            )
         ann_table = Table(ann_data, colWidths=[3.5 * cm, 9 * cm, 3.5 * cm])
         ann_table.setStyle(_TABLE_STYLE)
         story.append(ann_table)
@@ -216,19 +227,26 @@ def render_vault_pdf(entry_id: int) -> bytes:
     story.append(Spacer(1, 0.5 * cm))
     story.append(HRFlowable(width="100%", thickness=0.5, color=colors.lightgrey))
     story.append(Spacer(1, 0.2 * cm))
-    story.append(Paragraph(
-        "<b>Seal hash (SHA-256):</b>",
-        _SMALL,
-    ))
-    story.append(Paragraph(
-        agreement.seal_hash or "—",
-        _MONO,
-    ))
-    story.append(Paragraph(
-        "This document is a tamper-evident record generated by Kotoku. "
-        "The seal hash above is a SHA-256 digest of the agreement's state at the time of sealing.",
-        _SMALL,
-    ))
+    story.append(
+        Paragraph(
+            "<b>Seal hash (SHA-256):</b>",
+            _SMALL,
+        )
+    )
+    story.append(
+        Paragraph(
+            agreement.seal_hash or "—",
+            _MONO,
+        )
+    )
+    story.append(
+        Paragraph(
+            "This document is a tamper-evident record generated by Kotoku. "
+            "The seal hash above is a SHA-256 digest of the agreement's state "
+            "at the time of sealing.",
+            _SMALL,
+        )
+    )
 
     doc.build(story)
     return buf.getvalue()

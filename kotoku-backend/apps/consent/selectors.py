@@ -48,7 +48,4 @@ class ConsentSelector:
         for record in records:
             latest_records.setdefault(record["party_id"], record["granted"])
 
-        return (
-            len(latest_records) == party_count
-            and all(latest_records.values())
-        )
+        return len(latest_records) == party_count and all(latest_records.values())

@@ -61,9 +61,7 @@ class DisputeCollectionView(APIView):
             return Response(
                 {
                     "status": "error",
-                    "message": (
-                        "Authenticated user is not a verified party on this agreement."
-                    ),
+                    "message": ("Authenticated user is not a verified party on this agreement."),
                 },
                 status=403,
             )
@@ -77,10 +75,12 @@ class DisputeCollectionView(APIView):
                 status=403,
             )
 
-        serializer = DisputeCreateSerializer(data={
-            "raised_by_party_id": caller_party.pk,
-            "reason": request.data.get("reason", ""),
-        })
+        serializer = DisputeCreateSerializer(
+            data={
+                "raised_by_party_id": caller_party.pk,
+                "reason": request.data.get("reason", ""),
+            }
+        )
         if not serializer.is_valid():
             return Response({"status": "error", "message": serializer.errors}, status=400)
 
@@ -110,14 +110,13 @@ class DisputeRootView(APIView):
 
 class DisputeLookupView(APIView):
     """Look up a single dispute by ID without needing agreement_id."""
+
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
     def _get_visible_dispute(self, request, dispute_id: int) -> Dispute:
         try:
-            dispute = Dispute.objects.select_related("raised_by", "agreement").get(
-                pk=dispute_id
-            )
+            dispute = Dispute.objects.select_related("raised_by", "agreement").get(pk=dispute_id)
             AgreementSelector.get_agreement_detail(
                 dispute.agreement_id,
                 account_id=request.user.account.pk,

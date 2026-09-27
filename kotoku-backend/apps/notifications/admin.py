@@ -12,39 +12,47 @@ from .models import Notification
 
 _STATUS_STYLES = {
     "pending": "background:#FEF3C7;color:#92400E",
-    "sent":    "background:#D1FAE5;color:#065F46",
-    "failed":  "background:#FEE2E2;color:#991B1B",
+    "sent": "background:#D1FAE5;color:#065F46",
+    "failed": "background:#FEE2E2;color:#991B1B",
 }
 
 _CHANNEL_STYLES = {
-    "sms":      "background:#EDE9FE;color:#5B21B6",
+    "sms": "background:#EDE9FE;color:#5B21B6",
     "whatsapp": "background:#D1FAE5;color:#065F46",
-    "in_app":   "background:#DBEAFE;color:#1E40AF",
+    "in_app": "background:#DBEAFE;color:#1E40AF",
 }
 
 
 def coloured_status(obj: Notification) -> str:
     style = _STATUS_STYLES.get(obj.status, "")
     return format_html(
-        '<span style="padding:2px 10px;border-radius:999px;font-size:12px;font-weight:600;{}">{}</span>',
+        '<span style="padding:2px 10px;border-radius:999px;font-size:12px;'
+        'font-weight:600;{}">{}</span>',
         style,
         obj.get_status_display(),
     )
+
+
 coloured_status.short_description = "Status"  # type: ignore[attr-defined]
 
 
 def coloured_channel(obj: Notification) -> str:
     style = _CHANNEL_STYLES.get(obj.channel, "")
     return format_html(
-        '<span style="padding:2px 10px;border-radius:999px;font-size:12px;font-weight:600;{}">{}</span>',
+        '<span style="padding:2px 10px;border-radius:999px;font-size:12px;'
+        'font-weight:600;{}">{}</span>',
         style,
         obj.get_channel_display(),
     )
+
+
 coloured_channel.short_description = "Channel"  # type: ignore[attr-defined]
 
 
 def body_preview(obj: Notification) -> str:
     return obj.body[:80] + ("…" if len(obj.body) > 80 else "")
+
+
 body_preview.short_description = "Message preview"  # type: ignore[attr-defined]
 
 
@@ -88,13 +96,18 @@ def action_retry_failed(
 
 # ── Admin class ───────────────────────────────────────────────────────────────
 
+
 @admin.register(Notification)
 class NotificationAdmin(admin.ModelAdmin):
-
     # ── List view ─────────────────────────────────────────────────────────────
     list_display = (
-        "id", "account_link", coloured_channel, coloured_status,
-        body_preview, "sent_at", "created_at",
+        "id",
+        "account_link",
+        coloured_channel,
+        coloured_status,
+        body_preview,
+        "sent_at",
+        "created_at",
     )
     list_select_related = ("account",)
     list_filter = ("channel", "status", "created_at")
@@ -113,16 +126,29 @@ class NotificationAdmin(admin.ModelAdmin):
         "created_at",
     )
     fieldsets = (
-        ("Recipient", {
-            "fields": ("account_link", coloured_channel, coloured_status, "sent_at", "created_at"),
-        }),
-        ("Message body", {
-            "fields": ("body",),
-        }),
+        (
+            "Recipient",
+            {
+                "fields": (
+                    "account_link",
+                    coloured_channel,
+                    coloured_status,
+                    "sent_at",
+                    "created_at",
+                ),
+            },
+        ),
+        (
+            "Message body",
+            {
+                "fields": ("body",),
+            },
+        ),
     )
 
     def account_link(self, obj: Notification) -> str:
         url = f"/admin/accounts/account/{obj.account_id}/change/"
         label = obj.account.full_name or obj.account.email
         return format_html('<a href="{}">{}</a>', url, label)
+
     account_link.short_description = "Account"  # type: ignore[attr-defined]

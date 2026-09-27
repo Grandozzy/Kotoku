@@ -47,6 +47,6 @@ class Command(BaseCommand):
             self.stdout.write(f"  pdf_status: {entry.pdf_status}")
             self.stdout.write(f"  pdf_url:    {entry.pdf_url}")
         else:
-            self.stdout.write(self.style.ERROR(
-                f"PDF export did not complete. Status: {entry.pdf_status}"
-            ))
+            self.stdout.write(
+                self.style.ERROR(f"PDF export did not complete. Status: {entry.pdf_status}")
+            )

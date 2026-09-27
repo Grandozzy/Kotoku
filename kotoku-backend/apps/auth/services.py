@@ -20,18 +20,18 @@ from common.phone_numbers import normalize_phone_to_e164
 logger = logging.getLogger(__name__)
 
 _OTP_LENGTH = 6
-_OTP_TTL_SECONDS = 300              # 5 minutes
-_OTP_RATE_TTL_SECONDS = 60          # 1 minute between sends
-_OTP_MAX_ATTEMPTS = 5               # per OTP record
+_OTP_TTL_SECONDS = 300  # 5 minutes
+_OTP_RATE_TTL_SECONDS = 60  # 1 minute between sends
+_OTP_MAX_ATTEMPTS = 5  # per OTP record
 _OTP_RATE_LIMIT_PER_HOUR = 5
-_OTP_LOCKOUT_SECONDS = 900          # 15 minutes
+_OTP_LOCKOUT_SECONDS = 900  # 15 minutes
 
 _OTP_RATE_KEY = "auth_otp_sent:{phone}"
 _OTP_HOURLY_KEY = "auth_otp_hour:{phone}"
 _OTP_LOCK_KEY = "auth_otp_lock:{phone}"
 
-_PIN_LOCK_AFTER = 5                 # failed attempts before 15-min lock
-_PIN_FORCE_OTP_AFTER = 10           # total failures before forcing OTP re-auth
+_PIN_LOCK_AFTER = 5  # failed attempts before 15-min lock
+_PIN_FORCE_OTP_AFTER = 10  # total failures before forcing OTP re-auth
 _PIN_LOCK_MINUTES = 15
 
 _SESSION_LIFETIME = {
@@ -44,11 +44,28 @@ _ACCESS_TOKEN_LIFETIME = {
 }
 
 _SEQUENTIAL_PINS = {
-    "0000", "1111", "2222", "3333", "4444",
-    "5555", "6666", "7777", "8888", "9999",
-    "1234", "2345", "3456", "4567", "5678",
-    "6789", "9876", "8765", "7654", "6543",
-    "5432", "4321",
+    "0000",
+    "1111",
+    "2222",
+    "3333",
+    "4444",
+    "5555",
+    "6666",
+    "7777",
+    "8888",
+    "9999",
+    "1234",
+    "2345",
+    "3456",
+    "4567",
+    "5678",
+    "6789",
+    "9876",
+    "8765",
+    "7654",
+    "6543",
+    "5432",
+    "4321",
 }
 
 _ph = argon2.PasswordHasher()
@@ -58,6 +75,7 @@ _OTP_BODY_RE = re.compile(r"(\d{6})")
 # ─────────────────────────────────────────────────────────────────────────────
 # Internal helpers
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def _make_opaque_token(session_id: str) -> str:
     """Return a composite opaque refresh token: <session_id>.<random_secret>.
@@ -117,9 +135,9 @@ def _create_session(
 
 def _revoke_all_sessions(user: User, reason: str) -> int:
     now = timezone.now()
-    return DeviceSession.objects.filter(
-        user=user, is_revoked=False
-    ).update(is_revoked=True, revoked_at=now, revoked_reason=reason)
+    return DeviceSession.objects.filter(user=user, is_revoked=False).update(
+        is_revoked=True, revoked_at=now, revoked_reason=reason
+    )
 
 
 def _known_device_fingerprints(user: User) -> set[str]:
@@ -156,6 +174,7 @@ def _build_token_response(user: User, session: DeviceSession, raw_token: str) ->
 # ─────────────────────────────────────────────────────────────────────────────
 # AuthService — OTP
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class AuthService:
     @staticmethod
@@ -323,15 +342,14 @@ def extract_otp_from_message(body: str) -> str | None:
 # TokenService — refresh rotation
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 class TokenService:
     @staticmethod
     @transaction.atomic
     def refresh(*, raw_token: str, client_type: str) -> dict:
         session_id, secret = _split_opaque_token(raw_token)
         try:
-            session = DeviceSession.objects.select_for_update().get(
-                id=session_id, is_revoked=False
-            )
+            session = DeviceSession.objects.select_for_update().get(id=session_id, is_revoked=False)
         except DeviceSession.DoesNotExist:
             raise DomainError("Session not found or revoked.") from None
 
@@ -375,9 +393,7 @@ class TokenService:
     ) -> None:
         session_id, secret = _split_opaque_token(raw_token)
         try:
-            session = DeviceSession.objects.select_for_update().get(
-                id=session_id, is_revoked=False
-            )
+            session = DeviceSession.objects.select_for_update().get(id=session_id, is_revoked=False)
         except DeviceSession.DoesNotExist:
             return
         if check_password(secret, session.refresh_token_hash):
@@ -404,6 +420,7 @@ class TokenService:
 # ─────────────────────────────────────────────────────────────────────────────
 # PinService
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class PinService:
     @staticmethod

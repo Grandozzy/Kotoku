@@ -109,11 +109,13 @@ def _mock_urlopen(response_body: dict):
 
 @patch("infrastructure.paystack.client.urllib.request.urlopen")
 def test_initialize_transaction_happy_path(mock_urlopen):
-    mock_urlopen.return_value = _mock_urlopen({
-        "authorization_url": "https://checkout.paystack.com/abc",
-        "access_code": "acc_123",
-        "reference": "kotoku_ref001",
-    })
+    mock_urlopen.return_value = _mock_urlopen(
+        {
+            "authorization_url": "https://checkout.paystack.com/abc",
+            "access_code": "acc_123",
+            "reference": "kotoku_ref001",
+        }
+    )
 
     client = _make_client()
     result = client.initialize_transaction(
@@ -131,11 +133,13 @@ def test_initialize_transaction_happy_path(mock_urlopen):
 
 @patch("infrastructure.paystack.client.urllib.request.urlopen")
 def test_initialize_transaction_sends_correct_body(mock_urlopen):
-    mock_urlopen.return_value = _mock_urlopen({
-        "authorization_url": "https://checkout.paystack.com/abc",
-        "access_code": "acc_123",
-        "reference": "kotoku_ref001",
-    })
+    mock_urlopen.return_value = _mock_urlopen(
+        {
+            "authorization_url": "https://checkout.paystack.com/abc",
+            "access_code": "acc_123",
+            "reference": "kotoku_ref001",
+        }
+    )
 
     client = _make_client()
     client.initialize_transaction(
@@ -205,10 +209,12 @@ def test_http_error_raises_paystack_error(mock_urlopen):
 @patch("infrastructure.paystack.client.urllib.request.urlopen")
 def test_status_false_raises_paystack_error(mock_urlopen):
     resp = MagicMock()
-    resp.read.return_value = json.dumps({
-        "status": False,
-        "message": "Duplicate transaction reference",
-    }).encode()
+    resp.read.return_value = json.dumps(
+        {
+            "status": False,
+            "message": "Duplicate transaction reference",
+        }
+    ).encode()
     resp.__enter__ = lambda s: s
     resp.__exit__ = MagicMock(return_value=False)
     mock_urlopen.return_value = resp

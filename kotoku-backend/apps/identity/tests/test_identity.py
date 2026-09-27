@@ -1,9 +1,19 @@
+from unittest.mock import MagicMock, patch
+
 import pytest
+from django.core.cache import cache
+from django.test import override_settings
 
 from apps.accounts.models import Account, User
 from apps.identity.models import IdentityRecord
 from apps.identity.selectors import IdentitySelector
-from apps.identity.services import IdentityService
+from apps.identity.services import (
+    IdentityService,
+    _assert_liveness_attempt_allowed,
+    _classify_liveness_result,
+    _record_liveness_failure,
+)
+from common.exceptions import DomainError
 
 
 def _account(phone: str, email: str) -> Account:
@@ -77,3 +87,87 @@ class TestIdentitySelector:
         IdentityService.mark_verified(identity_record=identity)
         result = IdentitySelector.get_verified_for_reference("GHA-6")
         assert result.pk == identity.pk
+
+
+class TestLivenessPolicy:
+    @override_settings(
+        AWS_REKOGNITION_LIVENESS_THRESHOLD=80.0,
+        AWS_REKOGNITION_LIVENESS_REVIEW_THRESHOLD=70.0,
+    )
+    def test_classifies_scores_at_configured_boundaries(self):
+        assert _classify_liveness_result(aws_status="SUCCEEDED", confidence=80.0) == "passed"
+        assert (
+            _classify_liveness_result(aws_status="SUCCEEDED", confidence=79.99) == "manual_review"
+        )
+        assert _classify_liveness_result(aws_status="SUCCEEDED", confidence=69.99) == "failed"
+
+    @override_settings(
+        AWS_REKOGNITION_LIVENESS_THRESHOLD=80.0,
+        AWS_REKOGNITION_LIVENESS_REVIEW_THRESHOLD=70.0,
+    )
+    def test_preserves_non_terminal_and_expired_aws_states(self):
+        assert _classify_liveness_result(aws_status="IN_PROGRESS", confidence=0) == "processing"
+        assert _classify_liveness_result(aws_status="EXPIRED", confidence=0) == "expired"
+        assert _classify_liveness_result(aws_status="FAILED", confidence=99) == "failed"
+
+    @override_settings(
+        AWS_REKOGNITION_LIVENESS_THRESHOLD=70.0,
+        AWS_REKOGNITION_LIVENESS_REVIEW_THRESHOLD=80.0,
+    )
+    def test_rejects_inverted_threshold_configuration(self):
+        with pytest.raises(RuntimeError, match="Invalid Rekognition"):
+            _classify_liveness_result(aws_status="SUCCEEDED", confidence=90)
+
+    @override_settings(
+        AWS_REKOGNITION_LIVENESS_MAX_FAILURES=2,
+        AWS_REKOGNITION_LIVENESS_FAILURE_WINDOW_SECONDS=180,
+        AWS_REKOGNITION_LIVENESS_COOLDOWN_SECONDS=1800,
+    )
+    def test_repeated_session_result_is_idempotent_and_failures_trigger_cooldown(self):
+        cache.clear()
+        _record_liveness_failure(party_id=81, session_id="session-1")
+        _record_liveness_failure(party_id=81, session_id="session-1")
+        _assert_liveness_attempt_allowed(party_id=81)
+
+        _record_liveness_failure(party_id=81, session_id="session-2")
+        with pytest.raises(DomainError, match="Too many unsuccessful"):
+            _assert_liveness_attempt_allowed(party_id=81)
+        cache.clear()
+
+    @override_settings(
+        AWS_REKOGNITION_LIVENESS_THRESHOLD=80.0,
+        AWS_REKOGNITION_LIVENESS_REVIEW_THRESHOLD=70.0,
+        AWS_REKOGNITION_LIVENESS_MAX_FAILURES=5,
+        AWS_REKOGNITION_LIVENESS_FAILURE_WINDOW_SECONDS=180,
+        AWS_REKOGNITION_LIVENESS_COOLDOWN_SECONDS=1800,
+    )
+    @patch("apps.identity.services.RekognitionClient")
+    @patch("apps.identity.services.IdentityService.ensure_party_verification")
+    def test_result_contract_does_not_expose_biometric_score(
+        self,
+        ensure_verification,
+        rekognition_client,
+    ):
+        cache.clear()
+        verification = MagicMock(
+            liveness_session_id="session-private-score",
+            status="pending",
+        )
+        ensure_verification.return_value = verification
+        rekognition_client.return_value.get_face_liveness_session_results.return_value = {
+            "status": "SUCCEEDED",
+            "confidence": 65.5,
+            "reference_image_bytes": b"",
+        }
+        party = MagicMock(pk=91, role="buyer")
+
+        result = IdentityService.process_liveness_result(party=party)
+
+        assert result == {
+            "status": "failed",
+            "detail": (
+                "Face check did not pass. Remove face coverings and retry in clear, even lighting."
+            ),
+        }
+        assert "confidence" not in result
+        cache.clear()

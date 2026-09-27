@@ -21,14 +21,10 @@ from common.responses import ok
 logger = logging.getLogger("kotoku")
 
 # Matches identity evidence types a non-owner party may upload for their own slot.
-_PARTY_IDENTITY_PATTERN = re.compile(
-    r"^(buyer|seller|landlord|tenant)_ghana_card_(front|back)$"
-)
+_PARTY_IDENTITY_PATTERN = re.compile(r"^(buyer|seller|landlord|tenant)_ghana_card_(front|back)$")
 
 
-def _get_agreement_for_evidence_upload(
-    agreement_id: int, account, evidence_type: str
-) -> Agreement:
+def _get_agreement_for_evidence_upload(agreement_id: int, account, evidence_type: str) -> Agreement:
     """Return the agreement if the account is allowed to upload this evidence type.
 
     Owners may upload any evidence. Non-owners may upload only their own party's
@@ -37,9 +33,7 @@ def _get_agreement_for_evidence_upload(
     """
     # Owner path — fast and covers all evidence types.
     try:
-        return AgreementSelector.get_owned_agreement_detail(
-            agreement_id, account_id=account.pk
-        )
+        return AgreementSelector.get_owned_agreement_detail(agreement_id, account_id=account.pk)
     except Agreement.DoesNotExist:
         pass
 
@@ -52,9 +46,7 @@ def _get_agreement_for_evidence_upload(
     try:
         from apps.parties.models import Party
 
-        party = Party.objects.select_related("agreement").get(
-            agreement_id=agreement_id, role=role
-        )
+        party = Party.objects.select_related("agreement").get(agreement_id=agreement_id, role=role)
     except Exception:
         raise Http404 from None
 
@@ -71,6 +63,7 @@ class EvidenceUploadUrlView(APIView):
     Owners may upload any evidence type. Non-owners may upload only their own party's
     Ghana Card images (front/back) for the identity invite flow.
     """
+
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
@@ -102,14 +95,13 @@ class EvidenceUploadUrlView(APIView):
 
 class EvidenceCollectionView(APIView):
     """POST   /api/agreements/{id}/evidence  — confirm upload and record metadata
-       GET    /api/agreements/{id}/evidence  — list confirmed evidence items
+    GET    /api/agreements/{id}/evidence  — list confirmed evidence items
     """
+
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
-    def _get_visible_agreement(
-        self, agreement_id: int, account_id: int, account_phone: str
-    ):
+    def _get_visible_agreement(self, agreement_id: int, account_id: int, account_phone: str):
         try:
             return AgreementSelector.get_agreement_detail(
                 agreement_id,

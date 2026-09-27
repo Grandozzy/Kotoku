@@ -49,8 +49,8 @@ class AnnotationService:
         """Delete an annotation. Only the author can delete their own annotation."""
         try:
             annotation = Annotation.objects.select_related("author_party").get(pk=annotation_id)
-        except Annotation.DoesNotExist:
-            raise DomainError("Annotation not found.")
+        except Annotation.DoesNotExist as exc:
+            raise DomainError("Annotation not found.") from exc
 
         if annotation.author_party_id != actor_party_id:
             raise DomainError("You can only delete your own annotations.")
@@ -62,8 +62,8 @@ class AnnotationService:
         """Update an annotation. Only the author can edit their own annotation."""
         try:
             annotation = Annotation.objects.select_related("author_party").get(pk=annotation_id)
-        except Annotation.DoesNotExist:
-            raise DomainError("Annotation not found.")
+        except Annotation.DoesNotExist as exc:
+            raise DomainError("Annotation not found.") from exc
 
         if annotation.author_party_id != actor_party_id:
             raise DomainError("You can only edit your own annotations.")

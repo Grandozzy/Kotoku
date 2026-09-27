@@ -8,7 +8,9 @@ class TestStoreEvidence:
     @patch("apps.evidence.storage.S3StorageClient")
     def test_returns_hash_and_url(self, mock_client_cls):
         mock_client = MagicMock()
-        mock_client.upload.return_value = "https://bucket.s3.eu-west-1.amazonaws.com/evidence/ab/abc.txt"
+        mock_client.upload.return_value = (
+            "https://bucket.s3.eu-west-1.amazonaws.com/evidence/ab/abc.txt"
+        )
         mock_client_cls.return_value = mock_client
 
         file_data = b"test file content"

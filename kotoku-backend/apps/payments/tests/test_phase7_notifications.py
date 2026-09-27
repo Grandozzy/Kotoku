@@ -24,6 +24,7 @@ from unittest.mock import patch
 import pytest
 
 from apps.accounts.models import Account, User
+from apps.billing.constants import PLAN_MAP
 from apps.notifications.models import Notification
 from apps.payments.models import PaymentEvent, Subscription, SubscriptionCheckout
 from apps.payments.tasks import expire_lapsed_subscriptions, process_payment_event
@@ -58,6 +59,11 @@ def _make_sub(account, status=Subscription.STATUS_ACTIVE, sub_id="SUB_notif") ->
 
 
 def _create_event(event_id: str, event_type: str, data: dict) -> PaymentEvent:
+    if event_type == "charge.success":
+        plan_id = (data.get("metadata") or {}).get("plan_id")
+        if plan_id in PLAN_MAP:
+            data.setdefault("amount", PLAN_MAP[plan_id].price_ghs * 100)
+            data.setdefault("currency", "GHS")
     return PaymentEvent.objects.create(
         event_id=event_id,
         event_type=event_type,
@@ -71,8 +77,14 @@ def _notifications_for(account) -> list[Notification]:
 
 
 # Patch the providers so nothing hits the network during tests.
-_patch_sms = patch("apps.notifications.providers.sms_provider.SmsNotificationProvider.send", return_value=True)
-_patch_email = patch("apps.notifications.providers.email_provider.EmailNotificationProvider.send", return_value=True)
+_patch_sms = patch(
+    "apps.notifications.providers.sms_provider.SmsNotificationProvider.send",
+    return_value=True,
+)
+_patch_email = patch(
+    "apps.notifications.providers.email_provider.EmailNotificationProvider.send",
+    return_value=True,
+)
 
 
 # ── charge.success → SMS + email ─────────────────────────────────────────────
@@ -90,12 +102,16 @@ def test_charge_success_sends_sms_and_email(mock_email, mock_sms):
         status=SubscriptionCheckout.STATUS_PENDING,
     )
 
-    _create_event("evt_n_charge_001", "charge.success", {
-        "reference": "kotoku_notif_charge_001",
-        "plan": {"plan_code": "PLN_plus"},
-        "customer": {"customer_code": "CUS_notif", "email": account.email},
-        "metadata": {"account_id": account.id, "plan_id": "personal_plus"},
-    })
+    _create_event(
+        "evt_n_charge_001",
+        "charge.success",
+        {
+            "reference": "kotoku_notif_charge_001",
+            "plan": {"plan_code": "PLN_plus"},
+            "customer": {"customer_code": "CUS_notif", "email": account.email},
+            "metadata": {"account_id": account.id, "plan_id": "personal_plus"},
+        },
+    )
 
     process_payment_event("evt_n_charge_001")
 
@@ -117,12 +133,16 @@ def test_charge_success_email_has_subject(mock_email, mock_sms):
         status=SubscriptionCheckout.STATUS_PENDING,
     )
 
-    _create_event("evt_n_charge_002", "charge.success", {
-        "reference": "kotoku_notif_charge_002",
-        "plan": {"plan_code": "PLN_plus"},
-        "customer": {"customer_code": "CUS_notif2", "email": account.email},
-        "metadata": {"account_id": account.id, "plan_id": "personal_plus"},
-    })
+    _create_event(
+        "evt_n_charge_002",
+        "charge.success",
+        {
+            "reference": "kotoku_notif_charge_002",
+            "plan": {"plan_code": "PLN_plus"},
+            "customer": {"customer_code": "CUS_notif2", "email": account.email},
+            "metadata": {"account_id": account.id, "plan_id": "personal_plus"},
+        },
+    )
 
     process_payment_event("evt_n_charge_002")
 
@@ -141,12 +161,16 @@ def test_invoice_payment_failed_sends_sms_and_email(mock_email, mock_sms):
     account = _make_account(plan="personal_plus")
     _make_sub(account, sub_id="SUB_failnotif")
 
-    _create_event("evt_n_invfail_001", "invoice.payment_failed", {
-        "reference": "inv_failnotif_001",
-        "amount": 2500,
-        "currency": "GHS",
-        "subscription": {"subscription_code": "SUB_failnotif"},
-    })
+    _create_event(
+        "evt_n_invfail_001",
+        "invoice.payment_failed",
+        {
+            "reference": "inv_failnotif_001",
+            "amount": 2500,
+            "currency": "GHS",
+            "subscription": {"subscription_code": "SUB_failnotif"},
+        },
+    )
 
     process_payment_event("evt_n_invfail_001")
 
@@ -162,12 +186,16 @@ def test_invoice_payment_failed_email_has_subject(mock_email, mock_sms):
     account = _make_account(plan="personal_plus")
     _make_sub(account, sub_id="SUB_failsubj")
 
-    _create_event("evt_n_invfail_002", "invoice.payment_failed", {
-        "reference": "inv_failsubj_001",
-        "amount": 2500,
-        "currency": "GHS",
-        "subscription": {"subscription_code": "SUB_failsubj"},
-    })
+    _create_event(
+        "evt_n_invfail_002",
+        "invoice.payment_failed",
+        {
+            "reference": "inv_failsubj_001",
+            "amount": 2500,
+            "currency": "GHS",
+            "subscription": {"subscription_code": "SUB_failsubj"},
+        },
+    )
 
     process_payment_event("evt_n_invfail_002")
 
@@ -231,9 +259,13 @@ def test_subscription_disable_sends_sms_only(mock_email, mock_sms):
     account = _make_account(plan="personal_plus")
     _make_sub(account, sub_id="SUB_disnotif")
 
-    _create_event("evt_n_disable_001", "subscription.disable", {
-        "subscription_code": "SUB_disnotif",
-    })
+    _create_event(
+        "evt_n_disable_001",
+        "subscription.disable",
+        {
+            "subscription_code": "SUB_disnotif",
+        },
+    )
 
     process_payment_event("evt_n_disable_001")
 
@@ -252,9 +284,13 @@ def test_expiring_cards_sends_sms_only(mock_email, mock_sms):
     account = _make_account(plan="personal_plus")
     _make_sub(account, sub_id="SUB_expcard")
 
-    _create_event("evt_n_expcard_001", "subscription.expiring_cards", {
-        "customer": {"email": account.email},
-    })
+    _create_event(
+        "evt_n_expcard_001",
+        "subscription.expiring_cards",
+        {
+            "customer": {"email": account.email},
+        },
+    )
 
     process_payment_event("evt_n_expcard_001")
 
@@ -282,12 +318,16 @@ def test_charge_success_no_email_address_skips_email(mock_email, mock_sms):
         status=SubscriptionCheckout.STATUS_PENDING,
     )
 
-    _create_event("evt_n_noemail_001", "charge.success", {
-        "reference": "kotoku_notif_noemail_001",
-        "plan": {"plan_code": "PLN_plus"},
-        "customer": {"customer_code": "CUS_noemail", "email": "fallback@test.com"},
-        "metadata": {"account_id": account.id, "plan_id": "personal_plus"},
-    })
+    _create_event(
+        "evt_n_noemail_001",
+        "charge.success",
+        {
+            "reference": "kotoku_notif_noemail_001",
+            "plan": {"plan_code": "PLN_plus"},
+            "customer": {"customer_code": "CUS_noemail", "email": "fallback@test.com"},
+            "metadata": {"account_id": account.id, "plan_id": "personal_plus"},
+        },
+    )
 
     # Must not raise.
     process_payment_event("evt_n_noemail_001")
@@ -295,4 +335,7 @@ def test_charge_success_no_email_address_skips_email(mock_email, mock_sms):
     # SMS was still sent.
     assert Notification.objects.filter(account=account, channel=Notification.Channel.SMS).exists()
     # Email was skipped.
-    assert not Notification.objects.filter(account=account, channel=Notification.Channel.EMAIL).exists()
+    assert not Notification.objects.filter(
+        account=account,
+        channel=Notification.Channel.EMAIL,
+    ).exists()

@@ -50,7 +50,9 @@ class Subscription(models.Model):
     # Mirrors billing.constants.PLAN_MAP key
     plan_id = models.CharField(max_length=32)
 
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING, db_index=True)
+    status = models.CharField(
+        max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING, db_index=True
+    )
     current_period_start = models.DateField(null=True, blank=True)
     current_period_end = models.DateField(null=True, blank=True)
     cancel_at_period_end = models.BooleanField(default=False)
@@ -128,7 +130,9 @@ class SubscriptionCheckout(models.Model):
         default=KIND_SUBSCRIPTION,
         db_index=True,
     )
-    status = models.CharField(max_length=32, choices=STATUS_CHOICES, default=STATUS_PENDING, db_index=True)
+    status = models.CharField(
+        max_length=32, choices=STATUS_CHOICES, default=STATUS_PENDING, db_index=True
+    )
     replaces_subscription = models.ForeignKey(
         Subscription,
         on_delete=models.SET_NULL,
@@ -228,7 +232,9 @@ class Invoice(models.Model):
     # Paystack amounts are in the smallest currency unit (kobo for GHS)
     amount_kobo = models.IntegerField()
     currency = models.CharField(max_length=10, default="GHS")
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING, db_index=True)
+    status = models.CharField(
+        max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING, db_index=True
+    )
     period_start = models.DateField(null=True, blank=True)
     period_end = models.DateField(null=True, blank=True)
     paid_at = models.DateTimeField(null=True, blank=True)

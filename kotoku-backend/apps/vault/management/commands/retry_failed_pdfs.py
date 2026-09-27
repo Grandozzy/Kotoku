@@ -12,6 +12,7 @@ to recover entries that ended up in FAILED or stuck-GENERATING state:
     # Dry-run to see what would be re-queued without actually doing it
     python manage.py retry_failed_pdfs --dry-run
 """
+
 from datetime import timedelta
 
 from django.core.management.base import BaseCommand
@@ -68,9 +69,14 @@ class Command(BaseCommand):
             self.stdout.write(self.style.WARNING("No entries found to retry."))
             return
 
-        self.stdout.write(f"Found {len(entries)} entr{'y' if len(entries) == 1 else 'ies'} to retry:")
+        self.stdout.write(
+            f"Found {len(entries)} entr{'y' if len(entries) == 1 else 'ies'} to retry:"
+        )
         for entry in entries:
-            self.stdout.write(f"  vault_entry={entry.pk}  agreement={entry.agreement_id}  status={entry.pdf_status}")
+            self.stdout.write(
+                f"  vault_entry={entry.pk}  agreement={entry.agreement_id}  "
+                f"status={entry.pdf_status}"
+            )
 
         if dry_run:
             self.stdout.write(self.style.WARNING("Dry run — nothing enqueued."))

@@ -67,10 +67,17 @@ class AnnotationCollectionView(APIView):
         )
         serializer = AnnotationCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        actor_party = _acting_party(agreement, request.user.account, serializer.validated_data["author_party_id"])
+        actor_party = _acting_party(
+            agreement, request.user.account, serializer.validated_data["author_party_id"]
+        )
         if actor_party is None:
             return Response(
-                {"status": "error", "message": "Annotations can only be created for an allowed party on this agreement."},
+                {
+                    "status": "error",
+                    "message": (
+                        "Annotations can only be created for an allowed party on this agreement."
+                    ),
+                },
                 status=403,
             )
         annotation = AnnotationService.create(
@@ -110,7 +117,12 @@ class AnnotationDetailView(APIView):
         )
         if actor_party is None:
             return Response(
-                {"status": "error", "message": "Annotations can only be managed for an allowed party on this agreement."},
+                {
+                    "status": "error",
+                    "message": (
+                        "Annotations can only be managed for an allowed party on this agreement."
+                    ),
+                },
                 status=403,
             )
         try:
@@ -134,7 +146,12 @@ class AnnotationDetailView(APIView):
         )
         if actor_party is None:
             return Response(
-                {"status": "error", "message": "Annotations can only be managed for an allowed party on this agreement."},
+                {
+                    "status": "error",
+                    "message": (
+                        "Annotations can only be managed for an allowed party on this agreement."
+                    ),
+                },
                 status=403,
             )
         body = request.data.get("body")

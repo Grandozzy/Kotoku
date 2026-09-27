@@ -39,9 +39,9 @@ class InitiateSerializer(serializers.Serializer):
         channels = attrs.get("channels")
 
         if mode == self.MODE_SUBSCRIPTION and channels:
-            raise serializers.ValidationError({
-                "channels": "channels can only be set for recovery payments."
-            })
+            raise serializers.ValidationError(
+                {"channels": "channels can only be set for recovery payments."}
+            )
 
         if mode == self.MODE_RECOVERY and not channels:
             attrs["channels"] = [self.CHANNEL_CARD, self.CHANNEL_MOBILE_MONEY]

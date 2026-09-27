@@ -11,9 +11,7 @@ from apps.parties.models import Party
 @pytest.fixture()
 def authenticated_client():
     user = User.objects.create_user(phone="+233500000001")
-    account = Account.objects.create(
-        user=user, email="test@kotoku.app", phone=user.phone
-    )
+    account = Account.objects.create(user=user, email="test@kotoku.app", phone=user.phone)
     refresh = RefreshToken.for_user(user)
     client = APIClient()
     client.credentials(HTTP_AUTHORIZATION=f"Bearer {str(refresh.access_token)}")
@@ -23,9 +21,7 @@ def authenticated_client():
 @pytest.fixture()
 def second_authenticated_client():
     user = User.objects.create_user(phone="+233500000002")
-    account = Account.objects.create(
-        user=user, email="other@kotoku.app", phone=user.phone
-    )
+    account = Account.objects.create(user=user, email="other@kotoku.app", phone=user.phone)
     refresh = RefreshToken.for_user(user)
     client = APIClient()
     client.credentials(HTTP_AUTHORIZATION=f"Bearer {str(refresh.access_token)}")
@@ -53,9 +49,7 @@ class TestAgreementCreateApi:
         assert response.status_code == 400
 
     def test_create_agreement_unauthenticated_returns_401(self):
-        response = APIClient().post(
-            "/api/agreements/", {"title": "Test"}, format="json"
-        )
+        response = APIClient().post("/api/agreements/", {"title": "Test"}, format="json")
         assert response.status_code == 401
 
 
@@ -79,9 +73,7 @@ class TestAgreementDetailApi:
         client, account = authenticated_client
         from apps.agreements.services import AgreementService
 
-        agreement = AgreementService.create_draft(
-            title="Detail Test", created_by=account
-        )
+        agreement = AgreementService.create_draft(title="Detail Test", created_by=account)
         response = client.get(f"/api/agreements/{agreement.pk}/", format="json")
         assert response.status_code == 200
         data = response.json()["data"]["agreement"]
@@ -100,12 +92,12 @@ class TestAgreementDetailApi:
         from apps.agreements.services import AgreementService
 
         agreement = AgreementService.create_draft(title="Private", created_by=account)
-        response = other_client.get(
-            f"/api/agreements/{agreement.pk}/", format="json"
-        )
+        response = other_client.get(f"/api/agreements/{agreement.pk}/", format="json")
         assert response.status_code == 404
 
-    def test_participant_can_view_non_draft_agreement(self, authenticated_client, second_authenticated_client):
+    def test_participant_can_view_non_draft_agreement(
+        self, authenticated_client, second_authenticated_client
+    ):
         owner_client, account = authenticated_client
         other_client, other_account = second_authenticated_client
         agreement = Agreement.objects.create(
@@ -129,7 +121,9 @@ class TestAgreementDetailApi:
         response = other_client.get(f"/api/agreements/{agreement.pk}/", format="json")
         assert response.status_code == 200
 
-    def test_participant_cannot_view_draft_agreement(self, authenticated_client, second_authenticated_client):
+    def test_participant_cannot_view_draft_agreement(
+        self, authenticated_client, second_authenticated_client
+    ):
         owner_client, account = authenticated_client
         other_client, other_account = second_authenticated_client
         agreement = Agreement.objects.create(
@@ -154,9 +148,7 @@ class TestAgreementUpdateApi:
         client, account = authenticated_client
         from apps.agreements.services import AgreementService
 
-        agreement = AgreementService.create_draft(
-            title="Original", created_by=account
-        )
+        agreement = AgreementService.create_draft(title="Original", created_by=account)
         response = client.patch(
             f"/api/agreements/{agreement.pk}/",
             {"title": "Updated"},
@@ -196,7 +188,9 @@ class TestAgreementUpdateApi:
         )
         assert response.status_code == 404
 
-    def test_participant_cannot_update_reopened_agreement(self, authenticated_client, second_authenticated_client):
+    def test_participant_cannot_update_reopened_agreement(
+        self, authenticated_client, second_authenticated_client
+    ):
         owner_client, account = authenticated_client
         other_client, other_account = second_authenticated_client
         agreement = Agreement.objects.create(

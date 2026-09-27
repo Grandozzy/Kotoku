@@ -36,7 +36,7 @@ class Command(BaseCommand):
         self.stdout.write(self.style.MIGRATE_HEADING("=" * 60))
         self.stdout.write(self.style.MIGRATE_HEADING(" BILATERAL REOPEN E2E TEST"))
         self.stdout.write(self.style.MIGRATE_HEADING("=" * 60))
-        self.stdout.write(f"Agreement #{agreement.pk}: \"{agreement.title}\"")
+        self.stdout.write(f'Agreement #{agreement.pk}: "{agreement.title}"')
         self.stdout.write(f"Status: {agreement.status}")
         self.stdout.write("")
 

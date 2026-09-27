@@ -17,21 +17,23 @@ class MeView(APIView):
     def get(self, request):
         try:
             account = request.user.account
-        except Exception:
-            raise DomainError("Account not found for this user.")
-        return ok({
-            "id": account.pk,
-            "phone": account.phone,
-            "email": account.email,
-            "full_name": account.full_name,
-            "member_since": account.created_at.strftime("%B %Y"),
-        })
+        except Exception as exc:
+            raise DomainError("Account not found for this user.") from exc
+        return ok(
+            {
+                "id": account.pk,
+                "phone": account.phone,
+                "email": account.email,
+                "full_name": account.full_name,
+                "member_since": account.created_at.strftime("%B %Y"),
+            }
+        )
 
     def patch(self, request):
         try:
             account = request.user.account
-        except Exception:
-            raise DomainError("Account not found for this user.")
+        except Exception as exc:
+            raise DomainError("Account not found for this user.") from exc
         serializer = UpdateProfileSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         try:
@@ -42,13 +44,15 @@ class MeView(APIView):
             )
         except DomainError as e:
             return Response({"status": "error", "message": str(e)}, status=400)
-        return ok({
-            "id": account.pk,
-            "phone": account.phone,
-            "email": account.email,
-            "full_name": account.full_name,
-            "member_since": account.created_at.strftime("%B %Y"),
-        })
+        return ok(
+            {
+                "id": account.pk,
+                "phone": account.phone,
+                "email": account.email,
+                "full_name": account.full_name,
+                "member_since": account.created_at.strftime("%B %Y"),
+            }
+        )
 
 
 class AccountListView(APIView):

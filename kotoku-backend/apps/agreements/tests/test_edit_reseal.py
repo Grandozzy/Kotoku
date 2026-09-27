@@ -44,12 +44,20 @@ def _make_sealed_agreement():
         account=account, reference="ref-b", verification_type="ghana_card"
     )
     party_a = Party.objects.create(
-        agreement=agreement, identity=id1, role="buyer", display_name="Buyer",
-        id_type="ghana_card", id_number="GHA-111111111-1",
+        agreement=agreement,
+        identity=id1,
+        role="buyer",
+        display_name="Buyer",
+        id_type="ghana_card",
+        id_number="GHA-111111111-1",
     )
     Party.objects.create(
-        agreement=agreement, identity=id2, role="seller", display_name="Seller",
-        id_type="ghana_card", id_number="GHA-222222222-2",
+        agreement=agreement,
+        identity=id2,
+        role="seller",
+        display_name="Seller",
+        id_type="ghana_card",
+        id_number="GHA-222222222-2",
     )
     stamp_all_parties_verified(agreement)
     EvidenceItem.objects.create(
@@ -85,17 +93,13 @@ class TestUpdateActive:
         account = _account("notactive@test.com")
         agreement = AgreementService.create_draft(title="T", created_by=account)
         with pytest.raises(DomainError, match="active"):
-            AgreementService.update_active(
-                agreement_id=agreement.pk, title="Nope"
-            )
+            AgreementService.update_active(agreement_id=agreement.pk, title="Nope")
 
     def test_update_active_emits_audit_event(self, db):
         agreement = _make_sealed_agreement()
         agreement.status = AgreementStatus.ACTIVE
         agreement.save()
-        AgreementService.update_active(
-            agreement_id=agreement.pk, title="Updated"
-        )
+        AgreementService.update_active(agreement_id=agreement.pk, title="Updated")
         from apps.audit.models import AuditLog
 
         assert AuditLog.objects.filter(
@@ -112,9 +116,7 @@ class TestAgreementRevision:
         original_sealed_at = agreement.sealed_at
         original_seal_hash = agreement.seal_hash
 
-        reopened = AgreementService.complete_bilateral_reopen(
-            agreement_id=agreement.pk
-        )
+        reopened = AgreementService.complete_bilateral_reopen(agreement_id=agreement.pk)
 
         assert reopened.status == AgreementStatus.ACTIVE
         assert reopened.sealed_at is None
@@ -137,9 +139,7 @@ class TestAgreementRevision:
         agreement.refresh_from_db()
         assert agreement.status == AgreementStatus.ACTIVE
 
-        AgreementService.update_active(
-            agreement_id=agreement.pk, title="Updated Title"
-        )
+        AgreementService.update_active(agreement_id=agreement.pk, title="Updated Title")
 
         agreement.refresh_from_db()
         from apps.consent.services import ConsentService
@@ -195,16 +195,12 @@ class TestResealConsentFlow:
         from apps.consent.services import ConsentService
 
         account = _account("reseal_otp@test.com")
-        agreement = AgreementService.create_draft(
-            title="Re-Seal Test", created_by=account
-        )
+        agreement = AgreementService.create_draft(title="Re-Seal Test", created_by=account)
         id1 = _identity(account, "ref-r1")
         id2 = IdentityRecord.objects.create(
             account=account, reference="ref-r2", verification_type="phone"
         )
-        Party.objects.create(
-            agreement=agreement, identity=id1, role="buyer", display_name="Buyer"
-        )
+        Party.objects.create(agreement=agreement, identity=id1, role="buyer", display_name="Buyer")
         Party.objects.create(
             agreement=agreement, identity=id2, role="seller", display_name="Seller"
         )
@@ -230,9 +226,7 @@ class TestResealSealFlow:
         agreement.refresh_from_db()
         assert agreement.status == AgreementStatus.ACTIVE
 
-        AgreementService.update_active(
-            agreement_id=agreement.pk, title="Updated Title"
-        )
+        AgreementService.update_active(agreement_id=agreement.pk, title="Updated Title")
 
         agreement.refresh_from_db()
         from apps.consent.services import ConsentService

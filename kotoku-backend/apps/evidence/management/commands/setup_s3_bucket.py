@@ -11,6 +11,7 @@ Allowed origins are resolved from the S3_CORS_ALLOWED_ORIGINS env var
 (comma-separated). If unset, it falls back to CORS_ALLOWED_ORIGINS from
 Django settings, which covers the production web domain.
 """
+
 import logging
 import os
 
@@ -77,9 +78,8 @@ class Command(BaseCommand):
 
         if dry_run:
             import json
-            self.stdout.write(
-                self.style.WARNING("Dry run — CORS config that would be applied:")
-            )
+
+            self.stdout.write(self.style.WARNING("Dry run — CORS config that would be applied:"))
             self.stdout.write(json.dumps(cors_config, indent=2))
             return
 
@@ -94,11 +94,7 @@ class Command(BaseCommand):
 
         try:
             client.put_bucket_cors(Bucket=bucket, CORSConfiguration=cors_config)
-            self.stdout.write(
-                self.style.SUCCESS(f"CORS policy applied to bucket '{bucket}'.")
-            )
+            self.stdout.write(self.style.SUCCESS(f"CORS policy applied to bucket '{bucket}'."))
         except (BotoCoreError, ClientError) as exc:
-            self.stderr.write(
-                self.style.ERROR(f"Failed to apply CORS policy: {exc}")
-            )
+            self.stderr.write(self.style.ERROR(f"Failed to apply CORS policy: {exc}"))
             raise SystemExit(1) from exc

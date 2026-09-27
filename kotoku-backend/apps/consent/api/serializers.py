@@ -29,6 +29,7 @@ class ConsentRecordOutputSerializer(serializers.Serializer):
 
 class ConsentStatusOutputSerializer(serializers.Serializer):
     """Summary of consent status for an agreement."""
+
     agreement_id = serializers.IntegerField()
     all_consented = serializers.BooleanField()
     records = ConsentRecordOutputSerializer(many=True)

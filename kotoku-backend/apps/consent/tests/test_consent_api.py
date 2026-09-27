@@ -183,10 +183,7 @@ class TestRequestOtpApi:
         _set_two_parties(agreement, acct.phone, second_phone)
         resp = client.post(_REQUEST_OTP_PATH.format(id=agreement.pk))
         assert resp.status_code == 201
-        messages = {
-            call.kwargs["to"]: call.kwargs["body"]
-            for call in mock_delay.call_args_list
-        }
+        messages = {call.kwargs["to"]: call.kwargs["body"] for call in mock_delay.call_args_list}
         assert "/consent/" not in messages[acct.phone]
         assert "/consent/" in messages[second_phone]
 
@@ -215,10 +212,7 @@ class TestRequestOtpApi:
         resp = client.post(_REQUEST_OTP_PATH.format(id=agreement.pk))
 
         assert resp.status_code == 201
-        messages = {
-            call.kwargs["to"]: call.kwargs["body"]
-            for call in mock_delay.call_args_list
-        }
+        messages = {call.kwargs["to"]: call.kwargs["body"] for call in mock_delay.call_args_list}
         assert "/consent/" not in messages[creator_party_phone]
         assert "/consent/" in messages[second_phone]
 
@@ -247,10 +241,7 @@ class TestRequestOtpApi:
         resp = client.post(_REQUEST_OTP_PATH.format(id=agreement.pk))
 
         assert resp.status_code == 201
-        messages = {
-            call.kwargs["to"]: call.kwargs["body"]
-            for call in mock_delay.call_args_list
-        }
+        messages = {call.kwargs["to"]: call.kwargs["body"] for call in mock_delay.call_args_list}
         assert "/consent/" not in messages[party_a_phone]
         assert "/consent/" in messages[party_b_phone]
 
@@ -548,9 +539,7 @@ class TestPublicConsentLinkApi:
     def test_public_link_confirms_only_token_party(self, mock_delay):
         agreement, party, token = self._setup("+233500350003", "+233500350004")
         record = ConsentRecord.objects.get(agreement=agreement, party=party)
-        ConsentRecord.objects.filter(pk=record.pk).update(
-            otp_code_hash=hash_otp("123456")
-        )
+        ConsentRecord.objects.filter(pk=record.pk).update(otp_code_hash=hash_otp("123456"))
         resp = APIClient().post(
             _PUBLIC_CONSENT_CONFIRM_PATH.format(token=token),
             {"otp_code": "123456"},

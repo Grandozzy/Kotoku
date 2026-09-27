@@ -102,9 +102,8 @@ class VaultService:
         party_id = int(payload.get("party_id") or 0)
 
         try:
-            entry = (
-                VaultEntry.objects.select_related("agreement", "agreement__created_by")
-                .get(agreement_id=agreement_id)
+            entry = VaultEntry.objects.select_related("agreement", "agreement__created_by").get(
+                agreement_id=agreement_id
             )
             party = Party.objects.get(pk=party_id, agreement_id=agreement_id)
         except (VaultEntry.DoesNotExist, Party.DoesNotExist):

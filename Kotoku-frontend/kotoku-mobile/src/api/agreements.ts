@@ -130,14 +130,27 @@ export async function createLivenessSession(
   return res.data.data;
 }
 
+type LivenessResult = {
+  status: "passed" | "failed" | "expired" | "processing" | "manual_review";
+  detail: string;
+};
+
 export async function submitLivenessResult(
   agreementId: number,
   role: string,
-): Promise<{ status: "passed" | "failed" | "expired"; confidence: number }> {
-  const res = await apiClient.post<
-    ApiResponse<{ status: "passed" | "failed" | "expired"; confidence: number }>
-  >(`/agreements/${agreementId}/identity/${role}/liveness-result/`);
-  return res.data.data;
+): Promise<LivenessResult> {
+  const resultUrl = `/agreements/${agreementId}/identity/${role}/liveness-result/`;
+  let result: LivenessResult | null = null;
+
+  // Analysis completion can arrive just before AWS marks the result terminal.
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const res = await apiClient.post<ApiResponse<LivenessResult>>(resultUrl);
+    result = res.data.data;
+    if (result.status !== "processing") return result;
+    if (attempt < 4) await new Promise((resolve) => setTimeout(resolve, 1000));
+  }
+  if (!result) throw new Error("Liveness result was not returned.");
+  return result;
 }
 
 export async function listAgreements(params?: {

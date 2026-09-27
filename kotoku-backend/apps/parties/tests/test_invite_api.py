@@ -8,6 +8,7 @@ Covers:
   - POST /api/agreements/{id}/evidence/upload-url/     Party B identity evidence on DRAFT
   - POST /api/agreements/{id}/identity/{role}/liveness-session/  liveness on DRAFT
 """
+
 from datetime import timedelta
 from unittest.mock import patch
 
@@ -19,7 +20,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from apps.accounts.models import Account, User
 from apps.agreements.domain.enums import AgreementStatus
 from apps.agreements.models import Agreement
-from apps.parties.models import Party, PartyInvite
+from apps.parties.models import PartyInvite
 from apps.parties.services import PartyService
 
 _SEND_URL = "/api/agreements/{id}/parties/invite/{role}/"
@@ -465,7 +466,10 @@ class TestPartyBEvidenceUpload:
 
 @pytest.mark.django_db
 class TestLivenessOnDraftViaInvite:
-    @patch("apps.identity.services.IdentityService.create_liveness_session", return_value="fake-session-id")
+    @patch(
+        "apps.identity.services.IdentityService.create_liveness_session",
+        return_value="fake-session-id",
+    )
     def test_claimed_invite_holder_can_start_liveness_on_draft(self, mock_liveness):
         buyer_client, buyer_acct = _make_client("+233502105001")
         _, owner_acct = _make_client("+233502105002")
@@ -474,9 +478,7 @@ class TestLivenessOnDraftViaInvite:
         assert ag.status == AgreementStatus.DRAFT
         _claimed_invite_for_role(ag, "buyer")
 
-        resp = buyer_client.post(
-            _LIVENESS_SESSION_URL.format(id=ag.pk, role="buyer")
-        )
+        resp = buyer_client.post(_LIVENESS_SESSION_URL.format(id=ag.pk, role="buyer"))
 
         assert resp.status_code == 201
         assert resp.json()["data"]["session_id"] == "fake-session-id"
@@ -489,13 +491,14 @@ class TestLivenessOnDraftViaInvite:
         assert ag.status == AgreementStatus.DRAFT
         # No invite created at all.
 
-        resp = buyer_client.post(
-            _LIVENESS_SESSION_URL.format(id=ag.pk, role="buyer")
-        )
+        resp = buyer_client.post(_LIVENESS_SESSION_URL.format(id=ag.pk, role="buyer"))
 
         assert resp.status_code == 404
 
-    @patch("apps.identity.services.IdentityService.create_liveness_session", return_value="fake-session-id")
+    @patch(
+        "apps.identity.services.IdentityService.create_liveness_session",
+        return_value="fake-session-id",
+    )
     def test_unclaimed_invite_blocks_liveness_on_draft(self, mock_liveness):
         """Invite must be claimed (phone verified) to access liveness endpoint."""
         buyer_client, buyer_acct = _make_client("+233502105005")
@@ -504,8 +507,6 @@ class TestLivenessOnDraftViaInvite:
         _set_parties(ag, owner_acct.phone, buyer_acct.phone)
         _unclaimed_invite_for_role(ag, "buyer")  # not claimed
 
-        resp = buyer_client.post(
-            _LIVENESS_SESSION_URL.format(id=ag.pk, role="buyer")
-        )
+        resp = buyer_client.post(_LIVENESS_SESSION_URL.format(id=ag.pk, role="buyer"))
 
         assert resp.status_code == 404

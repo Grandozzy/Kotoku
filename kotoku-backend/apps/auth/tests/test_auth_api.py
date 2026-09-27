@@ -33,9 +33,7 @@ class TestSendOtpApi(TestCase):
         assert response.status_code == 400
 
     def test_send_otp_invalid_phone_format_returns_400(self):
-        response = self.client.post(
-            "/api/auth/send-otp/", {"phone": "0501234567"}, format="json"
-        )
+        response = self.client.post("/api/auth/send-otp/", {"phone": "0501234567"}, format="json")
         assert response.status_code == 400
 
     def test_send_otp_rate_limited_returns_400(self):

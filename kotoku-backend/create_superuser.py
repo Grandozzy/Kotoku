@@ -7,9 +7,9 @@ import django
 
 django.setup()
 
-from django.contrib.auth import get_user_model
+from django.contrib.auth import get_user_model  # noqa: E402
 
-from apps.accounts.models import Account
+from apps.accounts.models import Account  # noqa: E402
 
 User = get_user_model()
 

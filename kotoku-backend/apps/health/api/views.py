@@ -30,9 +30,7 @@ def _redis_check_result(broker_url):
         return "skipped"
 
     try:
-        client = redis_lib.Redis.from_url(
-            broker_url, socket_connect_timeout=_TIMEOUT_SECONDS
-        )
+        client = redis_lib.Redis.from_url(broker_url, socket_connect_timeout=_TIMEOUT_SECONDS)
         client.ping()
         return "ok"
     except Exception:

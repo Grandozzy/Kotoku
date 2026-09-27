@@ -29,6 +29,7 @@ from rest_framework.test import APIClient
 
 from apps.accounts.models import Account, User
 from apps.agreements.models import Agreement
+from apps.billing.constants import PLAN_MAP
 from apps.billing.services import BillingService
 from apps.payments.models import PaymentEvent, Subscription, SubscriptionCheckout
 from apps.payments.tasks import expire_lapsed_subscriptions
@@ -71,6 +72,8 @@ def _charge_success_payload(account, plan_id: str, event_id: str) -> dict:
         "id": event_id,
         "event": "charge.success",
         "data": {
+            "amount": PLAN_MAP[plan_id].price_ghs * 100,
+            "currency": "GHS",
             "plan": {"plan_code": f"PLN_{plan_id}"},
             "customer": {
                 "customer_code": f"CUS_{account.pk}",
@@ -106,9 +109,7 @@ def test_valid_webhook_charge_success_promotes_plan(mock_email, mock_sms):
 
     payload = _charge_success_payload(account, "personal_plus", "e2e_charge_001")
     payload["data"]["reference"] = "kotoku_e2e_charge_001"
-    resp = _post_webhook(
-        payload
-    )
+    resp = _post_webhook(payload)
 
     assert resp.status_code == 200
 
@@ -131,9 +132,7 @@ def test_invalid_signature_does_not_promote_plan():
     """
     account = _make_account(plan="personal_basic")
 
-    body = json.dumps(
-        _charge_success_payload(account, "personal_plus", "e2e_badsig_001")
-    ).encode()
+    body = json.dumps(_charge_success_payload(account, "personal_plus", "e2e_badsig_001")).encode()
 
     client = APIClient()
     resp = client.post(

@@ -31,9 +31,7 @@ _TRANSITIONS: dict[tuple[str, str], str] = {
 def next_state(current: str, action: str) -> str:
     key = (current, action)
     if key not in _TRANSITIONS:
-        raise DomainError(
-            f"Invalid transition: cannot perform '{action}' from '{current}'"
-        )
+        raise DomainError(f"Invalid transition: cannot perform '{action}' from '{current}'")
     return _TRANSITIONS[key]
 
 

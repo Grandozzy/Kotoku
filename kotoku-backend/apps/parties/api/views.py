@@ -26,15 +26,11 @@ class PartiesView(APIView):
     def _get_agreement(self, agreement_id: int, account_id: int):
         """Ownership-scoped agreement lookup; raises 404 if not found or not owned."""
         try:
-            return AgreementSelector.get_owned_agreement_detail(
-                agreement_id, account_id=account_id
-            )
+            return AgreementSelector.get_owned_agreement_detail(agreement_id, account_id=account_id)
         except Agreement.DoesNotExist:
             raise Http404 from None
 
-    def _get_visible_agreement(
-        self, agreement_id: int, account_id: int, account_phone: str
-    ):
+    def _get_visible_agreement(self, agreement_id: int, account_id: int, account_phone: str):
         try:
             return AgreementSelector.get_agreement_detail(
                 agreement_id,
@@ -55,7 +51,9 @@ class PartiesView(APIView):
             parties_data=serializer.validated_data["parties"],
         )
         serializer_context = PartyOutputSerializer.context_for_parties(parties)
-        return ok({"parties": PartyOutputSerializer(parties, many=True, context=serializer_context).data})
+        return ok(
+            {"parties": PartyOutputSerializer(parties, many=True, context=serializer_context).data}
+        )
 
     def patch(self, request, agreement_id: int):
         """Partially update existing parties matched by role."""
@@ -68,7 +66,9 @@ class PartiesView(APIView):
             parties_data=serializer.validated_data["parties"],
         )
         serializer_context = PartyOutputSerializer.context_for_parties(parties)
-        return ok({"parties": PartyOutputSerializer(parties, many=True, context=serializer_context).data})
+        return ok(
+            {"parties": PartyOutputSerializer(parties, many=True, context=serializer_context).data}
+        )
 
     def get(self, request, agreement_id: int):
         """List all parties for an agreement."""
@@ -79,7 +79,9 @@ class PartiesView(APIView):
         )
         parties = PartySelector.list_parties(agreement_id=agreement_id)
         serializer_context = PartyOutputSerializer.context_for_parties(parties)
-        return ok({"parties": PartyOutputSerializer(parties, many=True, context=serializer_context).data})
+        return ok(
+            {"parties": PartyOutputSerializer(parties, many=True, context=serializer_context).data}
+        )
 
 
 class PartyInviteSendView(APIView):
@@ -137,7 +139,9 @@ class InviteDetailView(APIView):
             detail = PartyInviteService.get_detail(token=token)
         except DomainError as exc:
             status = 404 if exc.code is None else 410
-            return Response({"status": "error", "message": str(exc), "code": exc.code}, status=status)
+            return Response(
+                {"status": "error", "message": str(exc), "code": exc.code}, status=status
+            )
         return ok({"invite": detail})
 
 
@@ -160,7 +164,5 @@ class InviteClaimView(APIView):
                 return Response(
                     {"status": "error", "message": str(exc), "code": exc.code}, status=403
                 )
-            return Response(
-                {"status": "error", "message": str(exc), "code": exc.code}, status=410
-            )
+            return Response({"status": "error", "message": str(exc), "code": exc.code}, status=410)
         return ok(result)

@@ -7,28 +7,47 @@ from apps.payments.models import Invoice, PaymentEvent, Subscription, Subscripti
 @admin.register(Subscription)
 class SubscriptionAdmin(admin.ModelAdmin):
     list_display = (
-        "id", "account_link", "plan_id", "status_badge",
-        "paystack_sub_id", "current_period_end", "cancel_at_period_end", "created_at",
+        "id",
+        "account_link",
+        "plan_id",
+        "status_badge",
+        "paystack_sub_id",
+        "current_period_end",
+        "cancel_at_period_end",
+        "created_at",
     )
     list_filter = ("status", "plan_id")
     search_fields = (
-        "account__email", "account__phone", "paystack_sub_id", "paystack_customer_code",
+        "account__email",
+        "account__phone",
+        "paystack_sub_id",
+        "paystack_customer_code",
     )
     ordering = ("-created_at",)
     readonly_fields = (
-        "account", "paystack_sub_id", "paystack_customer_code", "paystack_email",
-        "paystack_plan_code", "plan_id", "status", "current_period_start",
-        "current_period_end", "cancel_at_period_end", "replaced_by", "created_at", "updated_at",
+        "account",
+        "paystack_sub_id",
+        "paystack_customer_code",
+        "paystack_email",
+        "paystack_plan_code",
+        "plan_id",
+        "status",
+        "current_period_start",
+        "current_period_end",
+        "cancel_at_period_end",
+        "replaced_by",
+        "created_at",
+        "updated_at",
     )
 
     _STATUS_STYLES = {
-        "pending":   "background:#F3F4F6;color:#374151",
-        "active":    "background:#D1FAE5;color:#065F46",
-        "paused":    "background:#DBEAFE;color:#1E40AF",
+        "pending": "background:#F3F4F6;color:#374151",
+        "active": "background:#D1FAE5;color:#065F46",
+        "paused": "background:#DBEAFE;color:#1E40AF",
         "cancelled": "background:#FEE2E2;color:#991B1B",
-        "past_due":  "background:#FEF3C7;color:#92400E",
-        "expired":   "background:#F3F4F6;color:#6B7280",
-        "replaced":  "background:#E0E7FF;color:#3730A3",
+        "past_due": "background:#FEF3C7;color:#92400E",
+        "expired": "background:#F3F4F6;color:#6B7280",
+        "replaced": "background:#E0E7FF;color:#3730A3",
     }
 
     def status_badge(self, obj: Subscription) -> str:
@@ -39,12 +58,14 @@ class SubscriptionAdmin(admin.ModelAdmin):
             style,
             obj.get_status_display(),
         )
+
     status_badge.short_description = "Status"  # type: ignore[attr-defined]
     status_badge.admin_order_field = "status"  # type: ignore[attr-defined]
 
     def account_link(self, obj: Subscription) -> str:
         url = f"/admin/accounts/account/{obj.account_id}/change/"
         return format_html('<a href="{}">{}</a>', url, obj.account)
+
     account_link.short_description = "Account"  # type: ignore[attr-defined]
 
     def has_add_permission(self, request) -> bool:
@@ -64,6 +85,7 @@ class PaymentEventAdmin(admin.ModelAdmin):
 
     def has_error(self, obj: PaymentEvent) -> bool:
         return bool(obj.error)
+
     has_error.short_description = "Error"  # type: ignore[attr-defined]
     has_error.boolean = True  # type: ignore[attr-defined]
 
@@ -84,8 +106,16 @@ class SubscriptionCheckoutAdmin(admin.ModelAdmin):
     search_fields = ("account__email", "reference")
     ordering = ("-created_at",)
     readonly_fields = (
-        "account", "reference", "target_plan_id", "status", "replaces_subscription",
-        "activated_subscription", "authorization_url", "access_code", "created_at", "updated_at",
+        "account",
+        "reference",
+        "target_plan_id",
+        "status",
+        "replaces_subscription",
+        "activated_subscription",
+        "authorization_url",
+        "access_code",
+        "created_at",
+        "updated_at",
     )
     actions = ["cancel_open_checkouts"]
 
@@ -98,6 +128,7 @@ class SubscriptionCheckoutAdmin(admin.ModelAdmin):
     def account_link(self, obj: SubscriptionCheckout) -> str:
         url = f"/admin/accounts/account/{obj.account_id}/change/"
         return format_html('<a href="{}">{}</a>', url, obj.account)
+
     account_link.short_description = "Account"  # type: ignore[attr-defined]
 
     def has_add_permission(self, request) -> bool:
@@ -110,24 +141,40 @@ class SubscriptionCheckoutAdmin(admin.ModelAdmin):
 @admin.register(Invoice)
 class InvoiceAdmin(admin.ModelAdmin):
     list_display = (
-        "id", "account_link", "paystack_ref", "amount_ghs", "status",
-        "period_end", "paid_at", "created_at",
+        "id",
+        "account_link",
+        "paystack_ref",
+        "amount_ghs",
+        "status",
+        "period_end",
+        "paid_at",
+        "created_at",
     )
     list_filter = ("status", "currency")
     search_fields = ("account__email", "paystack_ref")
     ordering = ("-created_at",)
     readonly_fields = (
-        "account", "subscription", "paystack_ref", "amount_kobo",
-        "currency", "status", "period_start", "period_end", "paid_at", "created_at",
+        "account",
+        "subscription",
+        "paystack_ref",
+        "amount_kobo",
+        "currency",
+        "status",
+        "period_start",
+        "period_end",
+        "paid_at",
+        "created_at",
     )
 
     def amount_ghs(self, obj: Invoice) -> str:
         return f"GHS {obj.amount_kobo / 100:.2f}"
+
     amount_ghs.short_description = "Amount"  # type: ignore[attr-defined]
 
     def account_link(self, obj: Invoice) -> str:
         url = f"/admin/accounts/account/{obj.account_id}/change/"
         return format_html('<a href="{}">{}</a>', url, obj.account)
+
     account_link.short_description = "Account"  # type: ignore[attr-defined]
 
     def has_add_permission(self, request) -> bool:

@@ -14,12 +14,14 @@ class TemplateListView(APIView):
         paginator = DefaultPagination()
         page = paginator.paginate_queryset(qs, request)
         serializer = ScenarioTemplateSerializer(page, many=True)
-        return ok({
-            "results": serializer.data,
-            "count": paginator.page.paginator.count,
-            "next": paginator.get_next_link(),
-            "previous": paginator.get_previous_link(),
-        })
+        return ok(
+            {
+                "results": serializer.data,
+                "count": paginator.page.paginator.count,
+                "next": paginator.get_next_link(),
+                "previous": paginator.get_previous_link(),
+            }
+        )
 
 
 class TemplateDetailView(APIView):

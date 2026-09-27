@@ -24,6 +24,4 @@ class EvidenceSelector:
 
     @staticmethod
     def get_evidence_detail(evidence_id: int) -> EvidenceItem:
-        return EvidenceItem.objects.select_related(
-            "agreement", "uploaded_by"
-        ).get(pk=evidence_id)
+        return EvidenceItem.objects.select_related("agreement", "uploaded_by").get(pk=evidence_id)

@@ -3,9 +3,9 @@ import logging
 
 from django.conf import settings
 from django.http import HttpRequest, HttpResponse, HttpResponseForbidden
+from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
-from django.utils.decorators import method_decorator
 
 logger = logging.getLogger(__name__)
 

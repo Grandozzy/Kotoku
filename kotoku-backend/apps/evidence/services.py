@@ -35,7 +35,9 @@ _MAGIC_BYTES: dict[str, list[bytes]] = {
         b"RIFF",
         b"OggS",
         b"ID3",
-        b"\xff\xfb", b"\xff\xf3", b"\xff\xf2",
+        b"\xff\xfb",
+        b"\xff\xf3",
+        b"\xff\xf2",
     ],
     EvidenceItem.FileType.DOCUMENT: [
         b"%PDF",
@@ -46,21 +48,21 @@ _MAGIC_BYTES: dict[str, list[bytes]] = {
 
 # Allowed MIME types and their derived FileType / extension.
 _MIME_TO_FILE_TYPE: dict[str, str] = {
-    "image/jpeg":       EvidenceItem.FileType.PHOTO,
-    "image/png":        EvidenceItem.FileType.PHOTO,
-    "audio/wav":        EvidenceItem.FileType.VOICE_NOTE,
-    "audio/ogg":        EvidenceItem.FileType.VOICE_NOTE,
-    "audio/mpeg":       EvidenceItem.FileType.VOICE_NOTE,
-    "application/pdf":  EvidenceItem.FileType.DOCUMENT,
+    "image/jpeg": EvidenceItem.FileType.PHOTO,
+    "image/png": EvidenceItem.FileType.PHOTO,
+    "audio/wav": EvidenceItem.FileType.VOICE_NOTE,
+    "audio/ogg": EvidenceItem.FileType.VOICE_NOTE,
+    "audio/mpeg": EvidenceItem.FileType.VOICE_NOTE,
+    "application/pdf": EvidenceItem.FileType.DOCUMENT,
 }
 
 _MIME_TO_EXT: dict[str, str] = {
-    "image/jpeg":       "jpg",
-    "image/png":        "png",
-    "audio/wav":        "wav",
-    "audio/ogg":        "ogg",
-    "audio/mpeg":       "mp3",
-    "application/pdf":  "pdf",
+    "image/jpeg": "jpg",
+    "image/png": "png",
+    "audio/wav": "wav",
+    "audio/ogg": "ogg",
+    "audio/mpeg": "mp3",
+    "application/pdf": "pdf",
 }
 
 # evidence_type must be lowercase alphanumeric with underscores only.
@@ -86,9 +88,7 @@ def _validate_file(file_type: str, file_data: bytes) -> None:
     if allowed_signatures is None:
         raise DomainError(f"Unknown file type: {file_type}")
     if not any(file_data.startswith(sig) for sig in allowed_signatures):
-        raise DomainError(
-            f"File content does not match the declared type '{file_type}'"
-        )
+        raise DomainError(f"File content does not match the declared type '{file_type}'")
 
 
 def _is_identity_evidence(evidence_type: str) -> bool:
@@ -116,9 +116,8 @@ def _maybe_queue_verification_after_upload(*, party, agreement) -> None:
         existing = PartyIdentityVerification.objects.get(party=party)
         if existing.status == PartyIdentityVerification.Status.VERIFIED:
             return
-        liveness_passed = (
-            existing.liveness_status == "passed"
-            and bool(existing.liveness_reference_s3_key)
+        liveness_passed = existing.liveness_status == "passed" and bool(
+            existing.liveness_reference_s3_key
         )
     except PartyIdentityVerification.DoesNotExist:
         liveness_passed = False
@@ -246,8 +245,7 @@ class EvidenceService:
 
         ext = _MIME_TO_EXT[mime_type]
         file_key = (
-            f"agreements/{agreement_id}/evidence"
-            f"/{evidence_type}_{uuid.uuid4().hex[:8]}.{ext}"
+            f"agreements/{agreement_id}/evidence/{evidence_type}_{uuid.uuid4().hex[:8]}.{ext}"
         )
 
         storage = S3StorageClient()
@@ -338,14 +336,18 @@ class EvidenceService:
         try:
             item = EvidenceItem.objects.select_for_update().get(**lookup)
         except EvidenceItem.DoesNotExist:
-            confirmed = EvidenceItem.objects.select_for_update().filter(
-                agreement_id=agreement_id,
-                file_key=file_key,
-                upload_status=EvidenceItem.UploadStatus.CONFIRMED,
-                evidence_type=evidence_type,
-                mime_type=mime_type,
-                file_hash=checksum_sha256,
-            ).first()
+            confirmed = (
+                EvidenceItem.objects.select_for_update()
+                .filter(
+                    agreement_id=agreement_id,
+                    file_key=file_key,
+                    upload_status=EvidenceItem.UploadStatus.CONFIRMED,
+                    evidence_type=evidence_type,
+                    mime_type=mime_type,
+                    file_hash=checksum_sha256,
+                )
+                .first()
+            )
             if confirmed is not None:
                 return confirmed
             raise DomainError(

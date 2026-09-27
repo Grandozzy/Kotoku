@@ -133,6 +133,7 @@ class PaymentService:
     def _notify(account, body: str) -> None:
         try:
             from apps.notifications.services import NotificationService
+
             NotificationService.send_notification(
                 account_id=account.pk,
                 channel=Notification.Channel.SMS,
@@ -144,10 +145,13 @@ class PaymentService:
     @staticmethod
     def _notify_email(account, *, subject: str, body: str) -> None:
         if not account.email:
-            logger.warning("No email address for account=%s — skipping email notification", account.pk)
+            logger.warning(
+                "No email address for account=%s — skipping email notification", account.pk
+            )
             return
         try:
             from apps.notifications.services import NotificationService
+
             NotificationService.send_notification(
                 account_id=account.pk,
                 channel=Notification.Channel.EMAIL,
@@ -250,15 +254,17 @@ class PaymentService:
                 sub.paystack_customer_code = customer_code
             if customer_email:
                 sub.paystack_email = customer_email
-            sub.save(update_fields=[
-                "current_period_start",
-                "current_period_end",
-                "status",
-                "cancel_at_period_end",
-                "paystack_customer_code",
-                "paystack_email",
-                "updated_at",
-            ])
+            sub.save(
+                update_fields=[
+                    "current_period_start",
+                    "current_period_end",
+                    "status",
+                    "cancel_at_period_end",
+                    "paystack_customer_code",
+                    "paystack_email",
+                    "updated_at",
+                ]
+            )
 
             locked_checkout.status = SubscriptionCheckout.STATUS_PROVIDER_CREATED
             locked_checkout.activated_subscription = sub
@@ -313,7 +319,9 @@ class PaymentService:
         reference = data.get("reference", "")
         plan_info = data.get("plan") or {}
         checkout = (
-            SubscriptionCheckout.objects.select_related("account", "activated_subscription", "recovery_subscription")
+            SubscriptionCheckout.objects.select_related(
+                "account", "activated_subscription", "recovery_subscription"
+            )
             .filter(reference=reference)
             .first()
             if reference
@@ -348,6 +356,7 @@ class PaymentService:
         customer_email = customer.get("email", "")
 
         from apps.accounts.models import Account
+
         try:
             account = Account.objects.get(pk=account_id)
         except Account.DoesNotExist:
@@ -366,7 +375,8 @@ class PaymentService:
                     .get(pk=checkout.pk)
                 )
                 if (
-                    locked_checkout.status in (
+                    locked_checkout.status
+                    in (
                         SubscriptionCheckout.STATUS_CHARGED,
                         SubscriptionCheckout.STATUS_PROVIDER_CREATED,
                     )
@@ -408,15 +418,24 @@ class PaymentService:
                 sub.cancel_at_period_end = False
                 if customer_email:
                     sub.paystack_email = customer_email
-                sub.save(update_fields=[
-                    "plan_id", "paystack_plan_code", "status", "paystack_customer_code",
-                    "paystack_email", "cancel_at_period_end", "updated_at",
-                ])
+                sub.save(
+                    update_fields=[
+                        "plan_id",
+                        "paystack_plan_code",
+                        "status",
+                        "paystack_customer_code",
+                        "paystack_email",
+                        "cancel_at_period_end",
+                        "updated_at",
+                    ]
+                )
 
             if locked_checkout:
                 locked_checkout.status = SubscriptionCheckout.STATUS_CHARGED
                 locked_checkout.activated_subscription = sub
-                locked_checkout.save(update_fields=["status", "activated_subscription", "updated_at"])
+                locked_checkout.save(
+                    update_fields=["status", "activated_subscription", "updated_at"]
+                )
 
             if account.plan != plan_id:
                 account.plan = plan_id
@@ -540,12 +559,15 @@ class PaymentService:
         plan_code = settings.PAYSTACK_PLAN_CODES.get(plan_id, "")
         if not plan_code:
             raise DomainError(
-                f"Online payment is not yet available for {plan.name}. "
-                "Please contact support."
+                f"Online payment is not yet available for {plan.name}. Please contact support."
             )
 
         existing = get_subscription_for_account(account)
-        if existing and existing.status == Subscription.STATUS_ACTIVE and existing.plan_id == plan_id:
+        if (
+            existing
+            and existing.status == Subscription.STATUS_ACTIVE
+            and existing.plan_id == plan_id
+        ):
             raise DomainError("You already have an active subscription for this plan.")
 
         open_checkout = get_open_checkout_for_account(account)
@@ -580,7 +602,9 @@ class PaymentService:
         except PaystackError as exc:
             logger.error(
                 "Paystack initiate failed for account=%s plan=%s: %s",
-                account.id, plan_id, exc,
+                account.id,
+                plan_id,
+                exc,
             )
             raise DomainError(
                 "Payment gateway error. Please try again or contact support."
@@ -593,7 +617,11 @@ class PaymentService:
                 .order_by("-created_at", "-id")
                 .first()
             )
-            if current and current.status == Subscription.STATUS_ACTIVE and current.plan_id == plan_id:
+            if (
+                current
+                and current.status == Subscription.STATUS_ACTIVE
+                and current.plan_id == plan_id
+            ):
                 raise DomainError("You already have an active subscription for this plan.")
             existing_checkout = (
                 SubscriptionCheckout.objects.select_for_update()
@@ -670,7 +698,9 @@ class PaymentService:
         except PaystackError as exc:
             logger.error(
                 "Paystack recovery initiate failed for account=%s plan=%s: %s",
-                account.id, plan_id, exc,
+                account.id,
+                plan_id,
+                exc,
             )
             raise DomainError(
                 "Payment gateway error. Please try again or contact support."
@@ -707,9 +737,7 @@ class PaymentService:
         sub = get_subscription_for_account(account)
         if not sub:
             any_subscription = (
-                Subscription.objects.filter(account=account)
-                .order_by("-created_at", "-id")
-                .first()
+                Subscription.objects.filter(account=account).order_by("-created_at", "-id").first()
             )
             if any_subscription:
                 raise DomainError("No active subscription to cancel.")
@@ -737,7 +765,9 @@ class PaymentService:
         except PaystackError as exc:
             logger.error(
                 "Paystack cancel failed for account=%s sub=%s: %s",
-                account.id, sub.paystack_sub_id, exc,
+                account.id,
+                sub.paystack_sub_id,
+                exc,
             )
             raise DomainError(
                 "Payment gateway error while cancelling. Please try again or contact support."

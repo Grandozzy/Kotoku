@@ -84,12 +84,9 @@ class PartyInviteService:
         (UUID) is the access gate for this unauthenticated endpoint.
         """
         try:
-            invite = (
-                PartyInvite.objects.select_related("party__agreement")
-                .get(token=token)
-            )
-        except PartyInvite.DoesNotExist:
-            raise DomainError("This invite link is not valid.")
+            invite = PartyInvite.objects.select_related("party__agreement").get(token=token)
+        except PartyInvite.DoesNotExist as exc:
+            raise DomainError("This invite link is not valid.") from exc
 
         if invite.is_expired():
             raise DomainError(
@@ -120,8 +117,8 @@ class PartyInviteService:
                 .select_for_update()
                 .get(token=token)
             )
-        except PartyInvite.DoesNotExist:
-            raise DomainError("This invite link is not valid.")
+        except PartyInvite.DoesNotExist as exc:
+            raise DomainError("This invite link is not valid.") from exc
 
         if invite.is_expired():
             raise DomainError(
@@ -134,7 +131,9 @@ class PartyInviteService:
         if invite.is_claimed():
             # Idempotent re-entry: same phone may re-claim after abandoning the flow.
             # A different phone attempting to claim a used invite gets phone_mismatch below.
-            if normalize_phone_for_compare(account.phone) == normalize_phone_for_compare(party.phone):
+            if normalize_phone_for_compare(account.phone) == normalize_phone_for_compare(
+                party.phone
+            ):
                 return {"agreement_id": party.agreement_id, "role": party.role}
 
         if normalize_phone_for_compare(account.phone) != normalize_phone_for_compare(party.phone):

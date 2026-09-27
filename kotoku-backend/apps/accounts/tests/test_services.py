@@ -80,9 +80,7 @@ class TestAccountServiceUpdateProfile:
 @pytest.mark.django_db
 class TestAccountServiceCreateAccount:
     def test_creates_user_and_account(self):
-        account = AccountService.create_account(
-            email="create@test.com", phone="+233510002001"
-        )
+        account = AccountService.create_account(email="create@test.com", phone="+233510002001")
         assert account.email == "create@test.com"
         assert account.phone == "+233510002001"
         assert account.user is not None

@@ -5,6 +5,7 @@ Endpoints under test:
   GET  /api/vault/{agreementId}/
   POST /api/vault/{agreementId}/export/
 """
+
 from datetime import timedelta
 from unittest.mock import patch
 
@@ -55,10 +56,20 @@ def _sealed_agreement_with_vault(account, initiator_phone, second_phone):
         agreement_id=agreement.pk,
         initiator_account=account,
         parties_data=[
-            {"role": "seller", "full_name": "Kofi", "phone": initiator_phone,
-             "id_type": "ghana_card", "id_number": "GHA-100000001-0"},
-            {"role": "buyer", "full_name": "Ama", "phone": second_phone,
-             "id_type": "ghana_card", "id_number": "GHA-200000002-0"},
+            {
+                "role": "seller",
+                "full_name": "Kofi",
+                "phone": initiator_phone,
+                "id_type": "ghana_card",
+                "id_number": "GHA-100000001-0",
+            },
+            {
+                "role": "buyer",
+                "full_name": "Ama",
+                "phone": second_phone,
+                "id_type": "ghana_card",
+                "id_number": "GHA-200000002-0",
+            },
         ],
     )
     stamp_all_parties_verified(agreement)
@@ -73,36 +84,41 @@ def _sealed_agreement_with_vault(account, initiator_phone, second_phone):
     agreement.status = AgreementStatus.PENDING_CONSENT
     agreement.save()
     now = timezone.now()
-    ConsentRecord.objects.bulk_create([
-        ConsentRecord(
-            agreement=agreement,
-            party=p,
-            otp_code_hash="fakehash",
-            channel=ConsentRecord.Channel.SMS,
-            granted=True,
-            granted_at=now,
-            expires_at=now + timedelta(minutes=10),
-        )
-        for p in agreement.parties.all()
-    ])
+    ConsentRecord.objects.bulk_create(
+        [
+            ConsentRecord(
+                agreement=agreement,
+                party=p,
+                otp_code_hash="fakehash",
+                channel=ConsentRecord.Channel.SMS,
+                granted=True,
+                granted_at=now,
+                expires_at=now + timedelta(minutes=10),
+            )
+            for p in agreement.parties.all()
+        ]
+    )
     from apps.agreements.services import AgreementService
+
     agreement = AgreementService.seal_agreement(agreement_id=agreement.pk)
 
     fake_pdf = b"%PDF-fake"
     fake_url = "https://storage.kotoku/exports/test.pdf"
-    with patch("apps.vault.pdf.render_vault_pdf", return_value=fake_pdf), \
-         patch("infrastructure.storage.s3.S3StorageClient.upload", return_value=fake_url), \
-         patch(
-             "infrastructure.storage.s3.S3StorageClient.head_object",
-             return_value={
-                 "content_length": len(fake_pdf),
-                 "content_type": "application/pdf",
-                 "etag": "fake-etag",
-                 "metadata": {
-                     "sha256": "9d75a845cfb792718578edb7cec48a82c7cd60a3c3b91009f326e52ce16891f9",
-                 },
-             },
-         ):
+    with (
+        patch("apps.vault.pdf.render_vault_pdf", return_value=fake_pdf),
+        patch("infrastructure.storage.s3.S3StorageClient.upload", return_value=fake_url),
+        patch(
+            "infrastructure.storage.s3.S3StorageClient.head_object",
+            return_value={
+                "content_length": len(fake_pdf),
+                "content_type": "application/pdf",
+                "etag": "fake-etag",
+                "metadata": {
+                    "sha256": "9d75a845cfb792718578edb7cec48a82c7cd60a3c3b91009f326e52ce16891f9",
+                },
+            },
+        ),
+    ):
         entry = VaultService.create_for_agreement(agreement_id=agreement.pk)
 
     return agreement, entry
@@ -111,6 +127,7 @@ def _sealed_agreement_with_vault(account, initiator_phone, second_phone):
 # ──────────────────────────────────────────────────────────────────────────────
 # GET /api/vault/
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 @pytest.mark.django_db
 class TestVaultList:
@@ -159,6 +176,7 @@ class TestVaultList:
 # ──────────────────────────────────────────────────────────────────────────────
 # GET /api/vault/{agreementId}/
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 @pytest.mark.django_db
 class TestVaultDetail:
@@ -221,6 +239,7 @@ class TestVaultDetail:
 # GET /api/vault-receipts/{token}/
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 @pytest.mark.django_db
 class TestPublicSealedReceipt:
     def test_returns_view_only_receipt_without_authentication(self):
@@ -242,9 +261,7 @@ class TestPublicSealedReceipt:
         assert len(data["parties"]) == 2
         evidence_types = [e["evidence_type"] for e in data["evidence"]]
         assert "vehicle_photo_front" in evidence_types
-        assert all(
-            "ghana_card" not in et and "selfie" not in et for et in evidence_types
-        )
+        assert all("ghana_card" not in et and "selfie" not in et for et in evidence_types)
         assert "pdf_url" not in data["vault_entry"]
 
     def test_invalid_receipt_token_returns_400(self):
@@ -257,6 +274,7 @@ class TestPublicSealedReceipt:
 # POST /api/vault/{agreementId}/export/
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 @pytest.mark.django_db
 class TestVaultExport:
     def test_export_returns_202_and_triggers_task(self):
@@ -266,19 +284,23 @@ class TestVaultExport:
         fake_pdf = b"%PDF-fake"
         fake_url = "https://storage.kotoku/exports/test.pdf"
 
-        with patch("apps.vault.pdf.render_vault_pdf", return_value=fake_pdf), \
-             patch("infrastructure.storage.s3.S3StorageClient.upload", return_value=fake_url), \
-             patch(
-                 "infrastructure.storage.s3.S3StorageClient.head_object",
-                 return_value={
-                     "content_length": len(fake_pdf),
-                     "content_type": "application/pdf",
-                     "etag": "fake-etag",
-                     "metadata": {
-                         "sha256": "9d75a845cfb792718578edb7cec48a82c7cd60a3c3b91009f326e52ce16891f9",
-                     },
-                 },
-             ):
+        with (
+            patch("apps.vault.pdf.render_vault_pdf", return_value=fake_pdf),
+            patch("infrastructure.storage.s3.S3StorageClient.upload", return_value=fake_url),
+            patch(
+                "infrastructure.storage.s3.S3StorageClient.head_object",
+                return_value={
+                    "content_length": len(fake_pdf),
+                    "content_type": "application/pdf",
+                    "etag": "fake-etag",
+                    "metadata": {
+                        "sha256": (
+                            "9d75a845cfb792718578edb7cec48a82c7cd60a3c3b91009f326e52ce16891f9"
+                        ),
+                    },
+                },
+            ),
+        ):
             resp = client.post(_EXPORT_PATH.format(id=agreement.pk))
 
         assert resp.status_code == 202
@@ -290,6 +312,7 @@ class TestVaultExport:
         # With CELERY_TASK_ALWAYS_EAGER=True the task ran synchronously, so the
         # DB record should already be updated to READY.
         from apps.vault.models import VaultEntry as VE
+
         entry_db = VE.objects.get(agreement=agreement)
         assert entry_db.pdf_status == VE.PdfStatus.READY
         assert entry_db.pdf_url == fake_url
@@ -390,19 +413,23 @@ class TestVaultRetryExport:
 
         fake_pdf = b"%PDF-fake"
         fake_url = "https://storage.kotoku/exports/retry.pdf"
-        with patch("apps.vault.pdf.render_vault_pdf", return_value=fake_pdf), \
-             patch("infrastructure.storage.s3.S3StorageClient.upload", return_value=fake_url), \
-             patch(
-                 "infrastructure.storage.s3.S3StorageClient.head_object",
-                 return_value={
-                     "content_length": len(fake_pdf),
-                     "content_type": "application/pdf",
-                     "etag": "fake-etag",
-                     "metadata": {
-                         "sha256": "9d75a845cfb792718578edb7cec48a82c7cd60a3c3b91009f326e52ce16891f9",
-                     },
-                 },
-             ):
+        with (
+            patch("apps.vault.pdf.render_vault_pdf", return_value=fake_pdf),
+            patch("infrastructure.storage.s3.S3StorageClient.upload", return_value=fake_url),
+            patch(
+                "infrastructure.storage.s3.S3StorageClient.head_object",
+                return_value={
+                    "content_length": len(fake_pdf),
+                    "content_type": "application/pdf",
+                    "etag": "fake-etag",
+                    "metadata": {
+                        "sha256": (
+                            "9d75a845cfb792718578edb7cec48a82c7cd60a3c3b91009f326e52ce16891f9"
+                        ),
+                    },
+                },
+            ),
+        ):
             resp = client.post(_RETRY_PATH.format(id=agreement.pk))
 
         assert resp.status_code == 202

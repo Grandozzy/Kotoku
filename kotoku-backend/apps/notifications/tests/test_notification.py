@@ -60,7 +60,10 @@ class TestNotificationService:
             entity_type="notification",
         ).exists()
 
-    @patch("apps.notifications.services.dispatch_notification.delay", side_effect=Exception("broker error"))
+    @patch(
+        "apps.notifications.services.dispatch_notification.delay",
+        side_effect=Exception("broker error"),
+    )
     def test_raises_when_queueing_fails(self, mock_delay, db):
         account = _account()
         with pytest.raises(Exception, match="broker error"):
@@ -101,7 +104,9 @@ class TestDispatchTask:
         assert notification.status == Notification.Status.SENT
         assert notification.sent_at is not None
 
-    @patch("apps.notifications.providers.sms_provider.SmsNotificationProvider.send", return_value=False)
+    @patch(
+        "apps.notifications.providers.sms_provider.SmsNotificationProvider.send", return_value=False
+    )
     def test_sets_failed_on_provider_failure(self, mock_send, db):
         account = _account()
         notification = Notification.objects.create(
@@ -149,7 +154,9 @@ class TestSmsGateway:
         from django.test import override_settings
 
         mock_response = MagicMock()
-        mock_response.read.return_value = b'{"SMSMessageData":{"Recipients":[{"status":"Success","messageId":"123"}]}}'
+        mock_response.read.return_value = (
+            b'{"SMSMessageData":{"Recipients":[{"status":"Success","messageId":"123"}]}}'
+        )
         mock_response.__enter__ = lambda s: mock_response
         mock_response.__exit__ = lambda s, *a: None
 

@@ -31,8 +31,8 @@ def _get_party_or_404(agreement_id: int, role: str, account):
             agreement = PartyInviteService.get_agreement_for_claimed_invite(
                 agreement_id, account_phone=account.phone
             )
-        except Agreement.DoesNotExist:
-            raise Http404
+        except Agreement.DoesNotExist as exc:
+            raise Http404 from exc
 
     party = agreement.parties.filter(role=role).first()
     if party is None or not is_identity_required(party.role):

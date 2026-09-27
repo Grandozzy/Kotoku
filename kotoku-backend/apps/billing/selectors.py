@@ -85,10 +85,7 @@ def get_current_plan_usage(account) -> dict:
     )
 
     business_misuse = _check_business_misuse(account, plan)
-    show_upgrade = (
-        (is_cap_reached and plan.family == "personal")
-        or business_misuse
-    )
+    show_upgrade = (is_cap_reached and plan.family == "personal") or business_misuse
 
     recommended = get_recommended_upgrades(plan)
 

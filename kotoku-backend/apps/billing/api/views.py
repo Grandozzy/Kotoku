@@ -14,7 +14,7 @@ class CurrentPlanView(APIView):
     def get(self, request):
         try:
             account = request.user.account
-        except Exception:
-            raise DomainError("Account not found for this user.")
+        except Exception as exc:
+            raise DomainError("Account not found for this user.") from exc
         data = get_current_plan_usage(account)
         return ok(data)

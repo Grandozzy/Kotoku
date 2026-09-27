@@ -96,7 +96,10 @@ def test_config_requires_auth():
 
 
 @pytest.mark.django_db
-@override_settings(PAYSTACK_PLAN_CODES=_PLAN_CODES, PAYSTACK_CALLBACK_URL="https://www.kotoku-app.com/payment/callback")
+@override_settings(
+    PAYSTACK_PLAN_CODES=_PLAN_CODES,
+    PAYSTACK_CALLBACK_URL="https://www.kotoku-app.com/payment/callback",
+)
 @patch("apps.payments.services.get_paystack_client")
 def test_initiate_happy_path(mock_factory):
     mock = _mock_client(reference="kotoku_xyz")
@@ -118,10 +121,12 @@ def test_initiate_happy_path(mock_factory):
     assert checkout.authorization_url == "https://checkout.paystack.com/abc"
     assert checkout.access_code == "acc_test"
     assert not Subscription.objects.filter(account=account).exists()
-    sent_metadata = mock.initialize_transaction.call_args.kwargs["metadata"]
+    initialize_args = mock.initialize_transaction.call_args.kwargs
+    sent_metadata = initialize_args["metadata"]
     assert sent_metadata["cancel_action"] == (
         "https://www.kotoku-app.com/payment/callback"
-        "?reference=kotoku_xyz&plan_id=personal_plus&payment_state=cancelled"
+        f"?reference={initialize_args['reference']}"
+        "&plan_id=personal_plus&payment_state=cancelled"
     )
 
 

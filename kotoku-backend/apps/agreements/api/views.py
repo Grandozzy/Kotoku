@@ -103,9 +103,7 @@ class AgreementDetailView(APIView):
             AgreementStatus.PENDING_CONSENT,
         }
         if agreement.status not in deletable_statuses:
-            raise DomainError(
-                "Only draft or pending-consent agreements can be deleted."
-            )
+            raise DomainError("Only draft or pending-consent agreements can be deleted.")
         agreement.delete()
         return ok({})
 
