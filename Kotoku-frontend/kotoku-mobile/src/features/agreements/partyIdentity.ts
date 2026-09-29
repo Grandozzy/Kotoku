@@ -12,6 +12,17 @@ const IDENTITY_FAILURE_MESSAGES: Record<string, string> = {
   face_match_manual_review: "The face and card portrait are close, but need manual review.",
   verification_unavailable: "Identity verification is temporarily unavailable. Kotoku will retry automatically.",
   verification_unexpected_failure: "Identity verification failed unexpectedly. Retry the uploads for this party.",
+  card_front_invalid: "The Ghana Card front image could not be read. Retake it as a JPG image.",
+  card_back_invalid: "The Ghana Card back image could not be read. Retake it as a JPG image.",
+  card_front_resolution_too_low: "The Ghana Card front image is too small. Move closer and retake it.",
+  card_back_resolution_too_low: "The Ghana Card back image is too small. Move closer and retake it.",
+  card_front_blurry: "The Ghana Card front image is blurry. Hold steady and retake it.",
+  card_back_blurry: "The Ghana Card back image is blurry. Hold steady and retake it.",
+  card_front_too_dark: "The Ghana Card front image is too dark. Retake it in even lighting.",
+  card_back_too_dark: "The Ghana Card back image is too dark. Retake it in even lighting.",
+  card_front_overexposed: "The Ghana Card front has too much glare. Change the angle and retake it.",
+  card_back_overexposed: "The Ghana Card back has too much glare. Change the angle and retake it.",
+  manual_review_rejected: "The identity check was rejected after review. Retake the card photos and face check.",
 };
 
 export function normalizeGhanaCardPin(value: string): string {

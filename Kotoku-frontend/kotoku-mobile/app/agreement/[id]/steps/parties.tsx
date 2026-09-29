@@ -1,6 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import * as ImagePicker from "expo-image-picker";
 import { Controller, useForm } from "react-hook-form";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -29,6 +30,7 @@ import {
   submitLivenessResult,
 } from "@/api/agreements";
 import { LivenessWebView } from "@/components/identity/LivenessWebView";
+import { GhanaCardCamera } from "@/components/identity/GhanaCardCamera";
 import { PhotoSlot } from "@/components/evidence/PhotoSlot";
 import { UploadSourceSheet } from "@/components/evidence/UploadSourceSheet";
 import { Button, NoticeCard, ScreenLoader, TextInput } from "@/components/ui";
@@ -123,11 +125,13 @@ export default function PartiesStep() {
   const { partyA, partyB, setPartyA, setPartyB, goToStep } = useAgreementStore();
   const template = useTemplate(scenarioId);
   const { data: agreement, isLoading } = useAgreement(agreementId);
-  const { items, pickImage, retryUpload, error: uploadError } = useEvidenceUpload(agreementId);
+  const { items, pickImage, uploadLocalImage, retryUpload, error: uploadError } =
+    useEvidenceUpload(agreementId);
 
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [uploadSheet, setUploadSheet] = useState<UploadSheetState | null>(null);
+  const [cardCamera, setCardCamera] = useState<UploadSheetState | null>(null);
   const [livenessSession, setLivenessSession] = useState<{ role: string; sessionId: string; region: string } | null>(null);
   const [livenessLoading, setLivenessLoading] = useState<string | null>(null);
   const [livenessError, setLivenessError] = useState<string | null>(null);
@@ -365,6 +369,15 @@ export default function PartiesStep() {
     if (!uploadSheet) return;
     const current = uploadSheet;
     setUploadSheet(null);
+    if (source === "camera" && current.evidenceType.includes("ghana_card")) {
+      const permission = await ImagePicker.requestCameraPermissionsAsync();
+      if (!permission.granted) {
+        setLivenessError("Camera access is required to capture the Ghana Card.");
+        return;
+      }
+      setCardCamera(current);
+      return;
+    }
     await pickImage(current.slotId, current.evidenceType, {
       source,
       cameraType: current.cameraType,
@@ -698,6 +711,21 @@ export default function PartiesStep() {
           onClose={() => setLivenessSession(null)}
         />
       )}
+
+      <GhanaCardCamera
+        visible={Boolean(cardCamera)}
+        side={cardCamera?.evidenceType.endsWith("_front") ? "front" : "back"}
+        onClose={() => setCardCamera(null)}
+        onUsePhoto={async (photo) => {
+          if (!cardCamera) return;
+          await uploadLocalImage(cardCamera.slotId, cardCamera.evidenceType, {
+            uri: photo.uri,
+            mimeType: "image/jpeg",
+            width: photo.width,
+            height: photo.height,
+          });
+        }}
+      />
 
       <UploadSourceSheet
         visible={Boolean(uploadSheet)}

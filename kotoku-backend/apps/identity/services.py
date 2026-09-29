@@ -1,12 +1,14 @@
 import logging
 import re
 from dataclasses import dataclass
+from datetime import timedelta
 
 from django.conf import settings
 from django.core.cache import cache
 from django.db import transaction
 from django.utils import timezone
 
+from apps.identity.image_quality import assess_card_image
 from apps.identity.models import IdentityRecord, PartyIdentityVerification
 from apps.parties.identity import latest_identity_evidence_by_party, normalize_ghana_card_pin
 from common.exceptions import DomainError, ServiceUnavailableError
@@ -365,7 +367,7 @@ class IdentityService:
                 back_text="",
                 front_evidence_id=front.pk,
                 back_evidence_id=back.pk,
-                selfie_evidence_id=selfie.pk,
+                selfie_evidence_id=face_source_id,
                 face_match_score=None,
             )
         except Exception:
@@ -382,7 +384,7 @@ class IdentityService:
                 back_text="",
                 front_evidence_id=front.pk,
                 back_evidence_id=back.pk,
-                selfie_evidence_id=selfie.pk,
+                selfie_evidence_id=face_source_id,
                 face_match_score=None,
             )
 
@@ -446,6 +448,27 @@ class IdentityService:
         front_bytes = storage.get_object_bytes(front_key)
         back_bytes = storage.get_object_bytes(back_key)
         selfie_bytes = storage.get_object_bytes(face_key)
+        quality_failures = [
+            *assess_card_image(front_bytes, side="front").failure_codes,
+            *assess_card_image(back_bytes, side="back").failure_codes,
+        ]
+        if quality_failures:
+            return IdentityVerificationOutcome(
+                status=PartyIdentityVerification.Status.FAILED,
+                detail=(
+                    "One or more Ghana Card photos are not clear enough to verify. "
+                    "Retake them in even lighting with all card edges visible."
+                ),
+                failure_codes=quality_failures,
+                ocr_pin="",
+                ocr_full_name="",
+                front_text="",
+                back_text="",
+                front_evidence_id=front_evidence_id,
+                back_evidence_id=back_evidence_id,
+                selfie_evidence_id=selfie_evidence_id,
+                face_match_score=None,
+            )
         front_text = vision.extract_document_text(front_bytes)
         back_text = vision.extract_document_text(back_bytes)
         ocr_pin = _extract_ocr_pin(f"{front_text}\n{back_text}")
@@ -535,7 +558,6 @@ class IdentityService:
         verification.liveness_session_id = session_id
         verification.liveness_status = "pending"
         verification.liveness_confidence = None
-        verification.liveness_reference_s3_key = ""
         if verification.status == PartyIdentityVerification.Status.MANUAL_REVIEW_REQUIRED:
             verification.status = PartyIdentityVerification.Status.PENDING
             verification.failure_codes = []
@@ -545,7 +567,6 @@ class IdentityService:
                 "liveness_session_id",
                 "liveness_status",
                 "liveness_confidence",
-                "liveness_reference_s3_key",
                 "status",
                 "failure_codes",
                 "detail",
@@ -561,9 +582,14 @@ class IdentityService:
         return session_id
 
     @staticmethod
+    @transaction.atomic
     def process_liveness_result(*, party) -> dict:
         """Fetch liveness result from AWS, persist it, and queue card verification if passed."""
-        verification = IdentityService.ensure_party_verification(party=party)
+        verification = (
+            PartyIdentityVerification.objects.select_for_update().filter(party=party).first()
+        )
+        if verification is None:
+            verification = IdentityService.ensure_party_verification(party=party)
         if not verification.liveness_session_id:
             raise DomainError("No liveness session found for this party. Start a session first.")
 
@@ -597,7 +623,11 @@ class IdentityService:
 
         verification.liveness_status = liveness_status
         verification.liveness_confidence = confidence
-        verification.liveness_reference_s3_key = ref_s3_key
+        if ref_s3_key:
+            verification.liveness_reference_s3_key = ref_s3_key
+            verification.liveness_reference_delete_after = timezone.now() + timedelta(
+                days=settings.IDENTITY_LIVENESS_RETENTION_DAYS
+            )
         if decision == "manual_review":
             verification.status = PartyIdentityVerification.Status.MANUAL_REVIEW_REQUIRED
             verification.failure_codes = ["liveness_manual_review"]
@@ -622,6 +652,7 @@ class IdentityService:
                 "liveness_status",
                 "liveness_confidence",
                 "liveness_reference_s3_key",
+                "liveness_reference_delete_after",
                 "status",
                 "failure_codes",
                 "detail",
@@ -662,3 +693,74 @@ class IdentityService:
                 IdentityService.queue_party_verification(party_id=party.pk)
 
         return {"status": decision, "detail": _LIVENESS_DETAILS[decision]}
+
+    @staticmethod
+    @transaction.atomic
+    def resolve_manual_review(*, verification_id: int, approved: bool, actor: str) -> str:
+        from apps.audit.services import AuditService
+
+        verification = (
+            PartyIdentityVerification.objects.select_for_update()
+            .select_related("party")
+            .get(pk=verification_id)
+        )
+        codes = list(verification.failure_codes)
+        allowed = (["liveness_manual_review"], ["face_match_manual_review"])
+        if (
+            codes not in allowed
+            or verification.status != verification.Status.MANUAL_REVIEW_REQUIRED
+        ):
+            raise DomainError("This verification is not eligible for a manual review decision.")
+        if codes == ["liveness_manual_review"] and not verification.liveness_reference_s3_key:
+            raise DomainError("The liveness reference has expired. The party must retry.")
+        if codes == ["face_match_manual_review"] and not (
+            verification.front_evidence_id and verification.back_evidence_id
+        ):
+            raise DomainError("The Ghana Card evidence is no longer available for review.")
+
+        if approved and codes == ["liveness_manual_review"]:
+            verification.liveness_status = "passed"
+            verification.status = verification.Status.PENDING
+            verification.detail = "Face check approved after manual review."
+            verification.failure_codes = []
+            verification.save(
+                update_fields=[
+                    "liveness_status",
+                    "status",
+                    "detail",
+                    "failure_codes",
+                    "updated_at",
+                ]
+            )
+            IdentityService.queue_party_verification(party_id=verification.party_id)
+            decision = "approved_liveness"
+        elif approved:
+            verification.mark_verified(detail="Identity approved after manual review.")
+            verification.save(
+                update_fields=["status", "detail", "failure_codes", "verified_at", "updated_at"]
+            )
+            decision = "approved_identity"
+        else:
+            verification.status = verification.Status.FAILED
+            verification.detail = "Identity verification was rejected after manual review."
+            verification.failure_codes = ["manual_review_rejected"]
+            verification.verified_at = None
+            verification.save(
+                update_fields=[
+                    "status",
+                    "detail",
+                    "failure_codes",
+                    "verified_at",
+                    "updated_at",
+                ]
+            )
+            decision = "rejected"
+
+        AuditService.record_event(
+            event_type="identity.manual_review_resolved",
+            entity_type="party_identity_verification",
+            entity_id=str(verification.pk),
+            actor=actor,
+            metadata={"decision": decision, "prior_failure_codes": codes},
+        )
+        return decision

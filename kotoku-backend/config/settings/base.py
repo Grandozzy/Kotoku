@@ -177,6 +177,10 @@ CELERY_BEAT_SCHEDULE = {
         "task": "apps.payments.tasks.expire_lapsed_subscriptions",
         "schedule": 86400,  # daily
     },
+    "cleanup-expired-liveness-references": {
+        "task": "apps.identity.tasks.cleanup_expired_liveness_references",
+        "schedule": 86400,
+    },
 }
 
 CACHES = {
@@ -208,6 +212,11 @@ AWS_REKOGNITION_LIVENESS_MAX_FAILURES = int(os.getenv("AWS_REKOGNITION_LIVENESS_
 AWS_REKOGNITION_LIVENESS_FAILURE_WINDOW_SECONDS = int(
     os.getenv("AWS_REKOGNITION_LIVENESS_FAILURE_WINDOW_SECONDS", "180")
 )
+IDENTITY_CARD_MIN_SHORT_EDGE = int(os.getenv("IDENTITY_CARD_MIN_SHORT_EDGE", "1000"))
+IDENTITY_CARD_MIN_EDGE_VARIANCE = float(os.getenv("IDENTITY_CARD_MIN_EDGE_VARIANCE", "40"))
+IDENTITY_CARD_MAX_DARK_RATIO = float(os.getenv("IDENTITY_CARD_MAX_DARK_RATIO", "0.50"))
+IDENTITY_CARD_MAX_BRIGHT_RATIO = float(os.getenv("IDENTITY_CARD_MAX_BRIGHT_RATIO", "0.50"))
+IDENTITY_LIVENESS_RETENTION_DAYS = int(os.getenv("IDENTITY_LIVENESS_RETENTION_DAYS", "30"))
 AWS_REKOGNITION_LIVENESS_COOLDOWN_SECONDS = int(
     os.getenv("AWS_REKOGNITION_LIVENESS_COOLDOWN_SECONDS", "1800")
 )

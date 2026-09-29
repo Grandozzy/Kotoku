@@ -115,6 +115,7 @@ class S3StorageClient:
             "Key": key,
             "Body": data,
             "ContentType": content_type,
+            "ServerSideEncryption": "AES256",
         }
         metadata = dict(metadata or {})
         if checksum_sha256:
@@ -166,13 +167,15 @@ class S3StorageClient:
                 "Bucket": settings.AWS_STORAGE_BUCKET_NAME,
                 "Key": key,
                 "ContentType": content_type,
+                "ServerSideEncryption": "AES256",
             },
             ExpiresIn=expires_in,
         )
-        # Only Content-Type is included in the presigned signature.
+        # Both headers are included in the signature and must be sent verbatim.
         # The checksum is verified server-side in confirm_upload via HEAD object.
         return url, {
             "Content-Type": content_type,
+            "x-amz-server-side-encryption": "AES256",
         }
 
     def head_object(self, key: str) -> dict:
@@ -195,6 +198,10 @@ class S3StorageClient:
             Key=key,
         )
         return response["Body"].read()
+
+    def delete_object(self, key: str) -> None:
+        client = _get_client()
+        client.delete_object(Bucket=settings.AWS_STORAGE_BUCKET_NAME, Key=key)
 
     def build_object_url(self, key: str) -> str:
         return _build_object_url(key)

@@ -43,6 +43,7 @@ AGENTS.md
 !KOTOKU_CODING_RULES.md
 !docs/architecture/evidence-upload-hardening.md
 !Consent_hardening.md
+!kotoku-backend/docs/architecture/ghana-card-4-layer-verifier.md
 
 # init docs (local planning)
 init docs/

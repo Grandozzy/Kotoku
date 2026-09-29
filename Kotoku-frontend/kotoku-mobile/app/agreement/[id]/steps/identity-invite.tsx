@@ -7,6 +7,7 @@ import * as ImagePicker from "expo-image-picker";
 
 import { createLivenessSession, submitLivenessResult } from "@/api/agreements";
 import { LivenessWebView } from "@/components/identity/LivenessWebView";
+import { GhanaCardCamera } from "@/components/identity/GhanaCardCamera";
 import { PhotoSlot } from "@/components/evidence/PhotoSlot";
 import { UploadSourceSheet } from "@/components/evidence/UploadSourceSheet";
 import { Button, NoticeCard, ScreenLoader } from "@/components/ui";
@@ -34,7 +35,8 @@ export default function IdentityInviteStep() {
   const agreementId = Number(id);
 
   const { data: agreement, isLoading } = useAgreement(agreementId);
-  const { items, pickImage, retryUpload, error: uploadError } = useEvidenceUpload(agreementId);
+  const { items, pickImage, uploadLocalImage, retryUpload, error: uploadError } =
+    useEvidenceUpload(agreementId);
 
   const [livenessSession, setLivenessSession] = useState<{ sessionId: string; region: string } | null>(null);
   const [livenessLoading, setLivenessLoading] = useState(false);
@@ -43,6 +45,7 @@ export default function IdentityInviteStep() {
   const [localLivenessStatus, setLocalLivenessStatus] = useState<"passed" | "failed" | null>(null);
   const [pollVerification, setPollVerification] = useState(false);
   const [uploadSheet, setUploadSheet] = useState<UploadSheetState | null>(null);
+  const [cardCamera, setCardCamera] = useState<UploadSheetState | null>(null);
   const processingResult = useRef(false);
 
   // Poll the agreement every 3 s after liveness passes until identity is fully verified.
@@ -147,6 +150,15 @@ export default function IdentityInviteStep() {
     if (!uploadSheet) return;
     const current = uploadSheet;
     setUploadSheet(null);
+    if (source === "camera") {
+      const permission = await ImagePicker.requestCameraPermissionsAsync();
+      if (!permission.granted) {
+        setLivenessError("Camera access is required to capture the Ghana Card.");
+        return;
+      }
+      setCardCamera(current);
+      return;
+    }
     await pickImage(current.slotId, current.evidenceType, {
       source,
       cameraType: "back",
@@ -345,6 +357,21 @@ export default function IdentityInviteStep() {
           onClose={() => setLivenessSession(null)}
         />
       )}
+
+      <GhanaCardCamera
+        visible={Boolean(cardCamera)}
+        side={cardCamera?.evidenceType.endsWith("_front") ? "front" : "back"}
+        onClose={() => setCardCamera(null)}
+        onUsePhoto={async (photo) => {
+          if (!cardCamera) return;
+          await uploadLocalImage(cardCamera.slotId, cardCamera.evidenceType, {
+            uri: photo.uri,
+            mimeType: "image/jpeg",
+            width: photo.width,
+            height: photo.height,
+          });
+        }}
+      />
 
       <UploadSourceSheet
         visible={Boolean(uploadSheet)}

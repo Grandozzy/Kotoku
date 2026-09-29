@@ -69,6 +69,7 @@ class PartyIdentityVerification(models.Model):
     liveness_status = models.CharField(max_length=16, blank=True)
     liveness_confidence = models.FloatField(null=True, blank=True)
     liveness_reference_s3_key = models.CharField(max_length=512, blank=True)
+    liveness_reference_delete_after = models.DateTimeField(null=True, blank=True, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

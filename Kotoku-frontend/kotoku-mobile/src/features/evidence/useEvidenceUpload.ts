@@ -40,6 +40,11 @@ interface UseEvidenceUploadReturn {
     evidenceType: string,
     options?: PickImageOptions,
   ) => Promise<void>;
+  uploadLocalImage: (
+    slotId: string,
+    evidenceType: string,
+    asset: { uri: string; mimeType?: string | null; width?: number; height?: number },
+  ) => Promise<void>;
   retryUpload: (slotId: string) => Promise<void>;
   uploadStatus: (slotId: string) => UploadStatus;
   error: string | null;
@@ -81,7 +86,7 @@ export function useEvidenceUpload(
   const [items, setItems] = useState<Record<string, UploadItem>>({});
   const [error, setError] = useState<string | null>(null);
 
-  const uploadItem = async (item: UploadItem) => {
+  const uploadItem = async (item: UploadItem, rethrow = false) => {
     let step = "getUploadUrl";
     try {
       if (!item.mimeType || !item.sizeBytes || !item.checksumSha256) {
@@ -145,6 +150,7 @@ export function useEvidenceUpload(
           },
         };
       });
+      if (rethrow) throw err;
     }
   };
 
@@ -222,21 +228,7 @@ export function useEvidenceUpload(
       if (result.canceled || !result.assets[0]) return;
 
       const asset = result.assets[0];
-      const { checksumSha256, mimeType, sizeBytes } =
-        await getEvidenceFileDescriptor(asset.uri, asset.mimeType);
-
-      step = "getUploadUrl";
-      const nextItem: UploadItem = {
-        slotId,
-        evidenceType,
-        localUri: asset.uri,
-        uploadStatus: "uploading",
-        mimeType,
-        sizeBytes,
-        checksumSha256,
-      };
-      setItems((prev) => ({ ...prev, [slotId]: nextItem }));
-      await uploadItem(nextItem);
+      await uploadLocalImage(slotId, evidenceType, asset);
     } catch (err) {
       const prefix = `[step:${step}]`;
       const msg = describeUploadError(err, `${prefix} Failed to upload photo.`);
@@ -261,6 +253,38 @@ export function useEvidenceUpload(
     }
   };
 
+  const uploadLocalImage = async (
+    slotId: string,
+    evidenceType: string,
+    asset: { uri: string; mimeType?: string | null; width?: number; height?: number },
+  ) => {
+    setError(null);
+    if (
+      evidenceType.includes("ghana_card") &&
+      asset.width &&
+      asset.height &&
+      Math.min(asset.width, asset.height) < 1000
+    ) {
+      throw new Error("The Ghana Card photo resolution is too low. Retake it closer to the card.");
+    }
+    const { checksumSha256, mimeType, sizeBytes } = await getEvidenceFileDescriptor(
+      asset.uri,
+      asset.mimeType ?? undefined,
+    );
+
+    const nextItem: UploadItem = {
+        slotId,
+        evidenceType,
+        localUri: asset.uri,
+        uploadStatus: "uploading",
+        mimeType,
+        sizeBytes,
+        checksumSha256,
+    };
+    setItems((prev) => ({ ...prev, [slotId]: nextItem }));
+    await uploadItem(nextItem, true);
+  };
+
   const uploadStatus = (slotId: string): UploadStatus =>
     items[slotId]?.uploadStatus ?? "pending";
 
@@ -277,5 +301,5 @@ export function useEvidenceUpload(
     await uploadItem({ ...item, uploadStatus: "uploading" });
   };
 
-  return { items, pickImage, retryUpload, uploadStatus, error };
+  return { items, pickImage, uploadLocalImage, retryUpload, uploadStatus, error };
 }
